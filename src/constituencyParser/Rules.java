@@ -19,6 +19,13 @@ public class Rules implements Serializable {
 	public Rules() {
 	}
 	
+	public Rules(Rules rules) {
+		this.binaryRules = new ArrayList<>(rules.binaryRules);
+		this.unaryRules = new ArrayList<>(rules.unaryRules);
+		this.binaryIds = new HashMap<>(rules.binaryIds);
+		this.unaryIds = new HashMap<>(rules.unaryIds);
+	}
+	
 	private void addBinaryRule(Rule rule) {
 		if(binaryIds.containsKey(rule))
 			return;

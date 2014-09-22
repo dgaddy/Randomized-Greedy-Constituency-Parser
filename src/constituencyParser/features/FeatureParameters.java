@@ -1,6 +1,7 @@
 package constituencyParser.features;
 
 import gnu.trove.map.hash.TIntDoubleHashMap;
+import gnu.trove.procedure.TIntDoubleProcedure;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -83,6 +84,18 @@ public class FeatureParameters implements Serializable {
 		return score;
 	}
 	
+	private SpanPropertyParameters getOrCreateSpanPropertyParameters(SpanProperty property) {
+		SpanPropertyParameters params;
+		if(featureValues.containsKey(property)) {
+			params = featureValues.get(property);
+		}
+		else {
+			params = new SpanPropertyParameters(numberOfLabels, rules.getNumberOfBinaryRules(), rules.getNumberOfUnaryRules());
+			featureValues.put(property, params);
+		}
+		return params;
+	}
+	
 	/**
 	 * adds scale*featureUpdates to the parameters
 	 * @param featureUpdates
@@ -94,14 +107,7 @@ public class FeatureParameters implements Serializable {
 			SpanProperty property = feature.getProperty();
 			Rule rule = feature.getRule();
 			
-			SpanPropertyParameters params;
-			if(featureValues.containsKey(property)) {
-				params = featureValues.get(property);
-			}
-			else {
-				params = new SpanPropertyParameters(numberOfLabels, rules.getNumberOfBinaryRules(), rules.getNumberOfUnaryRules());
-				featureValues.put(property, params);
-			}
+			SpanPropertyParameters params = getOrCreateSpanPropertyParameters(property);
 			
 			double adjustment = scale * entry.getValue();
 			params.labelValues.adjustOrPutValue(rule.getParent(), adjustment, adjustment);
@@ -112,5 +118,40 @@ public class FeatureParameters implements Serializable {
 				params.unaryRuleValues.adjustOrPutValue(rules.getUnaryId(rule), adjustment, adjustment);
 			}
 		}
+	}
+	
+	public static FeatureParameters average(List<FeatureParameters> toAverage, int numLabels, Rules rules) {
+		final double factor = 1.0 / toAverage.size();
+		FeatureParameters average = new FeatureParameters(numLabels, rules);
+		for(FeatureParameters params : toAverage) {
+			for(Entry<SpanProperty, SpanPropertyParameters> entry : params.featureValues.entrySet()) {
+				final SpanPropertyParameters averageParams = average.getOrCreateSpanPropertyParameters(entry.getKey());
+				entry.getValue().labelValues.forEachEntry(new TIntDoubleProcedure() {
+					@Override
+					public boolean execute(int label, double value) {
+						double update = value * factor;
+						averageParams.labelValues.adjustOrPutValue(label, update, update);
+						return false;
+					}
+				});
+				entry.getValue().unaryRuleValues.forEachEntry(new TIntDoubleProcedure() {
+					@Override
+					public boolean execute(int label, double value) {
+						double update = value * factor;
+						averageParams.unaryRuleValues.adjustOrPutValue(label, update, update);
+						return false;
+					}
+				});
+				entry.getValue().binaryRuleValues.forEachEntry(new TIntDoubleProcedure() {
+					@Override
+					public boolean execute(int label, double value) {
+						double update = value * factor;
+						averageParams.binaryRuleValues.adjustOrPutValue(label, update, update);
+						return false;
+					}
+				});
+			}
+		}
+		return average;
 	}
 }

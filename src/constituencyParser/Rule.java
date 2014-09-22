@@ -29,10 +29,10 @@ public class Rule implements Serializable {
 		type = Type.TERMINAL;
 	}
 	
-	private Type type;
-	private int parent;
-	private int left;
-	private int right;
+	private volatile Type type;
+	private volatile int parent;
+	private volatile int left;
+	private volatile int right;
 	
 	public int getParent() {
 		return parent;

@@ -11,6 +11,15 @@ public class LabelEnumeration implements Serializable {
 	List<String> idToLabel = new ArrayList<>();
 	HashMap<String, Integer> labelToId = new HashMap<>();
 	
+	public LabelEnumeration() {
+		
+	}
+	
+	public LabelEnumeration(LabelEnumeration other) {
+		this.idToLabel = new ArrayList<>(other.idToLabel);
+		this.labelToId = new HashMap<>(other.labelToId);
+	}
+	
 	/**
 	 * Adds label if not already added
 	 * @param label
