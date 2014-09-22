@@ -1,8 +1,9 @@
 package constituencyParser.features;
 
+import gnu.trove.map.hash.TIntDoubleHashMap;
+
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,22 +15,16 @@ import constituencyParser.features.Feature.SpanProperty;
 
 public class FeatureParameters implements Serializable {
 	public class SpanPropertyParameters implements Serializable {
-		private static final long serialVersionUID = 1L;
+		private static final long serialVersionUID = 2L;
 		
-		private double[] labelValues;
-		private double[] unaryRuleValues;
-		private double[] binaryRuleValues;
+		private TIntDoubleHashMap labelValues;
+		private TIntDoubleHashMap unaryRuleValues;
+		private TIntDoubleHashMap binaryRuleValues;
 		
 		private SpanPropertyParameters(int numLabels, int numBinaryRules, int numUnaryRules) {
-			labelValues = new double[numLabels];
-			binaryRuleValues = new double[numBinaryRules];
-			unaryRuleValues = new double[numUnaryRules];
-		}
-		
-		void resize(int numLabels, int numBinaryRules, int numUnaryRules) {
-			labelValues = Arrays.copyOf(labelValues, numLabels);
-			unaryRuleValues = Arrays.copyOf(unaryRuleValues, numUnaryRules);
-			binaryRuleValues = Arrays.copyOf(binaryRuleValues, numBinaryRules);
+			labelValues = new TIntDoubleHashMap();
+			binaryRuleValues = new TIntDoubleHashMap();
+			unaryRuleValues = new TIntDoubleHashMap();
 		}
 	}
 	
@@ -48,11 +43,6 @@ public class FeatureParameters implements Serializable {
 	public void resize(int numLabels, Rules rules) {
 		this.numberOfLabels = numLabels;
 		this.rules = rules;
-		int numBin = rules.getNumberOfBinaryRules();
-		int numUn = rules.getNumberOfUnaryRules();
-		for(Entry<SpanProperty, SpanPropertyParameters> entry : featureValues.entrySet()) {
-			entry.getValue().resize(numLabels, numBin, numUn);
-		}
 	}
 	
 	/**
@@ -72,7 +62,7 @@ public class FeatureParameters implements Serializable {
 	public static double scoreBinary(List<SpanPropertyParameters> properties, int ruleNumber, int labelNumber) {
 		double score = 0;
 		for(SpanPropertyParameters params : properties) {
-			score += params.labelValues[labelNumber] + params.binaryRuleValues[ruleNumber]; 
+			score += params.labelValues.get(labelNumber) + params.binaryRuleValues.get(ruleNumber); 
 		}
 		return score;
 	}
@@ -80,7 +70,7 @@ public class FeatureParameters implements Serializable {
 	public static double scoreUnary(List<SpanPropertyParameters> properties, int ruleNumber, int labelNumber) {
 		double score = 0;
 		for(SpanPropertyParameters params : properties) {
-			score += params.labelValues[labelNumber] + params.unaryRuleValues[ruleNumber]; 
+			score += params.labelValues.get(labelNumber) + params.unaryRuleValues.get(ruleNumber); 
 		}
 		return score;
 	}
@@ -88,7 +78,7 @@ public class FeatureParameters implements Serializable {
 	public static double scoreTerminal(List<SpanPropertyParameters> properties, int labelNumber) {
 		double score = 0;
 		for(SpanPropertyParameters params : properties) {
-			score += params.labelValues[labelNumber];
+			score += params.labelValues.get(labelNumber);
 		}
 		return score;
 	}
@@ -113,11 +103,14 @@ public class FeatureParameters implements Serializable {
 				featureValues.put(property, params);
 			}
 			
-			params.labelValues[rule.getParent()] += scale * entry.getValue();
-			if(rule.getType() == Rule.Type.BINARY)
-				params.binaryRuleValues[rules.getBinaryId(rule)] += scale * entry.getValue();
-			if(rule.getType() == Rule.Type.UNARY)
-				params.unaryRuleValues[rules.getUnaryId(rule)] += scale * entry.getValue();
+			double adjustment = scale * entry.getValue();
+			params.labelValues.adjustOrPutValue(rule.getParent(), adjustment, adjustment);
+			if(rule.getType() == Rule.Type.BINARY) {
+				params.binaryRuleValues.adjustOrPutValue(rules.getBinaryId(rule), adjustment, adjustment);
+			}
+			if(rule.getType() == Rule.Type.UNARY) {
+				params.unaryRuleValues.adjustOrPutValue(rules.getUnaryId(rule), adjustment, adjustment);
+			}
 		}
 	}
 }
