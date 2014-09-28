@@ -12,6 +12,10 @@ public class Span {
 	// binary only, not defined for unary features
 	private int split;
 	
+	// these are optional, used by CKY to hold children
+	private Span left;
+	private Span right;
+	
 	/**
 	 * Makes a terminal span
 	 * @param position
@@ -75,6 +79,22 @@ public class Span {
 	
 	public int getSplit() {
 		return split;
+	}
+	
+	public void setLeft(Span left) {
+		this.left = left;
+	}
+	
+	public void setRight(Span right) {
+		this.right = right;
+	}
+	
+	public Span getLeft() {
+		return left;
+	}
+	
+	public Span getRight() {
+		return right;
 	}
 	
 	public String toString() {

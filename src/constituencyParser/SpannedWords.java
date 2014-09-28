@@ -5,9 +5,9 @@ import java.util.List;
 
 public class SpannedWords { // TODO: better name
 	private List<Span> spans = new ArrayList<>();
-	private List<String> words = new ArrayList<>();
+	private List<Integer> words = new ArrayList<>();
 	
-	public SpannedWords(String word) {
+	public SpannedWords(int word) {
 		words.add(word);
 	}
 	
@@ -51,7 +51,7 @@ public class SpannedWords { // TODO: better name
 	 * Note: editing result will mutate this part
 	 * @return
 	 */
-	public List<String> getWords() {
+	public List<Integer> getWords() {
 		return words;
 	}
 	

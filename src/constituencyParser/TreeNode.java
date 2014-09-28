@@ -82,28 +82,45 @@ public class TreeNode {
 	}
 	
 	private void getAllLabels(List<String> result) {
-		result.add(label);
+		if(label != null)
+			result.add(label);
 		for(TreeNode child : children) {
 			child.getAllLabels(result);
 		}
 	}
 	
-	public SpannedWords getSpans(LabelEnumeration labels) {
+	public List<String> getAllWords() {
+		List<String> result = new ArrayList<>();
+		getAllWords(result);
+		return result;
+	}
+	
+	private void getAllWords(List<String> result) {
 		if(isWord)
-			return new SpannedWords(word);
+			result.add(word);
+		else {
+			for(TreeNode child : children) {
+				child.getAllWords(result);
+			}
+		}
+	}
+	
+	public SpannedWords getSpans(WordEnumeration words, LabelEnumeration labels) {
+		if(isWord)
+			return new SpannedWords(words.getId(word));
 			
 		if(label == null)
 			throw new IllegalStateException("Must have label for non-terminals.");
 		
 		if(children.size() == 1) {
 			if(children.get(0).isWord)
-				return new SpannedWords(children.get(0).getSpans(labels), labels.getId(label));
+				return new SpannedWords(children.get(0).getSpans(words, labels), labels.getId(label));
 			else
-				return new SpannedWords(children.get(0).getSpans(labels), labels.getId(label), labels.getId(children.get(0).getLabel()));
+				return new SpannedWords(children.get(0).getSpans(words, labels), labels.getId(label), labels.getId(children.get(0).getLabel()));
 		}
 		else if(children.size() == 2) {
-			SpannedWords left = children.get(0).getSpans(labels);
-			SpannedWords right = children.get(1).getSpans(labels);
+			SpannedWords left = children.get(0).getSpans(words, labels);
+			SpannedWords right = children.get(1).getSpans(words, labels);
 			return new SpannedWords(left, right, labels.getId(label), labels.getId(children.get(0).getLabel()), labels.getId(children.get(1).getLabel()));
 		}
 		else {

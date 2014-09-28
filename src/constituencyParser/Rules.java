@@ -80,4 +80,35 @@ public class Rules implements Serializable {
 	public int getNumberOfUnaryRules() {
 		return unaryRules.size();
 	}
+	
+	public Rule getRule(int id, Type type) {
+		if(type == Type.BINARY)
+			return getBinaryRule(id);
+		else if(type == Type.UNARY)
+			return getUnaryRule(id);
+		else if(type == Type.TERMINAL)
+			return new Rule(id);
+		else return null;
+	}
+	
+	/**
+	 * 20 bit
+	 * @param ruleId
+	 * @param type
+	 * @return
+	 */
+	public static long getRuleCode(int ruleId, Rule.Type type) {
+		return (type.ordinal() << 16L) + ruleId;
+	}
+	
+	public static long getTerminalRuleCode(int labelId) {
+		return getRuleCode(labelId, Type.TERMINAL);
+	}
+	
+	public Rule getRuleFromCode(long code) {
+		int ruleId = (int) (code % (1L << 16L));
+		int typeOrdinal = (int) (code >> 16L);
+		Type type = Type.values()[typeOrdinal];
+		return getRule(ruleId, type);
+	}
 }

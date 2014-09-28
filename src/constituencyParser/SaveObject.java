@@ -27,14 +27,20 @@ public class SaveObject implements Serializable {
 		objectStream.close();
 	}
 	
+	private WordEnumeration words;
 	private LabelEnumeration labels;
 	private Rules rules;
 	private FeatureParameters parameters;
 	
-	public SaveObject(LabelEnumeration labels, Rules rules, FeatureParameters parameters) {
+	public SaveObject(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters) {
+		this.words = words;
 		this.labels = labels;
 		this.rules = rules;
 		this.parameters = parameters;
+	}
+	
+	public WordEnumeration getWords() {
+		return words;
 	}
 	
 	public LabelEnumeration getLabels() {

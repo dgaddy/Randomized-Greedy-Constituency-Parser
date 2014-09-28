@@ -3,13 +3,17 @@ package constituencyParser;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class LabelEnumeration implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	List<String> idToLabel = new ArrayList<>();
 	HashMap<String, Integer> labelToId = new HashMap<>();
+	
+	HashSet<Integer> topLevelLabels = new HashSet<>();
 	
 	public LabelEnumeration() {
 		
@@ -18,6 +22,7 @@ public class LabelEnumeration implements Serializable {
 	public LabelEnumeration(LabelEnumeration other) {
 		this.idToLabel = new ArrayList<>(other.idToLabel);
 		this.labelToId = new HashMap<>(other.labelToId);
+		this.topLevelLabels = new HashSet<>(other.topLevelLabels);
 	}
 	
 	/**
@@ -36,6 +41,15 @@ public class LabelEnumeration implements Serializable {
 		for(String label : labels) {
 			addLabel(label);
 		}
+	}
+	
+	public void addTopLevelLabel(String label) {
+		addLabel(label); // just to make sure it is added
+		topLevelLabels.add(getId(label));
+	}
+	
+	public Set<Integer> getTopLevelLabelIds() {
+		return topLevelLabels;
 	}
 	
 	public String getLabel(int id) {

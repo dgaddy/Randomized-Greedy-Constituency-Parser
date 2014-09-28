@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Adapted from github: yfpeng's PennTreebankReader
@@ -158,4 +160,49 @@ public class PennTreebankReader implements Closeable {
       throws IOException {
     reader.close();
   }
+  
+	/**
+	 * Loads data from files numbered firstFile to lastFile (exclusive)
+	 * @param folder
+	 * @param firstFile
+	 * @param lastFile exclusive
+	 * @param labels all new labels will be added to this
+	 * @param rules all new rules will be added to this
+	 * @return
+	 * @throws IOException 
+	 */
+	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, Rules rules) throws IOException {
+
+		List<SpannedWords> loaded = new ArrayList<>();
+		List<TreeNode> trees = new ArrayList<>();
+		
+		String formatString = folder+"wsj.%1$02d.txt";
+		
+		for(int i = firstFile; i < lastFile; i++) {
+			String fileName = String.format(formatString, i);
+			PennTreebankReader reader = new PennTreebankReader(fileName);
+			TreeNode tree;
+			while((tree = reader.readPtbTree()) != null) {
+				tree.removeNoneLabel();
+				tree.makeLabelsSimple();
+				tree = tree.makeBinary();
+				trees.add(tree);
+				words.addAllWords(tree.getAllWords());
+				labels.addAllLabels(tree.getAllLabels());
+				labels.addTopLevelLabel(tree.getLabel());
+			}
+			
+			reader.close();
+		}
+		
+		
+		for(TreeNode tree : trees) {
+			loaded.add(tree.getSpans(words, labels));
+		}
+		
+
+		rules.addAllRules(loaded);
+		
+		return loaded;
+	}
 }
