@@ -38,7 +38,7 @@ public class PassiveAgressive {
 		for(SpannedWords sw : trainingExamples) {
 			count++;
 			if(count % 100 == 0) {
-				System.out.println(count + " of " + trainingExamples.size());
+				System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double)count));
 			}
 			
 			List<Integer> words = sw.getWords();
@@ -76,11 +76,11 @@ public class PassiveAgressive {
 				}
 				l2_norm = Math.sqrt(l2_norm);
 				
-				parameters.add(features, loss/l2_norm);
+				parameters.update(features, 1);
 			}
 		}
 		
-		System.out.println("Average loss: " + (totalLoss / (double)count));
+		System.out.println("Finished; Average loss: " + (totalLoss / (double)count));
 	}
 	
 	public FeatureParameters getParameters() {
@@ -91,8 +91,9 @@ public class PassiveAgressive {
 		HashSet<Span> predictedSpans = new HashSet<>(predicted);
 		int loss = 0;
 		for(Span s : gold) {
-			if(!predictedSpans.contains(s))
+			if(!predictedSpans.contains(s)) {
 				loss++;
+			}
 		}
 		return loss;
 	}

@@ -81,7 +81,5 @@ public class Test {
 			//loss = PassiveAgressive.computeLoss(result, examples.get(0).getSpans());
 			//System.out.println("loss is "+ loss);
 		}
-		
-		System.out.println(params);
 	}
 }

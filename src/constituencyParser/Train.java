@@ -92,7 +92,7 @@ public class Train {
 			
 			List<Future<FeatureParameters>> futures = new ArrayList<>();
 			for(List<SpannedWords> d : data) {
-				Future<FeatureParameters> future = pool.submit(new TrainOneIteration(new WordEnumeration(words), new LabelEnumeration(labels), new Rules(rules), d, FeatureParameters.copy(shared)));
+				Future<FeatureParameters> future = pool.submit(new TrainOneIteration(new WordEnumeration(words), new LabelEnumeration(labels), new Rules(rules), d, new FeatureParameters(shared)));
 				futures.add(future);
 			}
 			
