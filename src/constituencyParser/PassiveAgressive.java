@@ -37,8 +37,9 @@ public class PassiveAgressive {
 		int totalLoss = 0;
 		for(SpannedWords sw : trainingExamples) {
 			count++;
-			if(count % 100 == 0) {
-				System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double)count));
+			if(count % 50 == 0) {
+				System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / 50.0));
+				totalLoss = 0;
 			}
 			
 			List<Integer> words = sw.getWords();

@@ -11,6 +11,8 @@ import constituencyParser.features.Features;
 import constituencyParser.features.SpanProperties;
 
 public class CKYDecoder {
+	private static final double PRUNE_THRESHOLD = 10;
+	
 	LabelEnumeration labels;
 	Rules rules;
 	
@@ -52,13 +54,21 @@ public class CKYDecoder {
 			doUnary(words, i, i+1, params);
 		}
 		
+		double[][] max = new double[wordsSize][wordsSize+1];
 		for(int length = 2; length < wordsSize + 1; length++) {
 			for(int start = 0; start < wordsSize + 1 - length; start++) {
+				max[start][start+length] = Double.NEGATIVE_INFINITY;
 				for(int split = 1; split < length; split++) {
 					TLongList spanProperties = SpanProperties.getBinarySpanProperties(words, start, start + length, start + split);
 					for(int r = 0; r < rulesSize; r++) {
+						
 						Rule rule = rules.getBinaryRule(r);
 						int label = rule.getParent();
+						
+						double leftChildScore = scores[start][start+split][rule.getLeft()];
+						double rightChildScore = scores[start+split][start+length][rule.getRight()];
+						if(leftChildScore < max[start][start+split] - PRUNE_THRESHOLD || rightChildScore < max[start+split][start+length] - PRUNE_THRESHOLD)
+							continue;
 						
 						double childScores = scores[start][start+split][rule.getLeft()] + scores[start+split][start+length][rule.getRight()];
 						
@@ -68,6 +78,7 @@ public class CKYDecoder {
 							spanScore += params.getScore(Features.getSpanPropertyByRuleFeature(spanProperties.get(p), ruleCode));
 						}
 						spanScore += params.getScore(Features.getRuleFeature(ruleCode));
+						
 						double fullScore = spanScore + childScores;
 						if(fullScore > scores[start][start+length][label]) {
 							scores[start][start+length][label] = fullScore;
@@ -75,7 +86,13 @@ public class CKYDecoder {
 							span.setLeft(spans[start][start+split][rule.getLeft()]);
 							span.setRight(spans[start+split][start+length][rule.getRight()]);
 							spans[start][start+length][label] = span;
+							
+							if(fullScore > max[start][start+length]) {
+								max[start][start+length] = fullScore;
+							}
 						}
+						
+						
 					}
 				}
 				

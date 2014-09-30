@@ -18,7 +18,7 @@ public class FeatureParameters implements Serializable {
 	TDoubleArrayList gradientsSquared = new TDoubleArrayList();
 	
 	public FeatureParameters() {
-		featureIndices = new TLongIntHashMap(500, 0.5f, 0, -1);
+		featureIndices = new TLongIntHashMap(500, 0.05f, 0, -1);
 	}
 
 	public FeatureParameters(FeatureParameters other) {
