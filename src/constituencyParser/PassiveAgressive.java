@@ -38,8 +38,7 @@ public class PassiveAgressive {
 		for(SpannedWords sw : trainingExamples) {
 			count++;
 			if(count % 50 == 0) {
-				System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / 50.0));
-				totalLoss = 0;
+				System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double) count));
 			}
 			
 			List<Integer> words = sw.getWords();
@@ -52,30 +51,32 @@ public class PassiveAgressive {
 				TLongDoubleHashMap features = new TLongDoubleHashMap();
 				//System.out.println("positive");
 				for(Span s : sw.getSpans()) {
-					TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules);
+					TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum);
 					for(int i = 0; i < featureCodes.size(); i++) {
 						features.adjustOrPutValue(featureCodes.get(i), 1, 1);
 						//System.out.println(Features.getStringForCode(featureCodes.get(i), wordEnum, rules));
 					}
 					features.adjustOrPutValue(Features.getRuleFeature(s.getRule(), rules), 1, 1);
 					//System.out.println(Features.getStringForCode(Features.getRuleFeature(s.getRule(), rules), wordEnum, rules));
+					TLongList propertyByLabelCodes = Features.getSpanPropertyByLabelFeatures(words, s);
+					for(int i = 0; i < propertyByLabelCodes.size(); i++) {
+						features.adjustOrPutValue(propertyByLabelCodes.get(i), 1, 1);
+					}
 				}
 				//System.out.println("negative");
 				for(Span s : predicted) {
-					TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules);
+					TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum);
 					for(int i = 0; i < featureCodes.size(); i++) {
 						features.adjustOrPutValue(featureCodes.get(i), -1, -1);
 						//System.out.println(Features.getStringForCode(featureCodes.get(i), wordEnum, rules));
 					}
 					features.adjustOrPutValue(Features.getRuleFeature(s.getRule(), rules), -1, -1);
 					//System.out.println(Features.getStringForCode(Features.getRuleFeature(s.getRule(), rules), wordEnum, rules));
+					TLongList propertyByLabelCodes = Features.getSpanPropertyByLabelFeatures(words, s);
+					for(int i = 0; i < propertyByLabelCodes.size(); i++) {
+						features.adjustOrPutValue(propertyByLabelCodes.get(i), -1, -1);
+					}
 				}
-				
-				double l2_norm = 0;
-				for(double val : features.values()) {
-					l2_norm += val*val;
-				}
-				l2_norm = Math.sqrt(l2_norm);
 				
 				parameters.update(features, 1);
 			}

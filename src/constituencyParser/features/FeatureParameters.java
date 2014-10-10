@@ -75,6 +75,7 @@ public class FeatureParameters implements Serializable {
 	
 	public static FeatureParameters average(List<FeatureParameters> toAverage) {
 		final FeatureParameters average = new FeatureParameters();
+		final double factor = 1.0/toAverage.size();
 		for(FeatureParameters params : toAverage) {
 			final FeatureParameters parameters = params;
 			params.featureIndices.forEachEntry(new TLongIntProcedure() {
@@ -82,8 +83,8 @@ public class FeatureParameters implements Serializable {
 				@Override
 				public boolean execute(long key, int index) {
 					int averageIndex = average.getOrMakeIndex(key);
-					average.featureValues.setQuick(averageIndex, parameters.featureValues.getQuick(index) + average.featureValues.getQuick(averageIndex));
-					average.gradientsSquared.setQuick(averageIndex, parameters.gradientsSquared.getQuick(index) + average.gradientsSquared.getQuick(averageIndex));
+					average.featureValues.setQuick(averageIndex, parameters.featureValues.getQuick(index) * factor + average.featureValues.getQuick(averageIndex));
+					average.gradientsSquared.setQuick(averageIndex, parameters.gradientsSquared.getQuick(index) * factor + average.gradientsSquared.getQuick(averageIndex));
 					return true;
 				}
 				

@@ -15,6 +15,7 @@ public class SpanProperties {
 	 * bits 31-28  from end are an id for the type of property 
 	 * word property: 0001
 	 * length property: 0010
+	 * prefix/sufix property: 0011
 	 */
 	
 	/**
@@ -23,7 +24,7 @@ public class SpanProperties {
 	 * @param location
 	 * @return
 	 */
-	public static TLongList getTerminalSpanProperties(List<Integer> words, int location) {
+	public static TLongList getTerminalSpanProperties(List<Integer> words, int location, WordEnumeration wordEnum) {
 		TLongList properties = new TLongArrayList();
 		
 		properties.add(getWordPropertyCode(words.get(location), WordPropertyType.FIRST));
@@ -32,6 +33,14 @@ public class SpanProperties {
 		
 		if(location + 1 < words.size())
 			properties.add(getWordPropertyCode(words.get(location + 1), WordPropertyType.AFTER));
+		
+		for(int prefix : wordEnum.getPrefixes(words.get(location))) {
+			properties.add(getPrefixPropertyCode(prefix));
+		}
+		
+		for(int suffix : wordEnum.getSuffixes(words.get(location))) {
+			properties.add(getSuffixPropertyCode(suffix));
+		}
 		
 		return properties;
 	}
@@ -110,6 +119,14 @@ public class SpanProperties {
 		return (2L << 28L) + length;
 	}
 	
+	public static long getPrefixPropertyCode(int prefix) {
+		return (3L << 28L) + (1L << 24L) + prefix;
+	}
+	
+	public static long getSuffixPropertyCode(int suffix) {
+		return (3L << 28L) + (2L << 24L) + suffix;
+	}
+	
 	public static String getSpanPropertyCodeString(long code, WordEnumeration words) {
 		int type = (int) (code >> 28L);
 		if(type == 1) {
@@ -121,6 +138,15 @@ public class SpanProperties {
 		}
 		else if(type == 2) {
 			return "Length " + (code % (1L<<28L));
+		}
+		else if(type == 3) {
+			int pfxorsfx = (int) ((code % (1L<<28L)) >> 24L);
+			if(pfxorsfx == 1)
+				return "Prefix " + words.getPrefixForId((int)(code % (1L << 24L)));
+			else if(pfxorsfx == 2)
+				return "Suffix " + words.getSuffixForId((int)(code % (1L << 24L)));
+			else
+				return "invalid prefix/suffix";
 		}
 		else
 			return "invalid";

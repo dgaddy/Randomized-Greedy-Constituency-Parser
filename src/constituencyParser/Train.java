@@ -14,18 +14,19 @@ import constituencyParser.features.FeatureParameters;
 
 public class Train {
 	public static void main(String[] args) throws Exception {
-		if(args.length < 3) {
-			System.out.println("Arguments are [folder] [number cores] [number iterations]");
+		if(args.length < 4) {
+			System.out.println("Arguments are [data folder] [output folder] [number cores] [number iterations] [optional: percent of data]");
 			return;
 		}
 		
 		
-		String folder = args[0];
-		int cores = Integer.parseInt(args[1]);
-		int iterations = Integer.parseInt(args[2]);
+		String dataFolder = args[0];
+		String outputFolder = args[1];
+		int cores = Integer.parseInt(args[2]);
+		int iterations = Integer.parseInt(args[3]);
 		double percentOfData = 1;
-		if(args.length > 3) {
-			percentOfData = Double.parseDouble(args[3]);
+		if(args.length > 4) {
+			percentOfData = Double.parseDouble(args[4]);
 			if(percentOfData > 1) {
 				System.out.println("Percent of data (4th argument) must be less than 1");
 				return;
@@ -33,10 +34,11 @@ public class Train {
 		}
 		
 		System.out.println("Running training with " + cores + " cores for " + iterations + " iterations.");
-		System.out.println("Data directory: " + folder);
+		System.out.println("Data directory: " + dataFolder);
+		System.out.println("Output directory: " + outputFolder);
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
-		trainParallel(folder, cores, iterations, percentOfData);
+		trainParallel(dataFolder, outputFolder, cores, iterations, percentOfData);
 	}
 	
 	public static void train(String folder) throws IOException {
@@ -45,7 +47,7 @@ public class Train {
 		Rules rules = new Rules();
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles(folder, 2, 3, words, labels, rules);
 		
-		CKYDecoder decoder = new CKYDecoder(labels, rules);
+		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 		PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder);
 		pa.train(examples);
 		FeatureParameters params = pa.getParameters();
@@ -72,19 +74,19 @@ public class Train {
 		@Override
 		public FeatureParameters call() throws Exception {
 			System.out.println("Starting new training.");
-			CKYDecoder decoder = new CKYDecoder(labels, rules);
+			CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 			PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder, initialParams);
 			pa.train(data);
 			return pa.getParameters();
 		}
 	}
 	
-	public static void trainParallel(String folder, int numberThreads, int iterations, double percentOfData) throws IOException, InterruptedException, ExecutionException {
+	public static void trainParallel(String dataFolder, String outputFolder, int numberThreads, int iterations, double percentOfData) throws IOException, InterruptedException, ExecutionException {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		Rules rules = new Rules();
 		
-		List<SpannedWords> unsplitData = PennTreebankReader.loadFromFiles(folder, 2,22, words, labels, rules); // use only between 2 and 21 for training
+		List<SpannedWords> unsplitData = PennTreebankReader.loadFromFiles(dataFolder, 2,22, words, labels, rules); // use only between 2 and 21 for training
 		if(percentOfData < 1) {
 			unsplitData = new ArrayList<>(unsplitData.subList(0, (int)(unsplitData.size() * percentOfData)));
 		}
@@ -118,7 +120,7 @@ public class Train {
 			
 			shared = FeatureParameters.average(results);
 			SaveObject so = new SaveObject(words, labels, rules, shared);
-			so.save("parallelModel"+i);
+			so.save(outputFolder + "/parallelModel"+i);
 		}
 		
 		pool.shutdown();

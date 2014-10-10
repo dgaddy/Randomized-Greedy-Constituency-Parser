@@ -13,6 +13,7 @@ import constituencyParser.features.SpanProperties;
 public class CKYDecoder {
 	private static final double PRUNE_THRESHOLD = 10;
 	
+	WordEnumeration wordEnum;
 	LabelEnumeration labels;
 	Rules rules;
 	
@@ -21,7 +22,8 @@ public class CKYDecoder {
 	
 	List<Span> usedSpans;
 	
-	public CKYDecoder(LabelEnumeration labels, Rules rules) {
+	public CKYDecoder(WordEnumeration words, LabelEnumeration labels, Rules rules) {
+		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
 	}
@@ -38,7 +40,7 @@ public class CKYDecoder {
 		spans = new Span[wordsSize][wordsSize+1][labelsSize];
 		
 		for(int i = 0; i < wordsSize; i++) {
-			TLongList spanProperties = SpanProperties.getTerminalSpanProperties(words, i);
+			TLongList spanProperties = SpanProperties.getTerminalSpanProperties(words, i, wordEnum);
 			for(int label = 0; label < labelsSize; label++) {
 				Span span = new Span(i, label);
 				double spanScore = 0;
@@ -76,6 +78,7 @@ public class CKYDecoder {
 						final long ruleCode = Rules.getRuleCode(r, Type.BINARY);
 						for(int p = 0; p < spanProperties.size(); p++) {
 							spanScore += params.getScore(Features.getSpanPropertyByRuleFeature(spanProperties.get(p), ruleCode));
+							spanScore += params.getScore(Features.getSpanPropertyByLabelFeature(spanProperties.get(p), label));
 						}
 						spanScore += params.getScore(Features.getRuleFeature(ruleCode));
 						
@@ -131,6 +134,7 @@ public class CKYDecoder {
 			final long ruleCode = Rules.getRuleCode(i, Type.UNARY);
 			for(int p = 0; p < properties.size(); p++) {
 				spanScore += parameters.getScore(Features.getSpanPropertyByRuleFeature(properties.get(p), ruleCode));
+				spanScore += parameters.getScore(Features.getSpanPropertyByLabelFeature(properties.get(p), label));
 			}
 			spanScore += parameters.getScore(Features.getRuleFeature(ruleCode));
 			double fullScore = childScore + spanScore;

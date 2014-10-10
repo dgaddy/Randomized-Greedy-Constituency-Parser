@@ -8,7 +8,7 @@ import constituencyParser.features.FeatureParameters;
 
 public class Test {
 	public static void main(String[] args) throws Exception {
-		testPassiveAggressive();
+		test();
 	}
 	
 	public static void test() throws IOException, ClassNotFoundException {
@@ -20,9 +20,9 @@ public class Test {
 		FeatureParameters parameters = savedModel.getParameters();
 		
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles("../WSJ data/",0, 1, words, labels, rules);
-		gold = gold.subList(0, 200);
+		gold = gold.subList(0, 50);
 		
-		CKYDecoder decoder = new CKYDecoder(labels, rules);
+		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 		
 		int numberCorrect = 0;
 		int numberGold = 0;
@@ -54,7 +54,7 @@ public class Test {
 		Rules rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 		
-		CKYDecoder decoder = new CKYDecoder(labels, rules);
+		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 		
 		List<Span> result = decoder.decode(Arrays.asList(words.getId("I"), words.getId("like"), words.getId("computers"), words.getId(".")), parameters);
 		
@@ -72,7 +72,7 @@ public class Test {
 		
 		while(loss > 0) {
 			// run passive aggressive on the first example
-			CKYDecoder decoder = new CKYDecoder(labels, rules);
+			CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 			PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder, params);
 			pa.train(examples.subList(0, 1));
 			
