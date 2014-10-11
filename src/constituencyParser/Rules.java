@@ -98,7 +98,7 @@ public class Rules implements Serializable {
 	 * @return
 	 */
 	public static long getRuleCode(int ruleId, Rule.Type type) {
-		return (type.ordinal() << 16L) + ruleId;
+		return (((long)type.ordinal()) << 16L) + ruleId;
 	}
 	
 	public static long getTerminalRuleCode(int labelId) {

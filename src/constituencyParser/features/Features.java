@@ -21,7 +21,7 @@ public class Features {
 		return (2L << 52L) + ruleCode;
 	}
 	
-	public static long getSpanPropertyByLabelFeature(long spanPropertyCode, int label) {
+	public static long getSpanPropertyByLabelFeature(long spanPropertyCode, long label) {
 		return (3L << 52L) + (label << 32L) + spanPropertyCode;
 	}
 	

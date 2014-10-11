@@ -19,6 +19,7 @@ public class Train {
 			return;
 		}
 		
+		double dropout = .45;
 		
 		String dataFolder = args[0];
 		String outputFolder = args[1];
@@ -38,7 +39,8 @@ public class Train {
 		System.out.println("Output directory: " + outputFolder);
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
-		trainParallel(dataFolder, outputFolder, cores, iterations, percentOfData);
+		
+		trainParallel(dataFolder, outputFolder, cores, iterations, percentOfData, dropout);
 	}
 	
 	public static void train(String folder) throws IOException {
@@ -49,7 +51,7 @@ public class Train {
 		
 		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 		PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder);
-		pa.train(examples);
+		pa.train(examples, .05);
 		FeatureParameters params = pa.getParameters();
 		
 		SaveObject so = new SaveObject(words, labels, rules, params);
@@ -62,13 +64,15 @@ public class Train {
 		Rules rules;
 		List<SpannedWords> data;
 		FeatureParameters initialParams;
+		double dropout;
 		
-		public TrainOneIteration(WordEnumeration words, LabelEnumeration labels, Rules rules, List<SpannedWords> data, FeatureParameters initialParams) {
+		public TrainOneIteration(WordEnumeration words, LabelEnumeration labels, Rules rules, List<SpannedWords> data, FeatureParameters initialParams, double dropout) {
 			this.words = words;
 			this.labels = labels;
 			this.rules = rules;
 			this.data = data;
 			this.initialParams = initialParams;
+			this.dropout = dropout;
 		}
 
 		@Override
@@ -76,12 +80,12 @@ public class Train {
 			System.out.println("Starting new training.");
 			CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 			PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder, initialParams);
-			pa.train(data);
+			pa.train(data, dropout);
 			return pa.getParameters();
 		}
 	}
 	
-	public static void trainParallel(String dataFolder, String outputFolder, int numberThreads, int iterations, double percentOfData) throws IOException, InterruptedException, ExecutionException {
+	public static void trainParallel(String dataFolder, String outputFolder, int numberThreads, int iterations, double percentOfData, double dropout) throws IOException, InterruptedException, ExecutionException {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		Rules rules = new Rules();
@@ -109,7 +113,7 @@ public class Train {
 			
 			List<Future<FeatureParameters>> futures = new ArrayList<>();
 			for(List<SpannedWords> d : data) {
-				Future<FeatureParameters> future = pool.submit(new TrainOneIteration(new WordEnumeration(words), new LabelEnumeration(labels), new Rules(rules), d, new FeatureParameters(shared)));
+				Future<FeatureParameters> future = pool.submit(new TrainOneIteration(new WordEnumeration(words), new LabelEnumeration(labels), new Rules(rules), d, new FeatureParameters(shared), dropout));
 				futures.add(future);
 			}
 			
@@ -119,8 +123,11 @@ public class Train {
 			}
 			
 			shared = FeatureParameters.average(results);
+			
+			Test.test(words, labels, rules, shared, dataFolder);
+			
 			SaveObject so = new SaveObject(words, labels, rules, shared);
-			so.save(outputFolder + "/parallelModel"+i);
+			so.save(outputFolder + "/modelIteration"+i);
 		}
 		
 		pool.shutdown();

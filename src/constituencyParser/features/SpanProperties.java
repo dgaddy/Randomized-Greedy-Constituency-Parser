@@ -98,7 +98,7 @@ public class SpanProperties {
 	 * @return
 	 */
 	public static long getWordPropertyCode(int word, WordPropertyType type) {
-		return (1L << 28L) + (type.ordinal() << 24L) + word;
+		return (1L << 28L) + (((long)type.ordinal()) << 24L) + word;
 	}
 	
 	/**

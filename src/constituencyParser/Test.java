@@ -8,10 +8,6 @@ import constituencyParser.features.FeatureParameters;
 
 public class Test {
 	public static void main(String[] args) throws Exception {
-		test();
-	}
-	
-	public static void test() throws IOException, ClassNotFoundException {
 		SaveObject savedModel = SaveObject.loadSaveObject("parallelModel2");
 		
 		WordEnumeration words = savedModel.getWords();
@@ -19,7 +15,12 @@ public class Test {
 		Rules rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 		
-		List<SpannedWords> gold = PennTreebankReader.loadFromFiles("../WSJ data/",0, 1, words, labels, rules);
+		test(words, labels, rules, parameters, "../WSJ Data/");
+	}
+	
+	public static void test(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, String dataFolder) throws IOException {
+		
+		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
 		gold = gold.subList(0, 50);
 		
 		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
@@ -28,7 +29,7 @@ public class Test {
 		int numberGold = 0;
 		int numberOutput = 0;
 		for(SpannedWords example : gold) {
-			List<Span> result = decoder.decode(example.getWords(), parameters);
+			List<Span> result = decoder.decode(example.getWords(), parameters, false);
 			for(Span span : result) {
 				for(Span goldSpan : example.getSpans()) {
 					if(span.getStart() == goldSpan.getStart() && span.getEnd() == goldSpan.getEnd() && span.getRule().getParent() == goldSpan.getRule().getParent())
@@ -43,7 +44,7 @@ public class Test {
 		double recall = numberCorrect / (double)numberGold;
 		
 		double score = 2*precision*recall/(precision+recall);
-		System.out.println("Score: " + score);
+		System.out.println("Development set score: " + score);
 	}
 	
 	public static void decodeSentence() throws Exception {
@@ -56,7 +57,7 @@ public class Test {
 		
 		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 		
-		List<Span> result = decoder.decode(Arrays.asList(words.getId("I"), words.getId("like"), words.getId("computers"), words.getId(".")), parameters);
+		List<Span> result = decoder.decode(Arrays.asList(words.getId("I"), words.getId("like"), words.getId("computers"), words.getId(".")), parameters, false);
 		
 		System.out.println(result);
 	}
@@ -74,7 +75,7 @@ public class Test {
 			// run passive aggressive on the first example
 			CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 			PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder, params);
-			pa.train(examples.subList(0, 1));
+			pa.train(examples.subList(0, 1), .05);
 			
 			// the first example should now classify correctly
 			//List<Span> result = decoder.decode(examples.get(0).getWords(), params);

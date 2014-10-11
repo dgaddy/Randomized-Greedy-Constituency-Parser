@@ -1,6 +1,7 @@
 package constituencyParser.features;
 
 import gnu.trove.list.array.TDoubleArrayList;
+import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.TLongDoubleMap;
 import gnu.trove.map.hash.TLongIntHashMap;
 import gnu.trove.procedure.TLongDoubleProcedure;
@@ -16,6 +17,7 @@ public class FeatureParameters implements Serializable {
 	
 	TDoubleArrayList featureValues = new TDoubleArrayList();
 	TDoubleArrayList gradientsSquared = new TDoubleArrayList();
+	transient TIntArrayList dropout; // 1 if should drop, 0 if should keep
 	
 	public FeatureParameters() {
 		featureIndices = new TLongIntHashMap(500, 0.05f, 0, -1);
@@ -27,12 +29,35 @@ public class FeatureParameters implements Serializable {
 		gradientsSquared = new TDoubleArrayList(other.gradientsSquared);
 	}
 	
-	public double getScore(long code) {
+	/**
+	 * This should be called every iteration so we drop a new set of parameters
+	 */
+	public void resetDropout(double probability) {
+		int featureSize = featureValues.size();
+		dropout = new TIntArrayList(featureSize);
+		for(int i = 0; i < featureSize; i++) {
+			int value = Math.random() < probability ? 1 : 0;
+			dropout.add(value);
+		}
+	}
+	
+	private boolean getDropout(int index) {
+		if(index >= dropout.size())
+			return false; // for features that are created after we made the dropout array, just keep them
+		
+		return dropout.get(index) > 0;
+	}
+	
+	public double getScore(long code, boolean doDropout) {
 		int index = featureIndices.get(code);
 		if(index == -1) // default value, so feature isn't in map
 			return 0;
-		else
-			return featureValues.getQuick(index);
+		else {
+			if(doDropout && getDropout(index))
+				return 0;
+			else
+				return featureValues.getQuick(index);
+		}
 	}
 	
 	/**
@@ -50,6 +75,8 @@ public class FeatureParameters implements Serializable {
 				
 				double adjustment = value * scale;
 				int index = getOrMakeIndex(key);
+				if(getDropout(index))
+					return true;
 				
 				double newGradSquared = gradientsSquared.getQuick(index) + adjustment*adjustment;
 				gradientsSquared.setQuick(index, newGradSquared);

@@ -32,17 +32,19 @@ public class PassiveAgressive {
 		this.parameters = parameters;
 	}
 	
-	public void train(List<SpannedWords> trainingExamples) {
+	public void train(List<SpannedWords> trainingExamples, double dropout) {
 		int count = 0;
 		int totalLoss = 0;
 		for(SpannedWords sw : trainingExamples) {
 			count++;
-			if(count % 50 == 0) {
+			/*if(count % 50 == 0) {
 				System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double) count));
-			}
+			}*/
+			
+			parameters.resetDropout(dropout);
 			
 			List<Integer> words = sw.getWords();
-			List<Span> predicted = decoder.decode(words, parameters);
+			List<Span> predicted = decoder.decode(words, parameters, true);
 			
 			int loss = computeLoss(predicted, sw.getSpans()); 
 			totalLoss += loss;
@@ -54,13 +56,14 @@ public class PassiveAgressive {
 					TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum);
 					for(int i = 0; i < featureCodes.size(); i++) {
 						features.adjustOrPutValue(featureCodes.get(i), 1, 1);
-						//System.out.println(Features.getStringForCode(featureCodes.get(i), wordEnum, rules));
+						//System.out.println(Features.getStringForCode(featureCodes.get(i), wordEnum, rules, labels));
 					}
 					features.adjustOrPutValue(Features.getRuleFeature(s.getRule(), rules), 1, 1);
 					//System.out.println(Features.getStringForCode(Features.getRuleFeature(s.getRule(), rules), wordEnum, rules));
 					TLongList propertyByLabelCodes = Features.getSpanPropertyByLabelFeatures(words, s);
 					for(int i = 0; i < propertyByLabelCodes.size(); i++) {
 						features.adjustOrPutValue(propertyByLabelCodes.get(i), 1, 1);
+						//System.out.println(Features.getStringForCode(propertyByLabelCodes.get(i), wordEnum, rules, labels));
 					}
 				}
 				//System.out.println("negative");

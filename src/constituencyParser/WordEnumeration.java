@@ -33,6 +33,9 @@ public class WordEnumeration implements Serializable {
 		
 		idToSuffix = new ArrayList<>(other.idToSuffix);
 		suffixToId = new HashMap<>(other.suffixToId);
+		
+		suffixes = new ArrayList<>(other.suffixes);
+		prefixes = new ArrayList<>(other.prefixes);
 	}
 	
 	/**
@@ -44,7 +47,7 @@ public class WordEnumeration implements Serializable {
 			return;
 		
 		List<Integer> pfxs = new ArrayList<>();
-		for(int i = 1; i <= 5 && i < word.length(); i++) {
+		for(int i = 1; i <= 5 && i <= word.length(); i++) {
 			String pfx = word.substring(0, i);
 			int id = getOrAddPrefix(pfx);
 			pfxs.add(id);
