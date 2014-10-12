@@ -15,7 +15,8 @@ public class Test {
 		Rules rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 		
-		test(words, labels, rules, parameters, "../WSJ Data/");
+		sample(words, labels, rules, parameters);
+		//test(words, labels, rules, parameters, "../WSJ Data/");
 	}
 	
 	public static void test(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, String dataFolder) throws IOException {
@@ -82,5 +83,11 @@ public class Test {
 			//loss = PassiveAgressive.computeLoss(result, examples.get(0).getSpans());
 			//System.out.println("loss is "+ loss);
 		}
+	}
+	
+	public static void sample(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters) {
+		Sampler sampler = new Sampler(words, labels, rules);
+		List<Span> spans = sampler.sample(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket")), parameters);
+		System.out.println(spans);
 	}
 }

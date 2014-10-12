@@ -80,6 +80,14 @@ public class WordEnumeration implements Serializable {
 		return wordToId.get(word);
 	}
 	
+	public List<Integer> getIds(List<String> words) {
+		List<Integer> result = new ArrayList<>();
+		for(String word : words) {
+			result.add(getId(word));
+		}
+		return result;
+	}
+	
 	public int getNumberOfWords() {
 		return idToWord.size();
 	}
