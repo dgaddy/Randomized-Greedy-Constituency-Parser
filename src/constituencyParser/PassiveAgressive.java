@@ -2,6 +2,7 @@ package constituencyParser;
 
 import gnu.trove.list.TLongList;
 import gnu.trove.map.hash.TLongDoubleHashMap;
+import gnu.trove.procedure.TLongDoubleProcedure;
 
 import java.util.HashSet;
 import java.util.List;
@@ -93,13 +94,14 @@ public class PassiveAgressive {
 	}
 	
 	static int computeLoss(List<Span> predicted, List<Span> gold) {
-		HashSet<Span> predictedSpans = new HashSet<>(predicted);
-		int loss = 0;
-		for(Span s : gold) {
-			if(!predictedSpans.contains(s)) {
-				loss++;
-			}
+		HashSet<Span> goldSpans = new HashSet<>(gold);
+		
+		int common = 0;
+		for(Span s : predicted) {
+			if(goldSpans.contains(s))
+				common++;
 		}
-		return loss;
+		
+		return predicted.size() + gold.size() - 2*common;
 	}
 }

@@ -122,13 +122,16 @@ public class CKYDecoder {
 	
 	private void doUnary(List<Integer> words, int start, int end, FeatureParameters parameters, boolean dropout) {
 		int numUnaryRules = rules.getNumberOfUnaryRules();
+		int numLabels = labels.getNumberOfLabels();
 		TLongList properties = SpanProperties.getUnarySpanProperties(words, start, end);
 		
-		List<Span> toAdd = new ArrayList<>();
-		List<Double> scoresToAdd = new ArrayList<>();
+		double[] unaryScores = new double[numLabels];
+		Span[] unarySpans = new Span[numLabels];
+		
 		for(int i = 0; i < numUnaryRules; i++) {
 			Rule rule = rules.getUnaryRule(i);
 			int label = rule.getParent();
+			
 			double childScore = scores[start][end][rule.getLeft()];
 			double spanScore = 0;
 			final long ruleCode = Rules.getRuleCode(i, Type.UNARY);
@@ -138,20 +141,19 @@ public class CKYDecoder {
 			}
 			spanScore += parameters.getScore(Features.getRuleFeature(ruleCode), dropout);
 			double fullScore = childScore + spanScore;
-			if(fullScore > scores[start][end][label]) {
+			if(fullScore > unaryScores[label]) {
 				Span span = new Span(start, end, rule);
 				span.setLeft(spans[start][end][rule.getLeft()]);
-				toAdd.add(span);
-				scoresToAdd.add(fullScore);
+				unaryScores[label] = fullScore;
+				unarySpans[label] = span;
 			}
 		}
 		
-		for(int i = 0; i < toAdd.size(); i++) {
-			Span sp = toAdd.get(i);
-			double sc = scoresToAdd.get(i);
-			int label = sp.getRule().getParent();
-			scores[start][end][label] = sc;
-			spans[start][end][label] = sp;
+		for(int i = 0; i < numLabels; i++) {
+			if(unaryScores[i] > scores[start][end][i] && unarySpans[i] != null) {
+				scores[start][end][i] = unaryScores[i];
+				spans[start][end][i] = unarySpans[i];
+			}
 		}
 	}
 	

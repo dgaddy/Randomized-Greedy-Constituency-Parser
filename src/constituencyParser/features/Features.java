@@ -38,7 +38,7 @@ public class Features {
 		else if(type == 3) {
 			int label = (int) ((code % (1L<<52L)) >> 32L);
 			int spanPropertyCode = (int) (code % (1L<<32L));
-			return labels.getLabel(label) + " " + SpanProperties.getSpanPropertyCodeString(spanPropertyCode, words);
+			return label + " " + SpanProperties.getSpanPropertyCodeString(spanPropertyCode, words);
 		}
 		else
 			return "type " + type +" is invalid";
