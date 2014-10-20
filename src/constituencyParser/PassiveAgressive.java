@@ -2,7 +2,6 @@ package constituencyParser;
 
 import gnu.trove.list.TLongList;
 import gnu.trove.map.hash.TLongDoubleHashMap;
-import gnu.trove.procedure.TLongDoubleProcedure;
 
 import java.util.HashSet;
 import java.util.List;

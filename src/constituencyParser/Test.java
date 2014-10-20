@@ -8,21 +8,26 @@ import constituencyParser.features.FeatureParameters;
 
 public class Test {
 	public static void main(String[] args) throws Exception {
-		SaveObject savedModel = SaveObject.loadSaveObject("parallelModel2");
+		/*
+		//testPassiveAggressive();
+		SaveObject savedModel = SaveObject.loadSaveObject("modelIteration1");
 		
 		WordEnumeration words = savedModel.getWords();
 		LabelEnumeration labels = savedModel.getLabels();
 		Rules rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 		
-		sample(words, labels, rules, parameters);
-		//test(words, labels, rules, parameters, "../WSJ Data/");
+		//sample(words, labels, rules, parameters);
+		test(words, labels, rules, parameters, "../WSJ Data/");
+		*/
+		
+		decodeSentence();
 	}
 	
 	public static void test(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, String dataFolder) throws IOException {
 		
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
-		gold = gold.subList(0, 50);
+		//gold = gold.subList(0, 50);
 		
 		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 		
@@ -39,17 +44,17 @@ public class Test {
 			}
 			numberGold += example.getSpans().size();
 			numberOutput += result.size();
+			
+			double precision = numberCorrect / (double)numberOutput;
+			double recall = numberCorrect / (double)numberGold;
+			
+			double score = 2*precision*recall/(precision+recall);
+			System.out.println("Development set score: " + score);
 		}
-		
-		double precision = numberCorrect / (double)numberOutput;
-		double recall = numberCorrect / (double)numberGold;
-		
-		double score = 2*precision*recall/(precision+recall);
-		System.out.println("Development set score: " + score);
 	}
 	
 	public static void decodeSentence() throws Exception {
-		SaveObject savedModel = SaveObject.loadSaveObject("parallelModel0");
+		SaveObject savedModel = SaveObject.loadSaveObject("modelIteration1");
 		
 		WordEnumeration words = savedModel.getWords();
 		LabelEnumeration labels = savedModel.getLabels();
@@ -60,7 +65,12 @@ public class Test {
 		
 		List<Span> result = decoder.decode(Arrays.asList(words.getId("I"), words.getId("like"), words.getId("computers"), words.getId(".")), parameters, false);
 		
+		RandomizedGreedyDecoder decoder2 = new RandomizedGreedyDecoder(words, labels, rules);
+		
+		List<Span> result2 = decoder2.decode(Arrays.asList(words.getId("I"), words.getId("like"), words.getId("computers"), words.getId(".")), parameters, false);
+		
 		System.out.println(result);
+		System.out.println(result2);
 	}
 	
 	public static void testPassiveAggressive() throws Exception {
@@ -87,7 +97,8 @@ public class Test {
 	
 	public static void sample(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters) {
 		Sampler sampler = new Sampler(words, labels, rules);
-		List<Span> spans = sampler.sample(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket")), parameters);
+		sampler.calculateProbabilities(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket")), parameters);
+		List<Span> spans = sampler.sample();
 		System.out.println(spans);
 	}
 }

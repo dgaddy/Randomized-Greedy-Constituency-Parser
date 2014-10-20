@@ -18,6 +18,7 @@ public class Sampler {
 	LabelEnumeration labels;
 	Rules rules;
 	
+	int wordsSize;
 	double[][][] insideProbabilities; // unnormalized probabilities; start, end, label
 	double[][][][] ruleProbabilities; // start, end, rule, split (relative to start)
 	double[][][] unaryRuleProbabilities;
@@ -28,8 +29,8 @@ public class Sampler {
 		this.rules = rules;
 	}
 	
-	public List<Span> sample(List<Integer> words, FeatureParameters params) {
-		int wordsSize = words.size();
+	public void calculateProbabilities(List<Integer> words, FeatureParameters params) {
+		wordsSize = words.size();
 		int labelsSize = labels.getNumberOfLabels();
 		int rulesSize = rules.getNumberOfBinaryRules();
 		insideProbabilities = new double[wordsSize][wordsSize+1][labelsSize];
@@ -50,7 +51,6 @@ public class Sampler {
 				}
 				spanScore += params.getScore(Features.getRuleFeature(ruleCode), false);
 				insideProbabilities[i][i+1][label] = Math.exp(spanScore);
-				System.out.println(insideProbabilities[i][i+1][label]);
 			}
 			
 			doUnaryProbabilities(words, i, i+1, params);
@@ -69,8 +69,8 @@ public class Sampler {
 						
 						double leftChildProb = insideProbabilities[start][start+split][rule.getLeft()];
 						double rightChildProb = insideProbabilities[start+split][start+length][rule.getRight()];
-						if(leftChildProb < max[start][start+split] * PRUNE_THRESHOLD || rightChildProb < max[start+split][start+length] * PRUNE_THRESHOLD)
-							continue;
+						//if(leftChildProb < max[start][start+split] * PRUNE_THRESHOLD || rightChildProb < max[start+split][start+length] * PRUNE_THRESHOLD)
+						//	continue;
 						
 						double spanScore =  0;
 						final long ruleCode = Rules.getRuleCode(r, Type.BINARY);
@@ -95,25 +95,6 @@ public class Sampler {
 				doUnaryProbabilities(words, start, start + length, params);
 			}
 		}
-		
-		System.out.println("got probabilities");
-		
-		double cumulative = 0;
-		List<Double> cumulativeValues = new ArrayList<>();
-		List<Integer> labelsToSample = new ArrayList<>();
-		for(Integer topLabel : labels.getTopLevelLabelIds()) {
-			double score = insideProbabilities[0][wordsSize][topLabel];
-			cumulative += score;
-			cumulativeValues.add(cumulative);
-			labelsToSample.add(topLabel);
-		}
-		
-		int chosenTopLabel = labelsToSample.get(sample(cumulativeValues, cumulative));
-		
-		List<Span> sample = new ArrayList<>();
-		sample(0, wordsSize, chosenTopLabel, true, sample);
-		
-		return sample;
 	}
 	
 	private void doUnaryProbabilities(List<Integer> words, int start, int end, FeatureParameters parameters) {
@@ -149,6 +130,25 @@ public class Sampler {
 			
 			insideProbabilities[start][end][label] += sc;
 		}
+	}
+	
+	public List<Span> sample() {
+		double cumulative = 0;
+		List<Double> cumulativeValues = new ArrayList<>();
+		List<Integer> labelsToSample = new ArrayList<>();
+		for(Integer topLabel : labels.getTopLevelLabelIds()) {
+			double score = insideProbabilities[0][wordsSize][topLabel];
+			cumulative += score;
+			cumulativeValues.add(cumulative);
+			labelsToSample.add(topLabel);
+		}
+		
+		int chosenTopLabel = labelsToSample.get(sample(cumulativeValues, cumulative));
+		
+		List<Span> sample = new ArrayList<>();
+		sample(0, wordsSize, chosenTopLabel, true, sample);
+		
+		return sample;
 	}
 	
 	private void sample(int start, int end, int label, boolean allowUnaries, List<Span> resultAccumulator) {
@@ -188,8 +188,8 @@ public class Sampler {
 			}
 		}
 		
-		System.out.println(cumulativeValues);
-		System.out.println(spans);
+		//System.out.println(cumulativeValues);
+		//System.out.println(spans);
 		
 		Span span = spans.get(sample(cumulativeValues, cumulative));
 		resultAccumulator.add(span);

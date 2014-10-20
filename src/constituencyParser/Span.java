@@ -97,6 +97,59 @@ public class Span {
 		return right;
 	}
 	
+	public Span removeRange(int start, int end) {
+		int newStart = this.start;
+		int newEnd = this.end;
+		if(start == this.start)
+			newStart = end;
+		if(end == this.end)
+			newEnd = start;
+		return new Span(newStart, newEnd, this.split, this.rule);
+	}
+	
+	/**
+	 * Call when a child has changed size to update values
+	 * @param start the new start of the child
+	 * @param end the new end of the child
+	 * @return
+	 */
+	public Span childExpanded(int start, int end) {
+		int newStart = this.start;
+		int newEnd = this.end;
+		int newSplit = this.split;
+		if(start == this.start)
+			newSplit = end;
+		else if(end == this.end)
+			newSplit = start;
+		else if(start == this.split)
+			newEnd = end;
+		else if(end == this.split)
+			newStart = start;
+		
+		return new Span(newStart, newEnd, newSplit, this.rule);
+	}
+	
+	public Span changeChildLabel(boolean left, int label) {
+		Rule newRule;
+		switch(this.rule.getType()) {
+		case UNARY:
+			newRule = new Rule(this.rule.getParent(), label);
+			break;
+		case TERMINAL:
+			newRule = new Rule(this.rule.getParent());
+			break;
+		case BINARY:
+			if(left)
+				newRule = new Rule(this.rule.getParent(), label, this.rule.getRight());
+			else
+				newRule = new Rule(this.rule.getParent(), this.rule.getParent(), label);
+			break;
+		default:
+			throw new RuntimeException();
+		}
+		return new Span(start, end, split, newRule);
+	}
+	
 	public String toString() {
 		return "Span: " + rule + " " + start + " " + end;
 	}

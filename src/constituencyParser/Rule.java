@@ -29,6 +29,13 @@ public class Rule implements Serializable {
 		type = Type.TERMINAL;
 	}
 	
+	public Rule(Rule other) {
+		this.type = other.type;
+		this.parent = other.parent;
+		this.left = other.left;
+		this.right = other.right;
+	}
+	
 	private volatile Type type;
 	private volatile int parent;
 	private volatile int left;
@@ -48,6 +55,12 @@ public class Rule implements Serializable {
 	
 	public Type getType() {
 		return type;
+	}
+	
+	public Rule changeLabel(int label) {
+		Rule newRule = new Rule(this);
+		newRule.parent = label;
+		return newRule;
 	}
 	
 	public boolean equals(Object other) {

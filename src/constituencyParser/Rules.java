@@ -91,6 +91,15 @@ public class Rules implements Serializable {
 		else return null;
 	}
 	
+	public boolean isExistingRule(Rule rule) {
+		if(rule.getType() == Type.BINARY)
+			return binaryIds.containsKey(rule);
+		else if(rule.getType() == Type.UNARY)
+			return unaryIds.containsKey(rule);
+		else // all terminals are existing
+			return true;
+	}
+	
 	/**
 	 * 20 bit
 	 * @param ruleId
