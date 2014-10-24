@@ -27,19 +27,82 @@ public class RandomizedGreedyDecoder {
 	
 	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout) {
 		sampler.calculateProbabilities(words, params);
-		List<Span> spans = sampler.sample();
 		
-		Collections.sort(spans, new Comparator<Span>() {
-			@Override
-			public int compare(Span arg0, Span arg1) {
-				return (arg0.getEnd() - arg0.getStart()) - (arg1.getEnd() - arg1.getStart());
+		List<Span> best = new ArrayList<Span>();
+		double bestScore = Double.NEGATIVE_INFINITY;
+		for(int iteration = 0; iteration < 100; iteration++) {
+			List<Span> spans = sampler.sample();
+			
+			SpanUtilities.checkCorrectness(spans);
+			
+			boolean changed = true;
+			double lastScore = Double.NEGATIVE_INFINITY;
+			while(changed) {
+				Collections.sort(spans, new Comparator<Span>() {
+					@Override
+					public int compare(Span arg0, Span arg1) {
+						return (arg0.getEnd() - arg0.getStart()) - (arg1.getEnd() - arg1.getStart());
+					}
+				});
+				
+				for(int i = 0; i < spans.size(); i++) {
+					if(spans.get(i).getRule().getType() != Type.TERMINAL)
+						continue;
+					
+					spans = greedyUpdateTerminals(words, spans, params, i, dropout);
+				}
+				
+				for(int i = 0; i < spans.size(); i++) {
+					spans = greedyUpdate(words, spans, params, i, dropout);
+				}
+	
+				double score = score(words, spans, params, dropout);
+				if(score <= lastScore)
+					changed = false;
+				lastScore = score;
 			}
-		});
-		
-		for(int i = 0; i < spans.size(); i++) {
-			spans = greedyUpdate(words, spans, params, i, dropout);
+			
+			double score = score(words, spans, params, dropout);
+			if(score > bestScore) {
+				best = new ArrayList<>(spans);
+				bestScore = score;
+			}
 		}
-		return spans;
+		return best;
+	}
+	
+	private List<Span> greedyUpdateTerminals(List<Integer> words, List<Span> spans, FeatureParameters params, int indexToMax, boolean dropout) {
+		spans = new ArrayList<>(spans);
+		
+		int[] parents = SpanUtilities.getParents(spans);
+		int parentIndex = parents[indexToMax];
+		Span old = spans.get(indexToMax);
+		Span oldParent = spans.get(parentIndex);
+		
+		double bestScore = Double.NEGATIVE_INFINITY;
+		ArrayList<Span> best = null;
+		
+		for(int label = 0; label < labels.getNumberOfLabels(); label++) {
+			Span newSpan = new Span(old.getStart(), old.getEnd(), new Rule(label));
+			
+			spans.set(indexToMax, newSpan);
+			
+			Span newParent = oldParent.changeChildLabel(old.getStart() < oldParent.getSplit(), label);
+			spans.set(parentIndex, newParent);
+			
+			SpanUtilities.checkCorrectness(spans);
+			
+			double score = score(words, spans, params, dropout);
+			if(score > bestScore) {
+				bestScore = score;
+				best = new ArrayList<>(spans);
+			}
+		}
+		
+		if(best == null)
+			System.out.println();
+		
+		return best;
 	}
 	
 	/**
@@ -51,16 +114,19 @@ public class RandomizedGreedyDecoder {
 	private List<Span> greedyUpdate(List<Integer> words, List<Span> spans, FeatureParameters params, int indexToMove, boolean dropout) {
 		spans = new ArrayList<>(spans);
 		
-		SpanPrint.printSpans(spans, words.size());
+		System.out.println(spans + " " + indexToMove);
 		
 		Span toMove = spans.get(indexToMove);
-		int[] parents = getParents(spans);
+		int[] parents = SpanUtilities.getParents(spans);
 		int start = toMove.getStart();
 		int end = toMove.getEnd();
 		
 		int parentIndex = parents[indexToMove];
 		if(parentIndex == -1)
 			return spans;
+		
+		if(spans.get(parentIndex).getRule().getType() != Type.BINARY)
+			return spans; // TODO: handle unaries
 		
 		int oldGrandparentIndex = parents[parentIndex];
 		
@@ -99,18 +165,19 @@ public class RandomizedGreedyDecoder {
 			}
 		}
 		
-		SpanPrint.printSpans(spans, words.size());
-		
 		List<Span> spansBackup = spans;
 		double bestScore = Double.NEGATIVE_INFINITY;
 		List<Span> best = null;
 		
 		// try attaching to a new parent
 		for(int siblingIndex = 0; siblingIndex < spans.size(); siblingIndex++) {
-			if(siblingIndex == indexToMove)
+			if(siblingIndex == indexToMove || siblingIndex == parentIndex)
 				continue;
 			
 			spans = new ArrayList<>(spansBackup);
+			
+			if(parents[siblingIndex] != -1 && spans.get(parents[siblingIndex]).getRule().getType() == Type.UNARY)
+				continue; // keep unaries how they are
 			
 			Span sibling = spans.get(siblingIndex);
 			int newStart;
@@ -121,10 +188,13 @@ public class RandomizedGreedyDecoder {
 				newStart = sibling.getStart();
 				newEnd = end;
 			}
-			else {
+			else if(sibling.getStart() == end){
 				addingToRight = false;
 				newStart = start;
 				newEnd = sibling.getEnd();
+			}
+			else {
+				continue;
 			}
 			
 			// expand size of ancestors
@@ -155,8 +225,11 @@ public class RandomizedGreedyDecoder {
 					Span gp = spans.get(grandparentIndex);
 					Span newGp = gp.changeChildLabel(sibling.getStart() < gp.getSplit(), label);
 					spans.set(grandparentIndex, newGp);
+
+					SpanUtilities.checkCorrectness(spans);
 				}
-				SpanPrint.printSpans(spans, words.size());
+
+				SpanUtilities.checkCorrectness(spans);
 				
 				double score = score(words, spans, params, dropout);
 				if(score > bestScore) {
@@ -166,22 +239,10 @@ public class RandomizedGreedyDecoder {
 			}
 		}
 		
+		if(best == null)
+			System.out.println();
+		
 		return best;
-	}
-	
-	private int[] getParents(List<Span> spans) {
-		int[] result = new int[spans.size()];
-		for(int i = 0; i < result.length; i++) {
-			Span s = spans.get(i);
-			result[i] = -1;
-			for(int j = 0; j < result.length; j++) {
-				Span p = spans.get(j);
-				if(p.getRule().getType() == Type.BINARY && ((p.getStart() == s.getStart() && p.getSplit() == s.getEnd()) || (p.getSplit() == s.getStart() && p.getEnd() == s.getEnd()))) {
-					result[i] = j;
-				}
-			}
-		}
-		return result;
 	}
 	
 	private double score(List<Integer> words, List<Span> spans, FeatureParameters params, boolean dropout) {
