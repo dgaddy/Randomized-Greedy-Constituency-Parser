@@ -8,9 +8,18 @@ import constituencyParser.features.FeatureParameters;
 
 public class Test {
 	public static void main(String[] args) throws Exception {
-		/*
+		
+		if(args.length != 2) {
+			System.out.println("requires 2 arguments: the model file name, and the data directory");
+			return;
+		}
+		
+		String modelFile = args[0];
+		String dataDir = args[1];
+		
 		//testPassiveAggressive();
-		SaveObject savedModel = SaveObject.loadSaveObject("modelIteration1");
+		
+		SaveObject savedModel = SaveObject.loadSaveObject(modelFile);
 		
 		WordEnumeration words = savedModel.getWords();
 		LabelEnumeration labels = savedModel.getLabels();
@@ -18,8 +27,10 @@ public class Test {
 		FeatureParameters parameters = savedModel.getParameters();
 		
 		//sample(words, labels, rules, parameters);
-		test(words, labels, rules, parameters, "../WSJ Data/");
-		*/
+		
+		
+		test(words, labels, rules, parameters, dataDir);
+		
 		
 		decodeSentence();
 	}
@@ -29,7 +40,8 @@ public class Test {
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
 		//gold = gold.subList(0, 50);
 		
-		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
+		//CKYDecoder decoder = new CKYDecoder(words, labels, rules);
+		RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules);
 		
 		int numberCorrect = 0;
 		int numberGold = 0;
@@ -61,16 +73,21 @@ public class Test {
 		Rules rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 		
+		System.out.println(rules.getNumberOfUnaryRules());
+		
 		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 		
-		List<Span> result = decoder.decode(Arrays.asList(words.getId("I"), words.getId("like"), words.getId("computers"), words.getId(".")), parameters, false);
+		List<Span> result = decoder.decode(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
 		
 		RandomizedGreedyDecoder decoder2 = new RandomizedGreedyDecoder(words, labels, rules);
 		
-		List<Span> result2 = decoder2.decode(Arrays.asList(words.getId("I"), words.getId("like"), words.getId("computers"), words.getId(".")), parameters, false);
+		List<Span> result2 = decoder2.decode(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
+		
+		List<Span> result3 = decoder2.decodeNoGreedy(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
 		
 		System.out.println(result);
 		System.out.println(result2);
+		System.out.println(result3);
 	}
 	
 	public static void testPassiveAggressive() throws Exception {
@@ -98,7 +115,9 @@ public class Test {
 	public static void sample(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters) {
 		Sampler sampler = new Sampler(words, labels, rules);
 		sampler.calculateProbabilities(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket")), parameters);
-		List<Span> spans = sampler.sample();
-		System.out.println(spans);
+		for(int i = 0; i < 100; i++) {
+			List<Span> spans = sampler.sample();
+			System.out.println(spans);
+		}
 	}
 }

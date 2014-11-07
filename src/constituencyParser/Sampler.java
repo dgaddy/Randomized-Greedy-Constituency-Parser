@@ -208,6 +208,9 @@ public class Sampler {
 		if(sampleIndex < 0) { // usually true, this is what binarySearch does when it does not find the exact value
 			sampleIndex = -(sampleIndex + 1);
 		}
+		if(sampleIndex >= cumulativeValues.size()) { // because evidenty this happens somehow
+			sampleIndex = cumulativeValues.size() - 1;
+		}
 		return sampleIndex;
 	}
 }

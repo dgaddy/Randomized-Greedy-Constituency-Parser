@@ -142,7 +142,7 @@ public class Span {
 			if(left)
 				newRule = new Rule(this.rule.getParent(), label, this.rule.getRight());
 			else
-				newRule = new Rule(this.rule.getParent(), this.rule.getParent(), label);
+				newRule = new Rule(this.rule.getParent(), this.rule.getLeft(), label);
 			break;
 		default:
 			throw new RuntimeException();
