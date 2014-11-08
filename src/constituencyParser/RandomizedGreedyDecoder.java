@@ -37,28 +37,28 @@ public class RandomizedGreedyDecoder {
 		
 		sampler.calculateProbabilities(words, params);
 		
-		Set<Set<Span>> sampled = new HashSet<>(); // a set of the spans we have sampled so if we sample the same again, we don't have to greedy update
+		Set<Set<Span>> alreadyDone = new HashSet<>(); // a set of the spans we have sampled so if we sample the same again, we don't have to greedy update
 		
 		List<Span> best = new ArrayList<Span>();
 		double bestScore = Double.NEGATIVE_INFINITY;
 		for(int iteration = 0; iteration < 100; iteration++) {
-			//System.out.println("new iteration");
+			System.out.println("new iteration");
 			
 			List<Span> spans = sampler.sample();
-			
-			Set<Span> spansSet = new HashSet<>(spans);
-			if(sampled.contains(spansSet))
-				continue;
-			else
-				sampled.add(spansSet);
 			
 			SpanUtilities.checkCorrectness(spans);
 			
 			boolean changed = true;
 			double lastScore = Double.NEGATIVE_INFINITY;
 			while(changed) {
+				Set<Span> spansSet = new HashSet<>(spans);
+				if(alreadyDone.contains(spansSet))
+					break;
+				else
+					alreadyDone.add(spansSet);
+				
 				double score = score(words, spans, params, dropout);
-				//System.out.println("score: " + score);
+				System.out.println("score: " + score);
 				if(score <= lastScore) {
 					changed = false;
 				}
