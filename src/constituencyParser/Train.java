@@ -55,9 +55,9 @@ public class Train {
 		Rules rules = new Rules();
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles(folder, 2, 3, words, labels, rules);
 		
-		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
+		RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules);
 		PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder);
-		pa.train(examples, .05);
+		pa.train(examples, .05, true);
 		FeatureParameters params = pa.getParameters();
 		
 		SaveObject so = new SaveObject(words, labels, rules, params);
@@ -84,9 +84,9 @@ public class Train {
 		@Override
 		public FeatureParameters call() throws Exception {
 			System.out.println("Starting new training.");
-			CKYDecoder decoder = new CKYDecoder(words, labels, rules);
+			RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules);
 			PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder, initialParams);
-			pa.train(data, dropout);
+			pa.train(data, dropout, true);
 			
 			words = null;
 			labels = null;

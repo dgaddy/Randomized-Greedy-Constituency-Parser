@@ -8,11 +8,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import constituencyParser.Rule.Type;
+import constituencyParser.GreedyChange.ParentedSpans;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 
-public class RandomizedGreedyDecoder {
+public class RandomizedGreedyDecoder implements Decoder {
 	Sampler sampler;
 	
 	WordEnumeration wordEnum;
@@ -42,7 +42,7 @@ public class RandomizedGreedyDecoder {
 		List<Span> best = new ArrayList<Span>();
 		double bestScore = Double.NEGATIVE_INFINITY;
 		for(int iteration = 0; iteration < 100; iteration++) {
-			System.out.println("new iteration");
+			//System.out.println("new iteration");
 			
 			List<Span> spans = sampler.sample();
 			
@@ -58,14 +58,14 @@ public class RandomizedGreedyDecoder {
 					alreadyDone.add(spansSet);
 				
 				double score = score(words, spans, params, dropout);
-				System.out.println("score: " + score);
+				//System.out.println("score: " + score);
 				if(score <= lastScore) {
 					changed = false;
 				}
 				lastScore = score;
 				
 				for(int i = 0; i < words.size(); i++) {
-					List<List<Span>> options = greedyChange.makeGreedyTerminalLabelChanges(spans, i);
+					List<ParentedSpans> options = greedyChange.makeGreedyTerminalLabelChanges(spans, i);
 					
 					spans = getMax(options, words, params, dropout);
 				}
@@ -80,7 +80,7 @@ public class RandomizedGreedyDecoder {
 							}
 						}
 						if(exists) {
-							List<List<Span>> update = greedyChange.makeGreedyChanges(spans, start, start + length);
+							List<ParentedSpans> update = greedyChange.makeGreedyChanges(spans, start, start + length);
 							
 							spans = getMax(update, words, params, dropout);
 						}
@@ -99,33 +99,40 @@ public class RandomizedGreedyDecoder {
 	
 	public List<Span> decodeNoGreedy(List<Integer> words, FeatureParameters params, boolean dropout) {
 		sampler.calculateProbabilities(words, params);
-		List<List<Span>> options = new ArrayList<>();
+		List<ParentedSpans> options = new ArrayList<>();
 		for(int i = 0; i < 100; i++) {
-			options.add(sampler.sample());
+			List<Span> s = sampler.sample();
+			options.add(new ParentedSpans(s, SpanUtilities.getParents(s)));
 		}
 		return getMax(options, words, params, dropout);
 	}
 	
-	private List<Span> getMax(List<List<Span>> options, List<Integer> words, FeatureParameters params, boolean dropout) {
+	private List<Span> getMax(List<ParentedSpans> options, List<Integer> words, FeatureParameters params, boolean dropout) {
 		double bestScore = Double.NEGATIVE_INFINITY;
 		List<Span> best = null;
-		for(List<Span> option : options) {
-			double score = score(words, option, params, dropout);
-			if(score > bestScore) {
+		for(ParentedSpans option : options) {
+			double score = score(words, option.spans, option.parents, params, dropout);
+			if(score >= bestScore) {
 				bestScore = score;
-				best = option;
+				best = option.spans;
 			}
 		}
 		return best;
 	}
 	
 	private double score(List<Integer> words, List<Span> spans, FeatureParameters params, boolean dropout) {
+		return score(words, spans, SpanUtilities.getParents(spans), params, dropout);
+	}
+	
+	private double score(List<Integer> words, List<Span> spans, int[] parents, FeatureParameters params, boolean dropout) {
 		double score = 0;
 		for(Span s : spans) {
 			if(!rules.isExistingRule(s.getRule()))
 				return Double.NEGATIVE_INFINITY;
 		}
-		for(Span s : spans) {
+		
+		for(int j = 0; j < spans.size(); j++) {
+			Span s = spans.get(j);
 			if(spanScoreCache.containsKey(s)) {
 				score += spanScoreCache.get(s);
 				continue;
@@ -140,6 +147,23 @@ public class RandomizedGreedyDecoder {
 			TLongList propertyByLabelCodes = Features.getSpanPropertyByLabelFeatures(words, s);
 			for(int i = 0; i < propertyByLabelCodes.size(); i++) {
 				spanScore += params.getScore(propertyByLabelCodes.get(i), dropout);
+			}
+			
+			
+			if(parents[j] != -1) {
+				Rule rule = s.getRule();
+				Rule parentRule = spans.get(parents[j]).getRule();
+
+				if(rule.getType() == Rule.Type.UNARY) {
+					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getParent(), parentRule.getParent());
+					spanScore += params.getScore(code, dropout);
+				}
+				else if(rule.getType() == Rule.Type.BINARY) {
+					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getParent(), parentRule.getParent());
+					spanScore += params.getScore(code, dropout);
+					code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getParent(), parentRule.getParent());
+					spanScore += params.getScore(code, dropout);
+				}
 			}
 			
 			spanScoreCache.put(s, spanScore);

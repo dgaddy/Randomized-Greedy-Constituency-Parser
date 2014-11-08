@@ -103,7 +103,7 @@ public class Test {
 			// run passive aggressive on the first example
 			CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 			PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder, params);
-			pa.train(examples.subList(0, 1), .05);
+			pa.train(examples.subList(0, 1), .05, false);
 			
 			// the first example should now classify correctly
 			//List<Span> result = decoder.decode(examples.get(0).getWords(), params);

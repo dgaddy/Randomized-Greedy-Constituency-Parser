@@ -10,13 +10,13 @@ import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 
 public class PassiveAgressive {
-	CKYDecoder decoder;
+	Decoder decoder;
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
 	Rules rules;
 	FeatureParameters parameters;
 	
-	public PassiveAgressive(WordEnumeration words, LabelEnumeration labels, Rules rules, CKYDecoder decoder) {
+	public PassiveAgressive(WordEnumeration words, LabelEnumeration labels, Rules rules, Decoder decoder) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
@@ -24,7 +24,7 @@ public class PassiveAgressive {
 		parameters = new FeatureParameters();
 	}
 	
-	public PassiveAgressive(WordEnumeration words, LabelEnumeration labels, Rules rules, CKYDecoder decoder, FeatureParameters parameters) {
+	public PassiveAgressive(WordEnumeration words, LabelEnumeration labels, Rules rules, Decoder decoder, FeatureParameters parameters) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
@@ -32,12 +32,12 @@ public class PassiveAgressive {
 		this.parameters = parameters;
 	}
 	
-	public void train(List<SpannedWords> trainingExamples, double dropout) {
+	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder) {
 		int count = 0;
 		int totalLoss = 0;
 		for(SpannedWords sw : trainingExamples) {
 			count++;
-			/*if(count % 50 == 0) {
+			/*if(count % 5 == 0) {
 				System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double) count));
 			}*/
 			
@@ -52,7 +52,11 @@ public class PassiveAgressive {
 			if(loss > 0) {
 				TLongDoubleHashMap features = new TLongDoubleHashMap();
 				//System.out.println("positive");
-				for(Span s : sw.getSpans()) {
+				List<Span> gold = sw.getSpans();
+				int[] goldParents = SpanUtilities.getParents(gold);
+				int[] predictedParents = SpanUtilities.getParents(predicted);
+				for(int j = 0; j < gold.size(); j++) {
+					Span s = gold.get(j);
 					TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum);
 					for(int i = 0; i < featureCodes.size(); i++) {
 						features.adjustOrPutValue(featureCodes.get(i), 1, 1);
@@ -65,9 +69,28 @@ public class PassiveAgressive {
 						features.adjustOrPutValue(propertyByLabelCodes.get(i), 1, 1);
 						//System.out.println(Features.getStringForCode(propertyByLabelCodes.get(i), wordEnum, rules, labels));
 					}
+					
+					if(doSecondOrder) {
+						if(goldParents[j] != -1) {
+							Rule rule = s.getRule();
+							Rule parentRule = gold.get(goldParents[j]).getRule();
+
+							if(rule.getType() == Rule.Type.UNARY) {
+								long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getParent(), parentRule.getParent());
+								features.adjustOrPutValue(code, 1, 1);
+							}
+							else if(rule.getType() == Rule.Type.BINARY) {
+								long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getParent(), parentRule.getParent());
+								features.adjustOrPutValue(code, 1, 1);
+								code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getParent(), parentRule.getParent());
+								features.adjustOrPutValue(code, 1, 1);
+							}
+						}
+					}
 				}
 				//System.out.println("negative");
-				for(Span s : predicted) {
+				for(int j = 0; j < predicted.size(); j++) {
+					Span s = predicted.get(j);
 					TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum);
 					for(int i = 0; i < featureCodes.size(); i++) {
 						features.adjustOrPutValue(featureCodes.get(i), -1, -1);
@@ -78,6 +101,24 @@ public class PassiveAgressive {
 					TLongList propertyByLabelCodes = Features.getSpanPropertyByLabelFeatures(words, s);
 					for(int i = 0; i < propertyByLabelCodes.size(); i++) {
 						features.adjustOrPutValue(propertyByLabelCodes.get(i), -1, -1);
+					}
+					
+					if(doSecondOrder) {
+						if(predictedParents[j] != -1) {
+							Rule rule = s.getRule();
+							Rule parentRule = predicted.get(predictedParents[j]).getRule();
+
+							if(rule.getType() == Rule.Type.UNARY) {
+								long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getParent(), parentRule.getParent());
+								features.adjustOrPutValue(code, -1, -1);
+							}
+							else if(rule.getType() == Rule.Type.BINARY) {
+								long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getParent(), parentRule.getParent());
+								features.adjustOrPutValue(code, -1, -1);
+								code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getParent(), parentRule.getParent());
+								features.adjustOrPutValue(code, -1, -1);
+							}
+						}
 					}
 				}
 				

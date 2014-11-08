@@ -20,11 +20,18 @@ public class FeatureParameters implements Serializable {
 	transient TIntArrayList dropout; // 1 if should drop, 0 if should keep
 	
 	public FeatureParameters() {
-		featureIndices = new TLongIntHashMap(500, 0.25f, 0, -1);
+		featureIndices = new TLongIntHashMap(500, 0.2f, 0, -1);
 	}
 
 	public FeatureParameters(FeatureParameters other) {
-		featureIndices = new TLongIntHashMap(other.featureIndices);
+		featureIndices = new TLongIntHashMap(other.featureIndices.size(), 0.2f, 0, -1);
+		other.featureIndices.forEachEntry(new TLongIntProcedure() {
+			@Override
+			public boolean execute(long arg0, int arg1) {
+				featureIndices.put(arg0, arg1);
+				return true;
+			}
+		});
 		featureValues = new TDoubleArrayList(other.featureValues);
 		gradientsSquared = new TDoubleArrayList(other.gradientsSquared);
 	}

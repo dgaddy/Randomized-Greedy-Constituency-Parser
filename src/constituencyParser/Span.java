@@ -129,6 +129,24 @@ public class Span {
 		return new Span(newStart, newEnd, newSplit, this.rule);
 	}
 	
+	public Span changeLabel(int label) {
+		Rule newRule;
+		switch(this.rule.getType()) {
+		case UNARY:
+			newRule = new Rule(label, this.rule.getLeft());
+			break;
+		case TERMINAL:
+			newRule = new Rule(label);
+			break;
+		case BINARY:
+				newRule = new Rule(label, this.rule.getLeft(), this.rule.getRight());
+			break;
+		default:
+			throw new RuntimeException();
+		}
+		return new Span(start, end, split, newRule);
+	}
+	
 	public Span changeChildLabel(boolean left, int label) {
 		Rule newRule;
 		switch(this.rule.getType()) {

@@ -25,6 +25,10 @@ public class Features {
 		return (3L << 52L) + (label << 32L) + spanPropertyCode;
 	}
 	
+	public static long getSecondOrderRuleFeature(long childLabel, long label, long parentLabel) {
+		return (4L << 52L) + (childLabel << 32L) + (label << 16L) + parentLabel;
+	}
+	
 	public static String getStringForCode(long code, WordEnumeration words, Rules rules, LabelEnumeration labels) {
 		int type = (int) (code >> 52L);
 		if(type == 1) {

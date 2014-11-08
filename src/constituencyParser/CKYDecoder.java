@@ -10,7 +10,7 @@ import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 import constituencyParser.features.SpanProperties;
 
-public class CKYDecoder {
+public class CKYDecoder implements Decoder {
 	private static final double PRUNE_THRESHOLD = 10;
 	
 	WordEnumeration wordEnum;
