@@ -28,6 +28,8 @@ public class CKYDecoder implements Decoder {
 		this.rules = rules;
 	}
 	
+	double lastScore = 0;
+	
 	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout) {
 		int wordsSize = words.size();
 		int labelsSize = labels.getNumberOfLabels();
@@ -117,7 +119,13 @@ public class CKYDecoder implements Decoder {
 		if(bestSpan != null)
 			getUsedSpans(bestSpan);
 		
+		lastScore = bestScore;
+		
 		return usedSpans;
+	}
+	
+	public double getLastScore() {
+		return lastScore;
 	}
 	
 	private void doUnary(List<Integer> words, int start, int end, FeatureParameters parameters, boolean dropout) {
@@ -166,5 +174,15 @@ public class CKYDecoder implements Decoder {
 		else if(span.getRule().getType() == Rule.Type.UNARY) {
 			getUsedSpans(span.getLeft());
 		}
+	}
+
+	@Override
+	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void setSecondOrder(boolean secondOrder) {
+		throw new UnsupportedOperationException();
 	}
 }

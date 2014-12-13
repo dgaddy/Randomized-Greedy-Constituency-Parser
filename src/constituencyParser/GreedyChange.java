@@ -214,14 +214,14 @@ public class GreedyChange {
 		this.rules = rules;
 	}
 	
-	public List<ParentedSpans> makeGreedyTerminalLabelChanges(List<Span> spans, int index) {
+	public List<ParentedSpans> makeGreedyLabelChanges(List<Span> spans, int indexStart, int indexEnd, boolean topLevel) {
 		List<ParentedSpans> result = new ArrayList<>();
 		
 		ConstituencyNode root = getTree(spans);
 		
-		ConstituencyNode toUpdate = root.getNode(index, index + 1);
+		ConstituencyNode toUpdate = root.getNode(indexStart, indexEnd);
 		
-		iterateLabels(root, toUpdate, result, false);
+		iterateLabels(root, toUpdate, result, topLevel);
 		
 		return result;
 	}
@@ -238,15 +238,23 @@ public class GreedyChange {
 		if(toUpdate.parent == null) {
 			return Arrays.asList(new ParentedSpans(spans, SpanUtilities.getParents(spans))); // it doesn't really make sense to remove and add back the entire tree
 		}
-		else if(toUpdate.parent.parent == null) {
-			// one level down from root
-			// we just want to iterate over labels for root
-			iterateLabels(root, root, result, true);
-			return result;
-		}
 		
-		root.remove(toUpdate);
-		root.updateSpanLocations();
+		if(toUpdate.parent.parent == null) {
+			// one level down from root
+			// remove root and make sibling root
+			if(root.left == toUpdate) {
+				root = root.right;
+				root.parent = null;
+			}
+			else {
+				root = root.left;
+				root.parent = null;
+			}
+		}
+		else {
+			root.remove(toUpdate);
+			root.updateSpanLocations();
+		}
 		List<ConstituencyNode> adjacent = root.getAdjacent(toUpdate);
 		
 		for(ConstituencyNode a : adjacent) {

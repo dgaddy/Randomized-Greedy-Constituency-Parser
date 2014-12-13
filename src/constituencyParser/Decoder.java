@@ -6,4 +6,7 @@ import constituencyParser.features.FeatureParameters;
 
 public interface Decoder {
 	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout);
+	
+	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold);
+	public void setSecondOrder(boolean secondOrder);
 }

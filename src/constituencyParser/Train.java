@@ -14,8 +14,8 @@ import constituencyParser.features.FeatureParameters;
 
 public class Train {
 	public static void main(String[] args) throws Exception {
-		if(args.length < 4) {
-			System.out.println("Arguments are [data folder] [output folder] [number cores] [number iterations] [optional: percent of data] [optional: model to start with]");
+		if(args.length < 6) {
+			System.out.println("Arguments are [data folder] [output folder] [number cores] [number iterations] [t/f second order] [t/f cost augmentation] [optional: percent of data] [optional: model to start with]");
 			return;
 		}
 		
@@ -25,15 +25,24 @@ public class Train {
 		String outputFolder = args[1];
 		int cores = Integer.parseInt(args[2]);
 		int iterations = Integer.parseInt(args[3]);
+		boolean secondOrder = args[4].equals("t");
+		boolean costAugmenting = args[5].equals("t");
+		
+		if((!secondOrder && !args[4].equals("f")) || (!costAugmenting && !args[5].equals("f"))) {
+			System.out.println("second order and cost augmentation args must be t or f");
+			return;
+		}
+		
 		String startModel = null;
 		double percentOfData = 1;
-		if(args.length > 5) {
-			startModel = args[5];
+		
+		if(args.length > 7) {
+			startModel = args[7];
 		}
-		if(args.length > 4) {
-			percentOfData = Double.parseDouble(args[4]);
+		if(args.length > 6) {
+			percentOfData = Double.parseDouble(args[6]);
 			if(percentOfData > 1) {
-				System.out.println("Percent of data (4th argument) must be less than 1");
+				System.out.println("Percent of data must be less than 1");
 				return;
 			}
 		}
@@ -46,7 +55,7 @@ public class Train {
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		trainParallel(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel);
+		trainParallel(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting);
 	}
 	
 	public static void train(String folder) throws IOException {
@@ -57,7 +66,7 @@ public class Train {
 		
 		RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules);
 		PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder);
-		pa.train(examples, .05, true);
+		pa.train(examples, .05, true, true);
 		FeatureParameters params = pa.getParameters();
 		
 		SaveObject so = new SaveObject(words, labels, rules, params);
@@ -71,23 +80,33 @@ public class Train {
 		List<SpannedWords> data;
 		FeatureParameters initialParams;
 		double dropout;
+		boolean secondOrder;
+		boolean costAugmenting;
 		
-		public TrainOneIteration(WordEnumeration words, LabelEnumeration labels, Rules rules, List<SpannedWords> data, FeatureParameters initialParams, double dropout) {
+		public TrainOneIteration(WordEnumeration words, LabelEnumeration labels, Rules rules, List<SpannedWords> data, FeatureParameters initialParams, double dropout, boolean secondOrder, boolean costAugmenting) {
 			this.words = words;
 			this.labels = labels;
 			this.rules = rules;
 			this.data = data;
 			this.initialParams = initialParams;
 			this.dropout = dropout;
+			this.secondOrder = secondOrder;
+			this.costAugmenting = costAugmenting;
 		}
 
 		@Override
 		public FeatureParameters call() throws Exception {
 			System.out.println("Starting new training.");
+			
 			RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules);
 			PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder, initialParams);
-			pa.train(data, dropout, true);
-			
+			try {
+				pa.train(data, dropout, secondOrder, costAugmenting);
+			}
+			catch(Exception ex) {
+				ex.printStackTrace(); //because otherwise exceptions get caught by the executor and don't give a stack trace
+				throw ex;
+			}
 			words = null;
 			labels = null;
 			rules = null;
@@ -98,7 +117,7 @@ public class Train {
 		}
 	}
 	
-	public static void trainParallel(String dataFolder, String outputFolder, int numberThreads, int iterations, double percentOfData, double dropout, String startModel) throws IOException, InterruptedException, ExecutionException, ClassNotFoundException {
+	public static void trainParallel(String dataFolder, String outputFolder, int numberThreads, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting) throws IOException, InterruptedException, ExecutionException, ClassNotFoundException {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		Rules rules = new Rules();
@@ -134,7 +153,7 @@ public class Train {
 			
 			List<Future<FeatureParameters>> futures = new ArrayList<>();
 			for(List<SpannedWords> d : data) {
-				Future<FeatureParameters> future = pool.submit(new TrainOneIteration(new WordEnumeration(words), new LabelEnumeration(labels), new Rules(rules), d, new FeatureParameters(shared), dropout));
+				Future<FeatureParameters> future = pool.submit(new TrainOneIteration(new WordEnumeration(words), new LabelEnumeration(labels), new Rules(rules), d, new FeatureParameters(shared), dropout, secondOrder, costAugmenting));
 				futures.add(future);
 			}
 			
@@ -145,7 +164,7 @@ public class Train {
 			
 			shared = FeatureParameters.average(results);
 			
-			Test.test(words, labels, rules, shared, dataFolder);
+			Test.test(words, labels, rules, shared, dataFolder, secondOrder);
 			
 			SaveObject so = new SaveObject(words, labels, rules, shared);
 			so.save(outputFolder + "/modelIteration"+i);

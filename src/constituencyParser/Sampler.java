@@ -28,10 +28,23 @@ public class Sampler {
 	//double[][][][] ruleProbabilities; // start, end, rule, split (relative to start)
 	//double[][][] unaryRuleProbabilities;
 	
+	boolean costAugmenting = false;
+	int[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
+	
 	public Sampler(WordEnumeration words, LabelEnumeration labels, Rules rules) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
+	}
+	
+	/**
+	 * 
+	 * @param costAugmenting
+	 * @param gold gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
+	 */
+	public void setCostAugmenting(boolean costAugmenting, int[][] gold) {
+		this.costAugmenting = costAugmenting;
+		this.goldLabels = gold;
 	}
 	
 	public void calculateProbabilities(List<Integer> words, FeatureParameters params) {
@@ -58,6 +71,11 @@ public class Sampler {
 					spanScore += params.getScore(Features.getSpanPropertyByRuleFeature(spanProperties.get(p), ruleCode), false);
 				}
 				spanScore += params.getScore(Features.getRuleFeature(ruleCode), false);
+				
+				if(costAugmenting && goldLabels[i][i+1] != label) {
+					spanScore += 1;
+				}
+				
 				insideProbabilitiesBeforeUnaries[i][i+1][label] = Math.exp(spanScore);
 			}
 			
@@ -77,6 +95,7 @@ public class Sampler {
 						int label = rule.getParent();
 						
 						double probability = binaryProbability(spanProperties, start, start+length, start+split, r, rule);
+						
 						//ruleProbabilities[start][start+length][r][split] = probability;
 						
 						double fullProbability = insideProbabilitiesBeforeUnaries[start][start+length][label] + probability;  
@@ -102,6 +121,10 @@ public class Sampler {
 			spanScore += parameters.getScore(Features.getSpanPropertyByLabelFeature(properties.get(p), rule.getParent()), false);
 		}
 		spanScore += parameters.getScore(Features.getRuleFeature(ruleCode), false);
+		
+		if(costAugmenting && goldLabels[start][end] != rule.getParent()) {
+			spanScore += 1;
+		}
 		
 		double probability = Math.exp(spanScore) * childProb;
 		return probability;
@@ -130,6 +153,10 @@ public class Sampler {
 			spanScore += parameters.getScore(Features.getSpanPropertyByLabelFeature(spanProperties.get(p), rule.getParent()), false);
 		}
 		spanScore += parameters.getScore(Features.getRuleFeature(ruleCode), false);
+		
+		if(costAugmenting && goldLabels[start][end] != rule.getParent()) {
+			spanScore += 1;
+		}
 		
 		double probability = Math.exp(spanScore) * leftChildProb * rightChildProb;
 		return probability;
@@ -169,25 +196,49 @@ public class Sampler {
 	}
 	
 	public List<Span> sample() {
-		double cumulative = 0;
-		List<Double> cumulativeValues = new ArrayList<>();
-		List<Integer> labelsToSample = new ArrayList<>();
-		for(Integer topLabel : labels.getTopLevelLabelIds()) {
-			double score = insideProbabilitiesAfterUnaries[0][wordsSize][topLabel];
-			cumulative += score;
-			cumulativeValues.add(cumulative);
-			labelsToSample.add(topLabel);
+		List<Span> sample = null;
+		boolean success = false;
+		int count = 0;
+		while(!success) {
+			try {
+				double cumulative = 0;
+				List<Double> cumulativeValues = new ArrayList<>();
+				List<Integer> labelsToSample = new ArrayList<>();
+				for(Integer topLabel : labels.getTopLevelLabelIds()) {
+					double score = insideProbabilitiesAfterUnaries[0][wordsSize][topLabel];
+					if(score <= 0)
+						continue;
+					
+					cumulative += score;
+					cumulativeValues.add(cumulative);
+					labelsToSample.add(topLabel);
+				}
+				
+				if(cumulativeValues.size() == 0) {
+					System.out.println("top level fail");
+					return new ArrayList<>();
+				}
+				
+				int chosenTopLabel = labelsToSample.get(sample(cumulativeValues, cumulative));
+				
+				sample = new ArrayList<>();
+				
+				sample(0, wordsSize, chosenTopLabel, true, sample);
+				success = true;
+			}
+			catch(NoOptionsException ex) {
+				count++;
+				if(count > 50) {
+					System.out.println("Sampler not finding any valid options.");
+					return new ArrayList<>();
+				}
+			}
 		}
-		
-		int chosenTopLabel = labelsToSample.get(sample(cumulativeValues, cumulative));
-		
-		List<Span> sample = new ArrayList<>();
-		sample(0, wordsSize, chosenTopLabel, true, sample);
 		
 		return sample;
 	}
 	
-	private void sample(int start, int end, int label, boolean allowUnaries, List<Span> resultAccumulator) {
+	private void sample(int start, int end, int label, boolean allowUnaries, List<Span> resultAccumulator) throws NoOptionsException {
 		//double[][] probabilities = ruleProbabilities[start][end];
 		//double [] unaryProbabilities = unaryRuleProbabilities[start][end];
 		double cumulative = 0;
@@ -201,6 +252,9 @@ public class Sampler {
 				Rule rule = rules.getUnaryRule(r);
 				if(rule.getParent() == label) {
 					double prob = unaryProbability(properties, start, end, r, rule);
+					if(prob <= 0)
+						continue;
+					
 					cumulative += prob;
 					cumulativeValues.add(cumulative);
 					Span span = new Span(start, end, rule);
@@ -211,9 +265,11 @@ public class Sampler {
 		
 		if(end - start == 1) { // terminals
 			double prob = insideProbabilitiesBeforeUnaries[start][end][label];
-			cumulative += prob;
-			cumulativeValues.add(cumulative);
-			spans.add(new Span(start, label));
+			if(prob > 0) {
+				cumulative += prob;
+				cumulativeValues.add(cumulative);
+				spans.add(new Span(start, label));
+			}
 		}
 		else {
 			// binary
@@ -225,8 +281,9 @@ public class Sampler {
 					
 					if(rule.getParent() == label) {
 						double prob = binaryProbability(spanProperties, start, end, start+split, r, rule);
-						if(prob == 0)
+						if(prob <= 0)
 							continue;
+						
 						cumulative += prob;
 						cumulativeValues.add(cumulative);
 						Span span = new Span(start, end, start+split, rule);
@@ -238,6 +295,15 @@ public class Sampler {
 		
 		//System.out.println(cumulativeValues);
 		//System.out.println(spans);
+		
+		if(cumulativeValues.size() == 0) {
+			System.out.println("no options s:"+start+",e:"+end+",l:"+label+",u:"+allowUnaries+",r:"+resultAccumulator+",s:");
+			for(Integer i : sentenceWords) {
+				System.out.print(wordEnum.getWord(i));
+				System.out.print(" ");
+			}
+			throw new NoOptionsException(label);
+		}
 		
 		Span span = spans.get(sample(cumulativeValues, cumulative));
 		resultAccumulator.add(span);
@@ -260,7 +326,19 @@ public class Sampler {
 		}
 		if(sampleIndex >= cumulativeValues.size()) { // because evidenty this happens somehow
 			sampleIndex = cumulativeValues.size() - 1;
+			System.out.println("unexpected case");
 		}
 		return sampleIndex;
+	}
+	
+	/**
+	 * Thrown when a sample was made that leads to a dead end - a label for a constituent where we can't put a rule under it
+	 */
+	private class NoOptionsException extends Exception {
+		private static final long serialVersionUID = 1L;
+
+		public NoOptionsException(int label) {
+			super("No options with label " + label);
+		}
 	}
 }

@@ -9,13 +9,23 @@ import constituencyParser.features.FeatureParameters;
 public class Test {
 	public static void main(String[] args) throws Exception {
 		
-		if(args.length != 2) {
-			System.out.println("requires 2 arguments: the model file name, and the data directory");
+		if(args.length < 3) {
+			System.out.println("requires 3 arguments: the model file name, the data directory, and t/f second order ");
+			System.out.println("optional argument: number of iterations for randomized greedy restart");
 			return;
 		}
 		
 		String modelFile = args[0];
 		String dataDir = args[1];
+		boolean secondOrder = args[2].equals("t");
+		if(!secondOrder && !args[2].equals("f")) {
+			System.out.println("second order must be t or f");
+		}
+		
+		int greedyIterations = 100;
+		if(args.length > 3) {
+			greedyIterations = Integer.parseInt(args[3]);
+		}
 		
 		//testPassiveAggressive();
 		
@@ -29,40 +39,68 @@ public class Test {
 		//sample(words, labels, rules, parameters);
 		
 		
-		test(words, labels, rules, parameters, dataDir);
+		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations);
 		
 		
-		decodeSentence();
+		//decodeSentence();
 	}
 	
-	public static void test(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, String dataFolder) throws IOException {
+	public static void test(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, String dataFolder, boolean secondOrder) throws IOException {
+		test(words, labels, rules, parameters, dataFolder, secondOrder, 100);
+	}
+	
+	public static void test(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations) throws IOException {
+		System.out.println(labels.getTopLevelLabelIds());
 		
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
 		//gold = gold.subList(0, 50);
 		
-		//CKYDecoder decoder = new CKYDecoder(words, labels, rules);
-		RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules);
+		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
+		RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules);
+		
+		
+		randGreedyDecoder.setNumberSampleIterations(randomizedGreedyIterations);
 		
 		int numberCorrect = 0;
 		int numberGold = 0;
 		int numberOutput = 0;
 		for(SpannedWords example : gold) {
-			List<Span> result = decoder.decode(example.getWords(), parameters, false);
+			
+			//randGreedyDecoder.setSecondOrder(secondOrder);
+			randGreedyDecoder.setSecondOrder(false);
+			
+			List<Span> ckyResult = decoder.decode(example.getWords(), parameters, false);
+			List<Span> result = randGreedyDecoder.decode(example.getWords(), parameters, false);
+			boolean different = false;
 			for(Span span : result) {
 				for(Span goldSpan : example.getSpans()) {
 					if(span.getStart() == goldSpan.getStart() && span.getEnd() == goldSpan.getEnd() && span.getRule().getParent() == goldSpan.getRule().getParent())
 						numberCorrect++;
 				}
+				
+				boolean found = false;
+				for(Span ckySpan : ckyResult) {
+					if(span.getStart() == ckySpan.getStart() && span.getEnd() == ckySpan.getEnd() && span.getRule().getParent() == ckySpan.getRule().getParent())
+						found = true;
+				}
+				if(!found)
+					different = true;
 			}
+			
+			if(different) {
+				System.out.println("Difference.");
+				System.out.println("CKY: " + ckyResult + " score: " + decoder.getLastScore() + " score by rg: " + randGreedyDecoder.score(example.getWords(), ckyResult, SpanUtilities.getParents(ckyResult), parameters, false));
+				System.out.println("RandGreedy: " + result + " score: " + randGreedyDecoder.getLastScore());
+			}
+			
 			numberGold += example.getSpans().size();
 			numberOutput += result.size();
-			
-			double precision = numberCorrect / (double)numberOutput;
-			double recall = numberCorrect / (double)numberGold;
-			
-			double score = 2*precision*recall/(precision+recall);
-			System.out.println("Development set score: " + score);
 		}
+		double precision = numberCorrect / (double)numberOutput;
+		double recall = numberCorrect / (double)numberGold;
+		
+		double score = 2*precision*recall/(precision+recall);
+		System.out.println("Development set score: " + score);
 	}
 	
 	public static void decodeSentence() throws Exception {
@@ -103,7 +141,7 @@ public class Test {
 			// run passive aggressive on the first example
 			CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 			PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder, params);
-			pa.train(examples.subList(0, 1), .05, false);
+			pa.train(examples.subList(0, 1), .05, false, false);
 			
 			// the first example should now classify correctly
 			//List<Span> result = decoder.decode(examples.get(0).getWords(), params);

@@ -32,18 +32,21 @@ public class PassiveAgressive {
 		this.parameters = parameters;
 	}
 	
-	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder) {
+	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting) {
 		int count = 0;
 		int totalLoss = 0;
 		for(SpannedWords sw : trainingExamples) {
 			count++;
-			/*if(count % 5 == 0) {
-				System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double) count));
-			}*/
+			//if(count % 5 == 0) {
+				//System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double) count));
+			//}
 			
 			parameters.resetDropout(dropout);
 			
 			List<Integer> words = sw.getWords();
+			
+			decoder.setCostAugmenting(costAugmenting, sw);
+			decoder.setSecondOrder(doSecondOrder);
 			List<Span> predicted = decoder.decode(words, parameters, true);
 			
 			int loss = computeLoss(predicted, sw.getSpans()); 
