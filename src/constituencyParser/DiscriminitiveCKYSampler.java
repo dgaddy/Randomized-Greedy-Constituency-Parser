@@ -11,7 +11,7 @@ import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 import constituencyParser.features.SpanProperties;
 
-public class Sampler {
+public class DiscriminitiveCKYSampler {
 	private static final double PRUNE_THRESHOLD = .01;
 	
 	WordEnumeration wordEnum;
@@ -31,7 +31,7 @@ public class Sampler {
 	boolean costAugmenting = false;
 	int[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
 	
-	public Sampler(WordEnumeration words, LabelEnumeration labels, Rules rules) {
+	public DiscriminitiveCKYSampler(WordEnumeration words, LabelEnumeration labels, Rules rules) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;

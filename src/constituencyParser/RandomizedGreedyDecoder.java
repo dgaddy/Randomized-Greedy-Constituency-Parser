@@ -13,7 +13,7 @@ import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 
 public class RandomizedGreedyDecoder implements Decoder {
-	Sampler sampler;
+	DiscriminitiveCKYSampler sampler;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
@@ -55,12 +55,16 @@ public class RandomizedGreedyDecoder implements Decoder {
 	int numberSampleIterations = 100;
 	
 	public RandomizedGreedyDecoder(WordEnumeration words, LabelEnumeration labels, Rules rules) {
-		sampler = new Sampler(words, labels, rules);
+		sampler = new DiscriminitiveCKYSampler(words, labels, rules);
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
 		
 		this.greedyChange = new GreedyChange(labels, rules);
+	}
+	
+	public void samplerDoCounts(List<SpannedWords> trainingData) {
+		//sampler.doCounts(trainingData);
 	}
 	
 	public void setSecondOrder(boolean secondOrder) {

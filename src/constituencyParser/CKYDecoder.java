@@ -1,114 +1,114 @@
 package constituencyParser;
 
-import gnu.trove.list.TLongList;
-
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import constituencyParser.Rule.Type;
-import constituencyParser.features.FeatureParameters;
-import constituencyParser.features.Features;
-import constituencyParser.features.SpanProperties;
 
-public class CKYDecoder implements Decoder {
-	private static final double PRUNE_THRESHOLD = 10;
-	
-	WordEnumeration wordEnum;
-	LabelEnumeration labels;
+public class CKYDecoder {
+	WordEnumeration words;
 	Rules rules;
+	LabelEnumeration labels;
 	
-	double[][][] scores;
+	int[] labelCounts;
+	int[] binaryRuleCounts;
+	int[] unaryRuleCounts;
+	int[][] terminalCounts; // indexed by terminal then word
+	
+	double[][][] probabilities;
 	Span[][][] spans;
-	
 	List<Span> usedSpans;
 	
 	public CKYDecoder(WordEnumeration words, LabelEnumeration labels, Rules rules) {
-		this.wordEnum = words;
+		this.words = words;
 		this.labels = labels;
 		this.rules = rules;
 	}
 	
-	double lastScore = 0;
-	
-	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout) {
-		int wordsSize = words.size();
-		int labelsSize = labels.getNumberOfLabels();
-		int rulesSize = rules.getNumberOfBinaryRules();
-		scores = new double[wordsSize][wordsSize+1][labelsSize];
-		for(int i = 0; i < wordsSize; i++)
-			for(int j = 0; j < wordsSize+1; j++)
-				for(int k = 0; k < labelsSize; k++)
-					scores[i][j][k] = Double.NEGATIVE_INFINITY;
-		spans = new Span[wordsSize][wordsSize+1][labelsSize];
-		
-		for(int i = 0; i < wordsSize; i++) {
-			TLongList spanProperties = SpanProperties.getTerminalSpanProperties(words, i, wordEnum);
-			for(int label = 0; label < labelsSize; label++) {
-				Span span = new Span(i, label);
-				double spanScore = 0;
-				final long ruleCode = Rules.getTerminalRuleCode(label);
-				for(int p = 0; p < spanProperties.size(); p++) {
-					spanScore += params.getScore(Features.getSpanPropertyByRuleFeature(spanProperties.get(p), ruleCode), dropout);
-				}
-				spanScore += params.getScore(Features.getRuleFeature(ruleCode), dropout);
-				scores[i][i+1][label] = spanScore;
-				spans[i][i+1][label] = span;
-			}
-			
-			doUnary(words, i, i+1, params, dropout);
+	public void doCounts(List<SpannedWords> examples) {
+		int numLabels = labels.getNumberOfLabels();
+		labelCounts = new int[numLabels];
+		binaryRuleCounts = new int[rules.getNumberOfBinaryRules()];
+		unaryRuleCounts = new int[rules.getNumberOfUnaryRules()];
+		terminalCounts = new int[numLabels][words.getNumberOfWords()];
+		for(int i = 0; i < numLabels; i++) {
+			labelCounts[i]++; // Add one to each terminal label count for the out of vocabulary words
 		}
 		
-		double[][] max = new double[wordsSize][wordsSize+1];
+		for(SpannedWords sw : examples) {
+			List<Integer> words = sw.getWords();
+			for(Span s : sw.getSpans()) {
+				Rule rule = s.getRule();
+				labelCounts[rule.getParent()]++;
+				if(rule.getType() == Type.BINARY) {
+					binaryRuleCounts[rules.getBinaryId(rule)]++;
+				}
+				else if(rule.getType() == Type.UNARY) {
+					unaryRuleCounts[rules.getUnaryId(rule)]++;
+				}
+				else if(rule.getType() == Type.TERMINAL) {
+					terminalCounts[rule.getParent()][words.get(s.getStart())]++;
+				}
+				else {
+					throw new RuntimeException("Invalid type.");
+				}
+			}
+		}
+	}
+	
+	public List<Span> decode(List<Integer> words) {
+		int wordsSize = words.size();
+		int numWords = terminalCounts[0].length;
+		int numLabels = labelCounts.length;
+		int binRulesSize = binaryRuleCounts.length;
+		probabilities = new double[wordsSize][wordsSize+1][numLabels];
+		spans = new Span[wordsSize][wordsSize+1][numLabels];
+
+		for(int i = 0; i < wordsSize; i++) {
+			int word = words.get(i);
+			for(int label = 0; label < numLabels; label++) {
+				double labelCount = labelCounts[label];
+				double wordCount = word >= numWords ? 1 : terminalCounts[label][word]; // the 1 is for the out of vocabulary words, which we count as being seen once with all labels
+				if(labelCount == 0)
+					continue;
+				probabilities[i][i+1][label] = wordCount / labelCount;
+				spans[i][i+1][label] = new Span(i, label);
+			}
+			
+			doUnary(i, i+1);
+		}
+		
 		for(int length = 2; length < wordsSize + 1; length++) {
 			for(int start = 0; start < wordsSize + 1 - length; start++) {
-				max[start][start+length] = Double.NEGATIVE_INFINITY;
 				for(int split = 1; split < length; split++) {
-					TLongList spanProperties = SpanProperties.getBinarySpanProperties(words, start, start + length, start + split);
-					for(int r = 0; r < rulesSize; r++) {
-						
+					for(int r = 0; r < binRulesSize; r++) {
 						Rule rule = rules.getBinaryRule(r);
 						int label = rule.getParent();
 						
-						double leftChildScore = scores[start][start+split][rule.getLeft()];
-						double rightChildScore = scores[start+split][start+length][rule.getRight()];
-						if(leftChildScore < max[start][start+split] - PRUNE_THRESHOLD || rightChildScore < max[start+split][start+length] - PRUNE_THRESHOLD)
-							continue;
+						double labelCount = labelCounts[label];
+						double ruleCount = binaryRuleCounts[r];
+						double prob = ruleCount / labelCount * probabilities[start][start+split][rule.getLeft()] * probabilities[start+split][start+length][rule.getRight()];
 						
-						double childScores = scores[start][start+split][rule.getLeft()] + scores[start+split][start+length][rule.getRight()];
-						
-						double spanScore =  0;
-						final long ruleCode = Rules.getRuleCode(r, Type.BINARY);
-						for(int p = 0; p < spanProperties.size(); p++) {
-							spanScore += params.getScore(Features.getSpanPropertyByRuleFeature(spanProperties.get(p), ruleCode), dropout);
-							spanScore += params.getScore(Features.getSpanPropertyByLabelFeature(spanProperties.get(p), label), dropout);
-						}
-						spanScore += params.getScore(Features.getRuleFeature(ruleCode), dropout);
-						
-						double fullScore = spanScore + childScores;
-						if(fullScore > scores[start][start+length][label]) {
-							scores[start][start+length][label] = fullScore;
+						if(prob > probabilities[start][start+length][label]) {
+							probabilities[start][start+length][label] = prob;
+							
 							Span span = new Span(start, start + length, start + split, rule);
 							span.setLeft(spans[start][start+split][rule.getLeft()]);
 							span.setRight(spans[start+split][start+length][rule.getRight()]);
 							spans[start][start+length][label] = span;
-							
-							if(fullScore > max[start][start+length]) {
-								max[start][start+length] = fullScore;
-							}
 						}
-						
-						
 					}
 				}
 				
-				doUnary(words, start, start + length, params, dropout);
+				doUnary(start, start+length);
 			}
 		}
 		
-		double bestScore = Double.NEGATIVE_INFINITY;
+		double bestScore = 0;
 		Span bestSpan = null;
 		for(Integer topLabel : labels.getTopLevelLabelIds()) {
-			double score = scores[0][wordsSize][topLabel];
+			double score = probabilities[0][wordsSize][topLabel];
 			if(score > bestScore) {
 				bestScore = score;
 				bestSpan = spans[0][wordsSize][topLabel];
@@ -119,47 +119,34 @@ public class CKYDecoder implements Decoder {
 		if(bestSpan != null)
 			getUsedSpans(bestSpan);
 		
-		lastScore = bestScore;
-		
 		return usedSpans;
 	}
 	
-	public double getLastScore() {
-		return lastScore;
-	}
-	
-	private void doUnary(List<Integer> words, int start, int end, FeatureParameters parameters, boolean dropout) {
-		int numUnaryRules = rules.getNumberOfUnaryRules();
-		int numLabels = labels.getNumberOfLabels();
-		TLongList properties = SpanProperties.getUnarySpanProperties(words, start, end);
-		
-		double[] unaryScores = new double[numLabels];
+	public void doUnary(int start, int end) {
+		int numLabels = labelCounts.length;
+		double[] unaryProbabilities = new double[numLabels];
 		Span[] unarySpans = new Span[numLabels];
 		
+		int numUnaryRules = unaryRuleCounts.length;
 		for(int i = 0; i < numUnaryRules; i++) {
 			Rule rule = rules.getUnaryRule(i);
 			int label = rule.getParent();
+			double labelCount = labelCounts[label];
+			double ruleCount = unaryRuleCounts[i];
+			double prob = ruleCount / labelCount * probabilities[start][end][rule.getLeft()];
 			
-			double childScore = scores[start][end][rule.getLeft()];
-			double spanScore = 0;
-			final long ruleCode = Rules.getRuleCode(i, Type.UNARY);
-			for(int p = 0; p < properties.size(); p++) {
-				spanScore += parameters.getScore(Features.getSpanPropertyByRuleFeature(properties.get(p), ruleCode), dropout);
-				spanScore += parameters.getScore(Features.getSpanPropertyByLabelFeature(properties.get(p), label), dropout);
-			}
-			spanScore += parameters.getScore(Features.getRuleFeature(ruleCode), dropout);
-			double fullScore = childScore + spanScore;
-			if(fullScore > unaryScores[label]) {
+			if(prob > unaryProbabilities[label]) {
+				unaryProbabilities[label] = prob;
+				
 				Span span = new Span(start, end, rule);
 				span.setLeft(spans[start][end][rule.getLeft()]);
-				unaryScores[label] = fullScore;
 				unarySpans[label] = span;
 			}
 		}
 		
 		for(int i = 0; i < numLabels; i++) {
-			if(unaryScores[i] > scores[start][end][i] && unarySpans[i] != null) {
-				scores[start][end][i] = unaryScores[i];
+			if(unaryProbabilities[i] > probabilities[start][end][i] && unarySpans[i] != null) {
+				probabilities[start][end][i] = unaryProbabilities[i];
 				spans[start][end][i] = unarySpans[i];
 			}
 		}
@@ -174,15 +161,5 @@ public class CKYDecoder implements Decoder {
 		else if(span.getRule().getType() == Rule.Type.UNARY) {
 			getUsedSpans(span.getLeft());
 		}
-	}
-
-	@Override
-	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold) {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public void setSecondOrder(boolean secondOrder) {
-		throw new UnsupportedOperationException();
 	}
 }
