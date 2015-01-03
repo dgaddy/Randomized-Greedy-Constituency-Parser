@@ -6,7 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 
 public class SpanUtilities {
-	public static void printSpans(final List<Span> spans, int numberOfWords) {
+	public static void printSpans(final List<Span> spans, int numberOfWords, LabelEnumeration labels) {
 		List<List<Integer>> list = new ArrayList<>();
 		for(int i = 0; i < numberOfWords; i++) {
 			list.add(new ArrayList<Integer>());
@@ -34,13 +34,21 @@ public class SpanUtilities {
 		int index = 0;
 		while(!finished) {
 			finished = true;
+			int last = -1;
 			for(List<Integer> inner : list) {
 				if(index < inner.size()) {
-					System.out.print(inner.get(index));
-					finished = false;
+					int spanIndex = inner.get(index);
+					if(spanIndex == last)
+						System.out.print("-------->");
+					else {
+						last = spanIndex;
+						Span s = spans.get(spanIndex);
+						System.out.print(String.format("<%-7s>", labels.getLabel(s.getRule().getParent())));
+						finished = false;
+					}
 				}
 				else
-					System.out.print(' ');
+					System.out.print("         ");
 			}
 			System.out.println();
 			index++;
