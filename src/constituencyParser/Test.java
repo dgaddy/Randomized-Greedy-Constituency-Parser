@@ -2,13 +2,13 @@ package constituencyParser;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
 import constituencyParser.features.FeatureParameters;
 
 public class Test {
 	public static void main(String[] args) throws Exception {
-		
 		if(args.length < 3) {
 			System.out.println("requires 3 arguments: the model file name, the data directory, and t/f second order ");
 			System.out.println("optional argument: number of iterations for randomized greedy restart");
@@ -41,7 +41,6 @@ public class Test {
 		
 		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations);
 		
-		
 		//decodeSentence();
 	}
 	
@@ -50,14 +49,12 @@ public class Test {
 	}
 	
 	public static void test(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations) throws IOException {
-		System.out.println(labels.getTopLevelLabelIds());
+		DiscriminitiveCKYDecoder decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
+		
+		RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules);
+		//randGreedyDecoder.samplerDoCounts(PennTreebankReader.loadFromFiles(dataFolder, 2, 22, words, labels, rules)); for non-discriminitive
 		
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
-		//gold = gold.subList(0, 50);
-		
-		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
-		RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules);
-		
 		
 		randGreedyDecoder.setNumberSampleIterations(randomizedGreedyIterations);
 		
@@ -65,12 +62,12 @@ public class Test {
 		int numberGold = 0;
 		int numberOutput = 0;
 		for(SpannedWords example : gold) {
-			
 			//randGreedyDecoder.setSecondOrder(secondOrder);
 			randGreedyDecoder.setSecondOrder(false);
 			
 			List<Span> ckyResult = decoder.decode(example.getWords(), parameters, false);
 			List<Span> result = randGreedyDecoder.decode(example.getWords(), parameters, false);
+			
 			boolean different = false;
 			for(Span span : result) {
 				for(Span goldSpan : example.getSpans()) {
@@ -86,11 +83,21 @@ public class Test {
 				if(!found)
 					different = true;
 			}
-			
 			if(different) {
+				HashSet<Span> common = new HashSet<Span>(ckyResult);
+				common.retainAll(result);
+				HashSet<Span> ckySpecific = new HashSet<Span>(ckyResult);
+				ckySpecific.removeAll(common);
+				HashSet<Span> rgSpecific = new HashSet<Span>(result);
+				rgSpecific.removeAll(common);
 				System.out.println("Difference.");
-				System.out.println("CKY: " + ckyResult + " score: " + decoder.getLastScore() + " score by rg: " + randGreedyDecoder.score(example.getWords(), ckyResult, SpanUtilities.getParents(ckyResult), parameters, false));
-				System.out.println("RandGreedy: " + result + " score: " + randGreedyDecoder.getLastScore());
+				System.out.println("CKY: " + ckySpecific + " score: " + decoder.getLastScore());
+				SpanUtilities.printSpans(ckyResult, example.getWords().size(), labels);
+				System.out.println("RandGreedy: " + rgSpecific + " score: " + randGreedyDecoder.getLastScore());
+				SpanUtilities.printSpans(result, example.getWords().size(), labels);
+			}
+			else {
+				System.out.println("Same.");
 			}
 			
 			numberGold += example.getSpans().size();
@@ -113,7 +120,7 @@ public class Test {
 		
 		System.out.println(rules.getNumberOfUnaryRules());
 		
-		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
+		DiscriminitiveCKYDecoder decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
 		
 		List<Span> result = decoder.decode(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
 		
@@ -139,7 +146,7 @@ public class Test {
 		
 		while(loss > 0) {
 			// run passive aggressive on the first example
-			CKYDecoder decoder = new CKYDecoder(words, labels, rules);
+			DiscriminitiveCKYDecoder decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
 			PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder, params);
 			pa.train(examples.subList(0, 1), .05, false, false);
 			
@@ -151,11 +158,23 @@ public class Test {
 	}
 	
 	public static void sample(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters) {
-		Sampler sampler = new Sampler(words, labels, rules);
+		DiscriminitiveCKYSampler sampler = new DiscriminitiveCKYSampler(words, labels, rules);
 		sampler.calculateProbabilities(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket")), parameters);
 		for(int i = 0; i < 100; i++) {
 			List<Span> spans = sampler.sample();
 			System.out.println(spans);
 		}
+	}
+	
+	public static void testCKY() throws IOException {
+		String dataFolder = "../WSJ data/";
+		WordEnumeration words = new WordEnumeration();
+		LabelEnumeration labels = new LabelEnumeration();
+		Rules rules = new Rules();
+		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
+		decoder.doCounts(PennTreebankReader.loadFromFiles(dataFolder, 2, 22, words, labels, rules));
+		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
+		List<Span> result = decoder.decode(gold.get(0).getWords());
+		System.out.println(result);
 	}
 }
