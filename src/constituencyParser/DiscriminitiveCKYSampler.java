@@ -12,7 +12,7 @@ import constituencyParser.features.Features;
 import constituencyParser.features.SpanProperties;
 
 public class DiscriminitiveCKYSampler {
-	private static final double PRUNE_THRESHOLD = .01;
+	private static final double PRUNE_THRESHOLD = .00001;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
@@ -25,8 +25,6 @@ public class DiscriminitiveCKYSampler {
 	double[][][] insideProbabilitiesBeforeUnaries; // unnormalized probabilities; start, end, label
 	double[][][] insideProbabilitiesAfterUnaries;
 	double[][] maxBeforeUnaries; // used for pruning
-	//double[][][][] ruleProbabilities; // start, end, rule, split (relative to start)
-	//double[][][] unaryRuleProbabilities;
 	
 	boolean costAugmenting = false;
 	int[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
@@ -55,8 +53,6 @@ public class DiscriminitiveCKYSampler {
 		int rulesSize = rules.getNumberOfBinaryRules();
 		insideProbabilitiesBeforeUnaries = new double[wordsSize][wordsSize+1][labelsSize];
 		insideProbabilitiesAfterUnaries = new double[wordsSize][wordsSize+1][labelsSize];
-		//ruleProbabilities = new double[wordsSize][wordsSize+1][rulesSize][wordsSize];
-		//unaryRuleProbabilities = new double[wordsSize][wordsSize+1][rules.getNumberOfUnaryRules()];
 		for(int i = 0; i < wordsSize; i++)
 			for(int j = 0; j < wordsSize+1; j++)
 				for(int k = 0; k < labelsSize; k++)
@@ -95,8 +91,6 @@ public class DiscriminitiveCKYSampler {
 						int label = rule.getParent();
 						
 						double probability = binaryProbability(spanProperties, start, start+length, start+split, r, rule);
-						
-						//ruleProbabilities[start][start+length][r][split] = probability;
 						
 						double fullProbability = insideProbabilitiesBeforeUnaries[start][start+length][label] + probability;  
 						insideProbabilitiesBeforeUnaries[start][start+length][label] = fullProbability;
@@ -166,32 +160,18 @@ public class DiscriminitiveCKYSampler {
 		int numUnaryRules = rules.getNumberOfUnaryRules();
 		TLongList properties = SpanProperties.getUnarySpanProperties(words, start, end);
 		
-		List<Span> toAdd = new ArrayList<>();
-		List<Double> probabilitiesToAdd = new ArrayList<>();
-		for(int i = 0; i < numUnaryRules; i++) {
-			Rule rule = rules.getUnaryRule(i);
-			
-			//unaryRuleProbabilities[start][end][i] = probabilityToAdd;
-			
-			double probability = unaryProbability(properties, start, end, i, rule);
-			
-			Span span = new Span(start, end, rule);
-			toAdd.add(span);
-			probabilitiesToAdd.add(probability);
-		}
-		
 		double[] probs = insideProbabilitiesAfterUnaries[start][end];
 		double[] oldProbs = insideProbabilitiesBeforeUnaries[start][end];
 		for(int i = 0; i < probs.length; i++) {
 			probs[i] = oldProbs[i];
 		}
 		
-		for(int i = 0; i < toAdd.size(); i++) {
-			Span sp = toAdd.get(i);
-			double sc = probabilitiesToAdd.get(i);
-			int label = sp.getRule().getParent();
+		for(int i = 0; i < numUnaryRules; i++) {
+			Rule rule = rules.getUnaryRule(i);
 			
-			insideProbabilitiesAfterUnaries[start][end][label] += sc;
+			double probability = unaryProbability(properties, start, end, i, rule);
+			
+			insideProbabilitiesAfterUnaries[start][end][rule.getParent()] += probability;
 		}
 	}
 	

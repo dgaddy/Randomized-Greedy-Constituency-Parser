@@ -68,24 +68,17 @@ public class Test {
 			List<Span> ckyResult = decoder.decode(example.getWords(), parameters, false);
 			List<Span> result = randGreedyDecoder.decode(example.getWords(), parameters, false);
 			
-			boolean different = false;
 			for(Span span : result) {
 				for(Span goldSpan : example.getSpans()) {
 					if(span.getStart() == goldSpan.getStart() && span.getEnd() == goldSpan.getEnd() && span.getRule().getParent() == goldSpan.getRule().getParent())
 						numberCorrect++;
 				}
-				
-				boolean found = false;
-				for(Span ckySpan : ckyResult) {
-					if(span.getStart() == ckySpan.getStart() && span.getEnd() == ckySpan.getEnd() && span.getRule().getParent() == ckySpan.getRule().getParent())
-						found = true;
-				}
-				if(!found)
-					different = true;
 			}
+			
+			HashSet<Span> common = new HashSet<Span>(ckyResult);
+			common.retainAll(result);
+			boolean different = common.size() != ckyResult.size();
 			if(different) {
-				HashSet<Span> common = new HashSet<Span>(ckyResult);
-				common.retainAll(result);
 				HashSet<Span> ckySpecific = new HashSet<Span>(ckyResult);
 				ckySpecific.removeAll(common);
 				HashSet<Span> rgSpecific = new HashSet<Span>(result);
