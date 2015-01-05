@@ -134,6 +134,8 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 		TLongList properties = SpanProperties.getUnarySpanProperties(words, start, end);
 		
 		double[] unaryScores = new double[numLabels];
+		for(int i = 0; i < numLabels; i++)
+			unaryScores[i] = Double.NEGATIVE_INFINITY;
 		Span[] unarySpans = new Span[numLabels];
 		
 		for(int i = 0; i < numUnaryRules; i++) {
