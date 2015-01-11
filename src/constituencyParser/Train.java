@@ -164,7 +164,7 @@ public class Train {
 			
 			shared = FeatureParameters.average(results);
 			
-			Test.test(words, labels, rules, shared, dataFolder, secondOrder);
+			Test.test(words, labels, rules, shared, dataFolder, secondOrder, 100, .1);
 			
 			SaveObject so = new SaveObject(words, labels, rules, shared);
 			so.save(outputFolder + "/modelIteration"+i);

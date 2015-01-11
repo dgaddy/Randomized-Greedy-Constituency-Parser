@@ -52,7 +52,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	boolean costAugmenting = false;
 	int[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
 	
-	int numberSampleIterations = 100;
+	int numberSampleIterations = 50;
 	
 	public RandomizedGreedyDecoder(WordEnumeration words, LabelEnumeration labels, Rules rules) {
 		sampler = new DiscriminitiveCKYSampler(words, labels, rules);
@@ -102,7 +102,9 @@ public class RandomizedGreedyDecoder implements Decoder {
 		
 		List<Span> best = new ArrayList<Span>();
 		double bestScore = Double.NEGATIVE_INFINITY;
-		for(int iteration = 0; iteration < numberSampleIterations; iteration++) {
+		int numberOfUpdates = 0;
+		
+		for(int iteration = 0; iteration < numberSampleIterations && numberOfUpdates < numberSampleIterations; iteration++) {
 			//System.out.println("new iteration");
 			
 			List<Span> spans = sampler.sample();
@@ -126,6 +128,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 						break;
 					else
 						alreadyDone.add(spansSet);
+					
+					numberOfUpdates++;
 					
 					double score = score(words, spans, params, dropout);
 					//System.out.println("score: " + score);

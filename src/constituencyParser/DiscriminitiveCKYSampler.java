@@ -3,7 +3,6 @@ package constituencyParser;
 import gnu.trove.list.TLongList;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
