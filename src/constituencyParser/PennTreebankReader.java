@@ -171,7 +171,7 @@ public class PennTreebankReader implements Closeable {
 	 * @return
 	 * @throws IOException 
 	 */
-	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, Rules rules) throws IOException {
+	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) throws IOException {
 
 		List<SpannedWords> loaded = new ArrayList<>();
 		List<TreeNode> trees = new ArrayList<>();

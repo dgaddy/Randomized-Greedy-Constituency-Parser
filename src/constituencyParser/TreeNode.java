@@ -2,7 +2,9 @@ package constituencyParser;
 import java.util.ArrayList;
 import java.util.List;
 
-
+/**
+ * A tree representation of a parse tree.  Used for reading in parse trees, then converted to span form using getSpans. 
+ */
 public class TreeNode {
 	private TreeNode parent;
 	

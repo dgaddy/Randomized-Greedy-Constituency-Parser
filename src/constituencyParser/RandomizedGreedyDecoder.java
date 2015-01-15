@@ -12,15 +12,22 @@ import constituencyParser.GreedyChange.ParentedSpans;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 
+/**
+ * Samples parse trees then makes greedy updates on them
+ */
 public class RandomizedGreedyDecoder implements Decoder {
 	DiscriminitiveCKYSampler sampler;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
-	Rules rules;
+	RuleEnumeration rules;
 	
 	GreedyChange greedyChange;
 	
+	/**
+	 * Holds a span and its parent label.  Used for cacheing
+	 *
+	 */
 	class SpanAndParent {
 		Span span;
 		int parentLabel;
@@ -54,7 +61,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	
 	int numberSampleIterations = 50;
 	
-	public RandomizedGreedyDecoder(WordEnumeration words, LabelEnumeration labels, Rules rules) {
+	public RandomizedGreedyDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
 		sampler = new DiscriminitiveCKYSampler(words, labels, rules);
 		this.wordEnum = words;
 		this.labels = labels;
@@ -63,14 +70,24 @@ public class RandomizedGreedyDecoder implements Decoder {
 		this.greedyChange = new GreedyChange(labels, rules);
 	}
 	
+	/**
+	 * For when using CKYSampler instead of DiscriminitiveCKYDecoder
+	 * @param trainingData
+	 */
 	public void samplerDoCounts(List<SpannedWords> trainingData) {
 		//sampler.doCounts(trainingData);
 	}
 	
+	/**
+	 * Do second order features
+	 */
 	public void setSecondOrder(boolean secondOrder) {
 		this.doSecondOrder = secondOrder;
 	}
 	
+	/**
+	 * If set to true, adds one to score for each incorrect span.  Used only during training.
+	 */
 	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold) {
 		this.costAugmenting = costAugmenting;
 		int size = gold.getWords().size();
@@ -80,15 +97,22 @@ public class RandomizedGreedyDecoder implements Decoder {
 				goldLabels[i][j] = -1;
 		
 		for(Span s : gold.getSpans()) {
-			goldLabels[s.getStart()][s.getEnd()] = s.getRule().getParent();
+			goldLabels[s.getStart()][s.getEnd()] = s.getRule().getLabel();
 		}
 	}
 	
+	/**
+	 * Set number of random restarts to do using new sample
+	 * @param iterations
+	 */
 	public void setNumberSampleIterations(int iterations) {
 		numberSampleIterations = iterations;
 	}
 	
 	double lastScore = 0;
+	/**
+	 * Returns a parse tree in the form of a list of spans
+	 */
 	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout) {
 		spanScoreCache = new HashMap<SpanAndParent, Double>();
 		
@@ -108,14 +132,6 @@ public class RandomizedGreedyDecoder implements Decoder {
 			//System.out.println("new iteration");
 			
 			List<Span> spans = sampler.sample();
-			
-			/*for (Span s : spans) {
-				if(s.getStart() == 0 && s.getEnd() == words.size()) {
-					if(!labels.getTopLevelLabelIds().contains(s.getRule().getParent())) {
-						System.out.println("sampler error");
-					}
-				}
-			}*/
 			
 			if(spans.size() > 0) { // sometimes sampler fails to find valid sample and returns empty list
 				SpanUtilities.checkCorrectness(spans);
@@ -179,10 +195,21 @@ public class RandomizedGreedyDecoder implements Decoder {
 		return best;
 	}
 	
+	/**
+	 * Gets the score of the last result returned by decode
+	 * @return
+	 */
 	public double getLastScore() {
 		return lastScore;
 	}
 	
+	/**
+	 * Decodes by only sampling and getting the maximum score without any greedy updates
+	 * @param words
+	 * @param params
+	 * @param dropout
+	 * @return
+	 */
 	public List<Span> decodeNoGreedy(List<Integer> words, FeatureParameters params, boolean dropout) {
 		sampler.calculateProbabilities(words, params);
 		List<ParentedSpans> options = new ArrayList<>();
@@ -193,6 +220,14 @@ public class RandomizedGreedyDecoder implements Decoder {
 		return getMax(options, words, params, dropout);
 	}
 	
+	/**
+	 * Choose the maximum list of spans (parse tree) from options
+	 * @param options a list of different options where each option has a list of spans (and parents stored so we don't have to recompute them)
+	 * @param words
+	 * @param params
+	 * @param dropout
+	 * @return
+	 */
 	private List<Span> getMax(List<ParentedSpans> options, List<Integer> words, FeatureParameters params, boolean dropout) {
 		double bestScore = Double.NEGATIVE_INFINITY;
 		List<Span> best = null;
@@ -210,6 +245,15 @@ public class RandomizedGreedyDecoder implements Decoder {
 		return score(words, spans, SpanUtilities.getParents(spans), params, dropout);
 	}
 	
+	/**
+	 * Score a parse tree (in the form of a list of Spans)
+	 * @param words
+	 * @param spans
+	 * @param parents
+	 * @param params
+	 * @param dropout
+	 * @return
+	 */
 	double score(List<Integer> words, List<Span> spans, int[] parents, FeatureParameters params, boolean dropout) {
 		double score = 0;
 		for(Span s : spans) {
@@ -225,7 +269,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 				continue;
 			}
 			
-			if(costAugmenting && goldLabels[s.getStart()][s.getEnd()] != s.getRule().getParent()) {
+			if(costAugmenting && goldLabels[s.getStart()][s.getEnd()] != s.getRule().getLabel()) {
 				score += 1;
 			}
 			
@@ -246,13 +290,13 @@ public class RandomizedGreedyDecoder implements Decoder {
 				Rule parentRule = spans.get(parents[j]).getRule();
 
 				if(rule.getType() == Rule.Type.UNARY) {
-					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getParent(), parentRule.getParent());
+					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
 					spanScore += params.getScore(code, dropout);
 				}
 				else if(rule.getType() == Rule.Type.BINARY) {
-					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getParent(), parentRule.getParent());
+					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
 					spanScore += params.getScore(code, dropout);
-					code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getParent(), parentRule.getParent());
+					code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getLabel(), parentRule.getLabel());
 					spanScore += params.getScore(code, dropout);
 				}
 			}

@@ -7,16 +7,14 @@ import java.util.List;
 
 import constituencyParser.WordEnumeration;
 
-
+/**
+ * Functions in this class return 32 bit codes
+ * bits 31-28  from end are an id for the type of property 
+ * word property: 0001
+ * length property: 0010
+ * prefix/sufix property: 0011
+ */
 public class SpanProperties {
-	
-	/*
-	 * these functions return 32 bit codes
-	 * bits 31-28  from end are an id for the type of property 
-	 * word property: 0001
-	 * length property: 0010
-	 * prefix/sufix property: 0011
-	 */
 	
 	/**
 	 * Returns 32 bit span properties

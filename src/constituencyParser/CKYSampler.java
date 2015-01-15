@@ -6,9 +6,12 @@ import java.util.List;
 
 import constituencyParser.Rule.Type;
 
+/**
+ * Samples trees based on unlexicalized CKY
+ */
 public class CKYSampler {
 	WordEnumeration words;
-	Rules rules;
+	RuleEnumeration rules;
 	LabelEnumeration labels;
 	
 	int[] labelCounts;
@@ -20,7 +23,7 @@ public class CKYSampler {
 	double[][][] insideProbabilitiesAfterUnaries;
 	List<Span> usedSpans;
 	
-	public CKYSampler(WordEnumeration words, LabelEnumeration labels, Rules rules) {
+	public CKYSampler(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
 		this.words = words;
 		this.labels = labels;
 		this.rules = rules;
@@ -40,7 +43,7 @@ public class CKYSampler {
 			List<Integer> words = sw.getWords();
 			for(Span s : sw.getSpans()) {
 				Rule rule = s.getRule();
-				labelCounts[rule.getParent()]++;
+				labelCounts[rule.getLabel()]++;
 				if(rule.getType() == Type.BINARY) {
 					binaryRuleCounts[rules.getBinaryId(rule)]++;
 				}
@@ -48,7 +51,7 @@ public class CKYSampler {
 					unaryRuleCounts[rules.getUnaryId(rule)]++;
 				}
 				else if(rule.getType() == Type.TERMINAL) {
-					terminalCounts[rule.getParent()][words.get(s.getStart())]++;
+					terminalCounts[rule.getLabel()][words.get(s.getStart())]++;
 				}
 				else {
 					throw new RuntimeException("Invalid type.");
@@ -83,7 +86,7 @@ public class CKYSampler {
 				for(int split = 1; split < length; split++) {
 					for(int r = 0; r < binRulesSize; r++) {
 						Rule rule = rules.getBinaryRule(r);
-						int label = rule.getParent();
+						int label = rule.getLabel();
 						
 						double labelCount = labelCounts[label];
 						double ruleCount = binaryRuleCounts[r];
@@ -108,7 +111,7 @@ public class CKYSampler {
 		int numUnaryRules = unaryRuleCounts.length;
 		for(int i = 0; i < numUnaryRules; i++) {
 			Rule rule = rules.getUnaryRule(i);
-			int label = rule.getParent();
+			int label = rule.getLabel();
 			double labelCount = labelCounts[label];
 			double ruleCount = unaryRuleCounts[i];
 			double prob = ruleCount / labelCount * insideProbabilitiesBeforeUnaries[start][end][rule.getLeft()];
@@ -156,7 +159,7 @@ public class CKYSampler {
 			
 			for(int r = 0; r < numUnaryRules; r++) {
 				Rule rule = rules.getUnaryRule(r);
-				if(rule.getParent() == label) {
+				if(rule.getLabel() == label) {
 					double labelCount = labelCounts[label];
 					double ruleCount = unaryRuleCounts[r];
 					double prob = ruleCount / labelCount * insideProbabilitiesBeforeUnaries[start][end][rule.getLeft()];
@@ -186,7 +189,7 @@ public class CKYSampler {
 				for(int r = 0; r < numBinRules; r++) {
 					Rule rule = rules.getBinaryRule(r);
 					
-					if(rule.getParent() == label) {
+					if(rule.getLabel() == label) {
 						double labelCount = labelCounts[label];
 						double ruleCount = binaryRuleCounts[r];
 						double prob = ruleCount / labelCount * insideProbabilitiesAfterUnaries[start][start+split][rule.getLeft()] * insideProbabilitiesAfterUnaries[start+split][end][rule.getRight()];

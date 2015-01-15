@@ -7,7 +7,10 @@ import java.util.List;
 
 import constituencyParser.Rule.Type;
 
-public class Rules implements Serializable {
+/**
+ * Used to turn rules into a unique id and vice versa
+ */
+public class RuleEnumeration implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	private List<Rule> binaryRules = new ArrayList<>();
@@ -16,10 +19,10 @@ public class Rules implements Serializable {
 	private List<Rule> unaryRules = new ArrayList<>();
 	HashMap<Rule, Integer> unaryIds = new HashMap<>();
 	
-	public Rules() {
+	public RuleEnumeration() {
 	}
 	
-	public Rules(Rules rules) {
+	public RuleEnumeration(RuleEnumeration rules) {
 		this.binaryRules = new ArrayList<>(rules.binaryRules);
 		this.unaryRules = new ArrayList<>(rules.unaryRules);
 		this.binaryIds = new HashMap<>(rules.binaryIds);
@@ -101,7 +104,7 @@ public class Rules implements Serializable {
 	}
 	
 	/**
-	 * 20 bit
+	 * The rule code is a 20 bit code that encodes the rule type and the rule id
 	 * @param ruleId
 	 * @param type
 	 * @return
@@ -114,6 +117,11 @@ public class Rules implements Serializable {
 		return getRuleCode(labelId, Type.TERMINAL);
 	}
 	
+	/**
+	 * The inverse of getRuleCode
+	 * @param code
+	 * @return
+	 */
 	public Rule getRuleFromCode(long code) {
 		int ruleId = (int) (code % (1L << 16L));
 		int typeOrdinal = (int) (code >> 16L);

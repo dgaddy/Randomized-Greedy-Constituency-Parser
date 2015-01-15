@@ -12,37 +12,37 @@ public class Rule implements Serializable {
 	}
 	
 	public Rule(int p, int l, int r) {
-		parent = p;
+		label = p;
 		left = l;
 		right = r;
 		type = Type.BINARY;
 	}
 	
 	public Rule(int label, int child) {
-		parent = label;
+		this.label = label;
 		left = child;
 		type = Type.UNARY;
 	}
 	
 	public Rule(int label) {
-		parent = label;
+		this.label = label;
 		type = Type.TERMINAL;
 	}
 	
 	public Rule(Rule other) {
 		this.type = other.type;
-		this.parent = other.parent;
+		this.label = other.label;
 		this.left = other.left;
 		this.right = other.right;
 	}
 	
 	private volatile Type type;
-	private volatile int parent;
+	private volatile int label;
 	private volatile int left;
 	private volatile int right;
 	
-	public int getParent() {
-		return parent;
+	public int getLabel() {
+		return label;
 	}
 	
 	public int getLeft() {
@@ -59,28 +59,28 @@ public class Rule implements Serializable {
 	
 	public Rule changeLabel(int label) {
 		Rule newRule = new Rule(this);
-		newRule.parent = label;
+		newRule.label = label;
 		return newRule;
 	}
 	
 	public boolean equals(Object other) {
 		if(other instanceof Rule) {
 			Rule otherR = (Rule)other;
-			return type.equals(otherR.type) && otherR.parent == parent && otherR.left == left && otherR.right == right;
+			return type.equals(otherR.type) && otherR.label == label && otherR.left == left && otherR.right == right;
 		}
 		return false;
 	}
 	
 	public int hashCode() {
-		return type.hashCode() * 11 + parent * 13 + left * 17 + right * 19;
+		return type.hashCode() * 11 + label * 13 + left * 17 + right * 19;
 	}
 	
 	public String toString() {
 		if(type == Type.TERMINAL)
-			return "{" + parent + "}";
+			return "{" + label + "}";
 		else if(type == Type.UNARY)
-			return "{" + parent + "->" + left + "}";
+			return "{" + label + "->" + left + "}";
 		else
-			return "{" + parent + "->" + left + " " + right + "}";
+			return "{" + label + "->" + left + " " + right + "}";
 	}
 }

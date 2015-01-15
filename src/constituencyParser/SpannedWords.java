@@ -3,14 +3,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class SpannedWords { // TODO: better name
+/**
+ * Contains a list of words in a sentence and a parse tree in the form of a list of Spans
+ */
+public class SpannedWords {
 	private List<Span> spans = new ArrayList<>();
 	private List<Integer> words = new ArrayList<>();
+	
+	// These constructors are used to build a span representation from a tree representation
 	
 	public SpannedWords(int word) {
 		words.add(word);
 	}
 	
+	/**
+	 * Make a new terminal rule
+	 * @param child
+	 * @param label
+	 */
 	public SpannedWords(SpannedWords child, int label) {
 		words.addAll(child.words);
 		spans.addAll(child.spans);
@@ -18,6 +28,12 @@ public class SpannedWords { // TODO: better name
 		spans.add(new Span(0, label));
 	}
 	
+	/**
+	 * Put child under a unary rule
+	 * @param child
+	 * @param label
+	 * @param childLabel
+	 */
 	public SpannedWords(SpannedWords child, int label, int childLabel) {
 		words.addAll(child.words);
 		spans.addAll(child.spans);
@@ -25,6 +41,14 @@ public class SpannedWords { // TODO: better name
 		spans.add(new Span(0, words.size(), label, childLabel));
 	}
 	
+	/**
+	 * Combines left and right under a new binary rule
+	 * @param left
+	 * @param right
+	 * @param label
+	 * @param leftLabel
+	 * @param rightLabel
+	 */
 	public SpannedWords(SpannedWords left, SpannedWords right, int label, int leftLabel, int rightLabel) {
 		words.addAll(left.words);
 		words.addAll(right.words);

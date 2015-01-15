@@ -2,6 +2,9 @@ package constituencyParser;
 
 import constituencyParser.Rule.Type;
 
+/**
+ * Represents a span, which is a production rule and it's position over a sentence
+ */
 public class Span {
 	
 	private int start;
@@ -27,24 +30,51 @@ public class Span {
 		this.end = position + 1;
 	}
 	
+	/**
+	 * Used for terminals
+	 * @param position
+	 * @param rule
+	 */
 	public Span(int position, Rule rule) {
 		this.rule = rule;
 		this.start = position;
 		this.end = position + 1;
 	}
 	
+	/**
+	 * Used for unary rules
+	 * @param start
+	 * @param end
+	 * @param label
+	 * @param childLabel
+	 */
 	public Span(int start, int end, int label, int childLabel) {
 		this.rule = new Rule(label, childLabel);
 		this.start = start;
 		this.end = end;
 	}
 	
+	/** 
+	 * Used for unary rules
+	 * @param start
+	 * @param end
+	 * @param rule
+	 */
 	public Span(int start, int end, Rule rule) {
 		this.rule = rule;
 		this.start = start;
 		this.end = end;
 	}
 	
+	/**
+	 * Used for binary rules
+	 * @param start
+	 * @param end
+	 * @param split
+	 * @param label
+	 * @param leftLabel
+	 * @param rightLabel
+	 */
 	public Span(int start, int end, int split, int label, int leftLabel, int rightLabel) {
 		this.rule = new Rule(label, leftLabel, rightLabel);
 		this.start = start;
@@ -52,6 +82,13 @@ public class Span {
 		this.split = split;
 	}
 	
+	/**
+	 * Used for binary rules
+	 * @param start
+	 * @param end
+	 * @param split
+	 * @param rule
+	 */
 	public Span(int start, int end, int split, Rule rule) {
 		this.rule = rule;
 		this.start = start;
@@ -151,16 +188,16 @@ public class Span {
 		Rule newRule;
 		switch(this.rule.getType()) {
 		case UNARY:
-			newRule = new Rule(this.rule.getParent(), label);
+			newRule = new Rule(this.rule.getLabel(), label);
 			break;
 		case TERMINAL:
-			newRule = new Rule(this.rule.getParent());
+			newRule = new Rule(this.rule.getLabel());
 			break;
 		case BINARY:
 			if(left)
-				newRule = new Rule(this.rule.getParent(), label, this.rule.getRight());
+				newRule = new Rule(this.rule.getLabel(), label, this.rule.getRight());
 			else
-				newRule = new Rule(this.rule.getParent(), this.rule.getLeft(), label);
+				newRule = new Rule(this.rule.getLabel(), this.rule.getLeft(), label);
 			break;
 		default:
 			throw new RuntimeException();

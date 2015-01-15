@@ -5,9 +5,12 @@ import java.util.List;
 
 import constituencyParser.Rule.Type;
 
+/**
+ * An unlexicalized CKY decoder
+ */
 public class CKYDecoder {
 	WordEnumeration words;
-	Rules rules;
+	RuleEnumeration rules;
 	LabelEnumeration labels;
 	
 	int[] labelCounts;
@@ -19,12 +22,16 @@ public class CKYDecoder {
 	Span[][][] spans;
 	List<Span> usedSpans;
 	
-	public CKYDecoder(WordEnumeration words, LabelEnumeration labels, Rules rules) {
+	public CKYDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
 		this.words = words;
 		this.labels = labels;
 		this.rules = rules;
 	}
 	
+	/**
+	 * Count rules in training data for rule probabilities
+	 * @param examples
+	 */
 	public void doCounts(List<SpannedWords> examples) {
 		int numLabels = labels.getNumberOfLabels();
 		labelCounts = new int[numLabels];
@@ -39,7 +46,7 @@ public class CKYDecoder {
 			List<Integer> words = sw.getWords();
 			for(Span s : sw.getSpans()) {
 				Rule rule = s.getRule();
-				labelCounts[rule.getParent()]++;
+				labelCounts[rule.getLabel()]++;
 				if(rule.getType() == Type.BINARY) {
 					binaryRuleCounts[rules.getBinaryId(rule)]++;
 				}
@@ -47,7 +54,7 @@ public class CKYDecoder {
 					unaryRuleCounts[rules.getUnaryId(rule)]++;
 				}
 				else if(rule.getType() == Type.TERMINAL) {
-					terminalCounts[rule.getParent()][words.get(s.getStart())]++;
+					terminalCounts[rule.getLabel()][words.get(s.getStart())]++;
 				}
 				else {
 					throw new RuntimeException("Invalid type.");
@@ -83,7 +90,7 @@ public class CKYDecoder {
 				for(int split = 1; split < length; split++) {
 					for(int r = 0; r < binRulesSize; r++) {
 						Rule rule = rules.getBinaryRule(r);
-						int label = rule.getParent();
+						int label = rule.getLabel();
 						
 						double labelCount = labelCounts[label];
 						double ruleCount = binaryRuleCounts[r];
@@ -129,7 +136,7 @@ public class CKYDecoder {
 		int numUnaryRules = unaryRuleCounts.length;
 		for(int i = 0; i < numUnaryRules; i++) {
 			Rule rule = rules.getUnaryRule(i);
-			int label = rule.getParent();
+			int label = rule.getLabel();
 			double labelCount = labelCounts[label];
 			double ruleCount = unaryRuleCounts[i];
 			double prob = ruleCount / labelCount * probabilities[start][end][rule.getLeft()];

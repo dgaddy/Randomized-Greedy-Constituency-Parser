@@ -9,6 +9,9 @@ import java.io.Serializable;
 
 import constituencyParser.features.FeatureParameters;
 
+/**
+ * Used to hold a model and all required enumerations for saving.
+ */
 public class SaveObject implements Serializable {
 	private static final long serialVersionUID = 1L;
 
@@ -29,10 +32,10 @@ public class SaveObject implements Serializable {
 	
 	private WordEnumeration words;
 	private LabelEnumeration labels;
-	private Rules rules;
+	private RuleEnumeration rules;
 	private FeatureParameters parameters;
 	
-	public SaveObject(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters) {
+	public SaveObject(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters) {
 		this.words = words;
 		this.labels = labels;
 		this.rules = rules;
@@ -47,7 +50,7 @@ public class SaveObject implements Serializable {
 		return labels;
 	}
 	
-	public Rules getRules() {
+	public RuleEnumeration getRules() {
 		return rules;
 	}
 	

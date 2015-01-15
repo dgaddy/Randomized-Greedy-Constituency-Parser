@@ -6,6 +6,12 @@ import java.util.Comparator;
 import java.util.List;
 
 public class SpanUtilities {
+	/**
+	 * Prints spans for a sentence in a way that is relatively easier to read
+	 * @param spans
+	 * @param numberOfWords
+	 * @param labels
+	 */
 	public static void printSpans(final List<Span> spans, int numberOfWords, LabelEnumeration labels) {
 		List<List<Integer>> list = new ArrayList<>();
 		for(int i = 0; i < numberOfWords; i++) {
@@ -43,7 +49,7 @@ public class SpanUtilities {
 					else {
 						last = spanIndex;
 						Span s = spans.get(spanIndex);
-						System.out.print(String.format("<%-7s>", labels.getLabel(s.getRule().getParent())));
+						System.out.print(String.format("<%-7s>", labels.getLabel(s.getRule().getLabel())));
 						finished = false;
 					}
 				}
@@ -72,7 +78,7 @@ public class SpanUtilities {
 			Span p = spans.get(pi);
 			switch(p.getRule().getType()) {
 			case UNARY:
-				if(p.getRule().getLeft() != s.getRule().getParent())
+				if(p.getRule().getLeft() != s.getRule().getLabel())
 					throw new RuntimeException("Parent labels don't match.");
 				if(p.getStart() != s.getStart() || p.getEnd() != s.getEnd())
 					throw new RuntimeException("Parent dimensions do not match.");
@@ -80,13 +86,13 @@ public class SpanUtilities {
 			case BINARY:
 				boolean left = p.getSplit() > s.getStart();
 				if(left) {
-					if(p.getRule().getLeft() != s.getRule().getParent())
+					if(p.getRule().getLeft() != s.getRule().getLabel())
 						throw new RuntimeException("Parent labels don't match.");
 					if(p.getStart() != s.getStart() || p.getSplit() != s.getEnd())
 						throw new RuntimeException("Parent dimensions do not match.");
 				}
 				else {
-					if(p.getRule().getRight() != s.getRule().getParent())
+					if(p.getRule().getRight() != s.getRule().getLabel())
 						throw new RuntimeException("Parent labels don't match.");
 					if(p.getSplit() != s.getStart() || p.getEnd() != s.getEnd())
 						throw new RuntimeException("Parent dimensions do not match.");
@@ -100,6 +106,11 @@ public class SpanUtilities {
 			throw new RuntimeException("Top level count is not 1, it is " + topLevelCount);
 	}
 	
+	/**
+	 * Returns an int[] where each element is the index of the parent span in spans
+	 * @param spans
+	 * @return
+	 */
 	public static int[] getParents(List<Span> spans) {
 		int[] result = new int[spans.size()];
 		for(int i = 0; i < result.length; i++) {
@@ -112,13 +123,13 @@ public class SpanUtilities {
 				Span p = spans.get(j);
 				switch(p.getRule().getType()) {
 				case BINARY:
-					if((p.getStart() == s.getStart() && p.getSplit() == s.getEnd() && p.getRule().getLeft() == s.getRule().getParent())
-							|| (p.getSplit() == s.getStart() && p.getEnd() == s.getEnd() && p.getRule().getRight() == s.getRule().getParent())) {
+					if((p.getStart() == s.getStart() && p.getSplit() == s.getEnd() && p.getRule().getLeft() == s.getRule().getLabel())
+							|| (p.getSplit() == s.getStart() && p.getEnd() == s.getEnd() && p.getRule().getRight() == s.getRule().getLabel())) {
 						result[i] = j;
 					}
 					break;
 				case UNARY:
-					if(p.getStart() == s.getStart() && p.getEnd() == s.getEnd() && p.getRule().getLeft() == s.getRule().getParent())
+					if(p.getStart() == s.getStart() && p.getEnd() == s.getEnd() && p.getRule().getLeft() == s.getRule().getLabel())
 						result[i] = j;
 					break;
 				case TERMINAL:

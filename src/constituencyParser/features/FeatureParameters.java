@@ -68,11 +68,11 @@ public class FeatureParameters implements Serializable {
 	}
 	
 	/**
-	 * updates parameters with negative gradient scale*featureUpdates
-	 * @param featureUpdates
+	 * updates parameters with featureUpdates using adagrad
+	 * @param featureUpdates difference counts between gold and predicted, positive is in gold but not predicted and negative is in predicted but not gold
 	 * @param scale
 	 */
-	public void update(TLongDoubleMap featureUpdates, final double scale) {
+	public void update(TLongDoubleMap featureUpdates) {
 		featureUpdates.forEachEntry(new TLongDoubleProcedure() {
 
 			@Override
@@ -80,7 +80,7 @@ public class FeatureParameters implements Serializable {
 				if(value < 1e-5 && value > -1e-5)
 					return true;
 				
-				double adjustment = value * scale;
+				double adjustment = value;
 				int index = getOrMakeIndex(key);
 				if(getDropout(index))
 					return true;
@@ -107,6 +107,11 @@ public class FeatureParameters implements Serializable {
 		return index;
 	}
 	
+	/**
+	 * Get the average of a list of featureParameters
+	 * @param toAverage
+	 * @return
+	 */
 	public static FeatureParameters average(List<FeatureParameters> toAverage) {
 		final FeatureParameters average = new FeatureParameters();
 		final double factor = 1.0/toAverage.size();

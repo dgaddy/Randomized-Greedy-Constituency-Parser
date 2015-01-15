@@ -11,9 +11,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import constituencyParser.Train.TrainOneIteration;
 import constituencyParser.features.FeatureParameters;
 
+/**
+ * Has methods for testing parsers in comparison to development / test data
+ */
 public class Test {
 	public static void main(String[] args) throws Exception {
 		if(args.length < 4) {
@@ -36,28 +38,21 @@ public class Test {
 			greedyIterations = Integer.parseInt(args[4]);
 		}
 
-		//testPassiveAggressive();
-
 		SaveObject savedModel = SaveObject.loadSaveObject(modelFile);
 
 		WordEnumeration words = savedModel.getWords();
 		LabelEnumeration labels = savedModel.getLabels();
-		Rules rules = savedModel.getRules();
+		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 
-		//sample(words, labels, rules, parameters);
-
-
 		testParallel(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, 1, numberOfThreads);
-
-		//decodeSentence();
 	}
 
-	public static void test(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, String dataFolder, boolean secondOrder) throws IOException {
+	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder) throws IOException {
 		test(words, labels, rules, parameters, dataFolder, secondOrder, 100, 1);
 	}
 
-	public static void test(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData) throws IOException {
+	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData) throws IOException {
 		RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules);
 		//randGreedyDecoder.samplerDoCounts(PennTreebankReader.loadFromFiles(dataFolder, 2, 22, words, labels, rules)); for non-discriminitive
 
@@ -77,7 +72,7 @@ public class Test {
 
 			for(Span span : result) {
 				for(Span goldSpan : example.getSpans()) {
-					if(span.getStart() == goldSpan.getStart() && span.getEnd() == goldSpan.getEnd() && span.getRule().getParent() == goldSpan.getRule().getParent())
+					if(span.getStart() == goldSpan.getStart() && span.getEnd() == goldSpan.getEnd() && span.getRule().getLabel() == goldSpan.getRule().getLabel())
 						numberCorrect++;
 				}
 			}
@@ -92,6 +87,9 @@ public class Test {
 		System.out.println("Development set score: " + score);
 	}
 
+	/**
+	 * Basic metrics from testing a group of sentences used to pass results by parallel testing
+	 */
 	public static class TestResult {
 		int numberCorrect;
 		int numberGold;
@@ -104,16 +102,19 @@ public class Test {
 		}
 	}
 
+	/**
+	 * Tests sentences and returns a TestResult.  Used for parallel testing.
+	 */
 	public static class TestPortion implements Callable<TestResult> {
 		WordEnumeration words;
 		LabelEnumeration labels;
-		Rules rules;
+		RuleEnumeration rules;
 		List<SpannedWords> gold;
 		FeatureParameters parameters;
 		boolean secondOrder;
 		int randomizedGreedyIterations;
 		
-		public TestPortion(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, List<SpannedWords> gold, boolean secondOrder, int randomizedGreedyIterations) {
+		public TestPortion(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, List<SpannedWords> gold, boolean secondOrder, int randomizedGreedyIterations) {
 			this.words = words;
 			this.labels = labels;
 			this.rules = rules;
@@ -138,7 +139,7 @@ public class Test {
 
 				for(Span span : result) {
 					for(Span goldSpan : example.getSpans()) {
-						if(span.getStart() == goldSpan.getStart() && span.getEnd() == goldSpan.getEnd() && span.getRule().getParent() == goldSpan.getRule().getParent())
+						if(span.getStart() == goldSpan.getStart() && span.getEnd() == goldSpan.getEnd() && span.getRule().getLabel() == goldSpan.getRule().getLabel())
 							numberCorrect++;
 					}
 				}
@@ -150,7 +151,10 @@ public class Test {
 		}
 	}
 
-	public static void testParallel(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int numberThreads) throws IOException, InterruptedException, ExecutionException {
+	/**
+	 * Test on development set running on multiple threads
+	 */
+	public static void testParallel(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int numberThreads) throws IOException, InterruptedException, ExecutionException {
 		Random random = new Random();
 		
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
@@ -190,12 +194,15 @@ public class Test {
 		System.out.println("Development set score: " + score);
 	}
 
+	///////////////////////////////////////////////////
+	// Various methods for testing different components
+	
 	public static void decodeSentence() throws Exception {
 		SaveObject savedModel = SaveObject.loadSaveObject("modelIteration1");
 
 		WordEnumeration words = savedModel.getWords();
 		LabelEnumeration labels = savedModel.getLabels();
-		Rules rules = savedModel.getRules();
+		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 
 		System.out.println(rules.getNumberOfUnaryRules());
@@ -218,7 +225,7 @@ public class Test {
 	public static void testPassiveAggressive() throws Exception {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
-		Rules rules = new Rules();
+		RuleEnumeration rules = new RuleEnumeration();
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles("../WSJ data/", 2, 3, words, labels, rules);
 
 		int loss = 1;
@@ -227,7 +234,7 @@ public class Test {
 		while(loss > 0) {
 			// run passive aggressive on the first example
 			DiscriminitiveCKYDecoder decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
-			PassiveAgressive pa = new PassiveAgressive(words, labels, rules, decoder, params);
+			Train pa = new Train(words, labels, rules, decoder, params);
 			pa.train(examples.subList(0, 1), .05, false, false);
 
 			// the first example should now classify correctly
@@ -237,7 +244,7 @@ public class Test {
 		}
 	}
 
-	public static void sample(WordEnumeration words, LabelEnumeration labels, Rules rules, FeatureParameters parameters) {
+	public static void sample(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters) {
 		DiscriminitiveCKYSampler sampler = new DiscriminitiveCKYSampler(words, labels, rules);
 		sampler.calculateProbabilities(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket")), parameters);
 		for(int i = 0; i < 100; i++) {
@@ -250,7 +257,7 @@ public class Test {
 		String dataFolder = "../WSJ data/";
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
-		Rules rules = new Rules();
+		RuleEnumeration rules = new RuleEnumeration();
 		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
 		decoder.doCounts(PennTreebankReader.loadFromFiles(dataFolder, 2, 22, words, labels, rules));
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);

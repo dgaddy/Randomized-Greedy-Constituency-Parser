@@ -10,19 +10,23 @@ import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 import constituencyParser.features.SpanProperties;
 
+/**
+ * A discriminitive CKY decoder based on Less Grammar, More Features, David Hall, Greg Durrett and Dan
+Klein, ACL 14 (http://www.cs.berkeley.edu/ dlwh/papers/spanparser.pdf)
+ */
 public class DiscriminitiveCKYDecoder implements Decoder {
 	private static final double PRUNE_THRESHOLD = 10;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
-	Rules rules;
+	RuleEnumeration rules;
 	
 	double[][][] scores;
 	Span[][][] spans;
 	
 	List<Span> usedSpans;
 	
-	public DiscriminitiveCKYDecoder(WordEnumeration words, LabelEnumeration labels, Rules rules) {
+	public DiscriminitiveCKYDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
@@ -46,7 +50,7 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 			for(int label = 0; label < labelsSize; label++) {
 				Span span = new Span(i, label);
 				double spanScore = 0;
-				final long ruleCode = Rules.getTerminalRuleCode(label);
+				final long ruleCode = RuleEnumeration.getTerminalRuleCode(label);
 				for(int p = 0; p < spanProperties.size(); p++) {
 					spanScore += params.getScore(Features.getSpanPropertyByRuleFeature(spanProperties.get(p), ruleCode), dropout);
 				}
@@ -67,7 +71,7 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 					for(int r = 0; r < rulesSize; r++) {
 						
 						Rule rule = rules.getBinaryRule(r);
-						int label = rule.getParent();
+						int label = rule.getLabel();
 						
 						double leftChildScore = scores[start][start+split][rule.getLeft()];
 						double rightChildScore = scores[start+split][start+length][rule.getRight()];
@@ -77,7 +81,7 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 						double childScores = scores[start][start+split][rule.getLeft()] + scores[start+split][start+length][rule.getRight()];
 						
 						double spanScore =  0;
-						final long ruleCode = Rules.getRuleCode(r, Type.BINARY);
+						final long ruleCode = RuleEnumeration.getRuleCode(r, Type.BINARY);
 						for(int p = 0; p < spanProperties.size(); p++) {
 							spanScore += params.getScore(Features.getSpanPropertyByRuleFeature(spanProperties.get(p), ruleCode), dropout);
 							spanScore += params.getScore(Features.getSpanPropertyByLabelFeature(spanProperties.get(p), label), dropout);
@@ -140,11 +144,11 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 		
 		for(int i = 0; i < numUnaryRules; i++) {
 			Rule rule = rules.getUnaryRule(i);
-			int label = rule.getParent();
+			int label = rule.getLabel();
 			
 			double childScore = scores[start][end][rule.getLeft()];
 			double spanScore = 0;
-			final long ruleCode = Rules.getRuleCode(i, Type.UNARY);
+			final long ruleCode = RuleEnumeration.getRuleCode(i, Type.UNARY);
 			for(int p = 0; p < properties.size(); p++) {
 				spanScore += parameters.getScore(Features.getSpanPropertyByRuleFeature(properties.get(p), ruleCode), dropout);
 				spanScore += parameters.getScore(Features.getSpanPropertyByLabelFeature(properties.get(p), label), dropout);
