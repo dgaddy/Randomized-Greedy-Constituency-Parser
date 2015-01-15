@@ -52,7 +52,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		}
 	}
 	
-	HashMap<SpanAndParent, Double> spanScoreCache;
+	HashMap<Span, Double> firstOrderSpanScoreCache;
 	
 	boolean doSecondOrder = true;
 	
@@ -114,7 +114,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * Returns a parse tree in the form of a list of spans
 	 */
 	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout) {
-		spanScoreCache = new HashMap<SpanAndParent, Double>();
+		firstOrderSpanScoreCache = new HashMap<Span, Double>();
 		
 		sampler.setCostAugmenting(costAugmenting, goldLabels);
 		
@@ -263,46 +263,49 @@ public class RandomizedGreedyDecoder implements Decoder {
 		
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
-			SpanAndParent sp = new SpanAndParent(s,parents[j]);
-			if(spanScoreCache.containsKey(sp)) {
-				score += spanScoreCache.get(sp);
+			if(firstOrderSpanScoreCache.containsKey(s)) {
+				score += firstOrderSpanScoreCache.get(s);
 				continue;
+			}
+			else {
+				double spanScore = 0;
+				TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum);
+				for(int i = 0; i < featureCodes.size(); i++) {
+					spanScore += params.getScore(featureCodes.get(i), dropout);
+				}
+				spanScore += params.getScore(Features.getRuleFeature(s.getRule(), rules), dropout);
+				TLongList propertyByLabelCodes = Features.getSpanPropertyByLabelFeatures(words, s);
+				for(int i = 0; i < propertyByLabelCodes.size(); i++) {
+					spanScore += params.getScore(propertyByLabelCodes.get(i), dropout);
+				}
+				firstOrderSpanScoreCache.put(s, spanScore);
+				score += spanScore;
 			}
 			
 			if(costAugmenting && goldLabels[s.getStart()][s.getEnd()] != s.getRule().getLabel()) {
 				score += 1;
 			}
 			
-			double spanScore = 0;
-			TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum);
-			for(int i = 0; i < featureCodes.size(); i++) {
-				spanScore += params.getScore(featureCodes.get(i), dropout);
-			}
-			spanScore += params.getScore(Features.getRuleFeature(s.getRule(), rules), dropout);
-			TLongList propertyByLabelCodes = Features.getSpanPropertyByLabelFeatures(words, s);
-			for(int i = 0; i < propertyByLabelCodes.size(); i++) {
-				spanScore += params.getScore(propertyByLabelCodes.get(i), dropout);
-			}
-			
 			// second order
 			if(doSecondOrder && parents[j] != -1) {
+				double spanScore2 = 0;
+				
 				Rule rule = s.getRule();
 				Rule parentRule = spans.get(parents[j]).getRule();
 
 				if(rule.getType() == Rule.Type.UNARY) {
 					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-					spanScore += params.getScore(code, dropout);
+					spanScore2 += params.getScore(code, dropout);
 				}
 				else if(rule.getType() == Rule.Type.BINARY) {
 					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-					spanScore += params.getScore(code, dropout);
+					spanScore2 += params.getScore(code, dropout);
 					code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getLabel(), parentRule.getLabel());
-					spanScore += params.getScore(code, dropout);
+					spanScore2 += params.getScore(code, dropout);
 				}
+				
+				score += spanScore2;
 			}
-			
-			spanScoreCache.put(sp, spanScore);
-			score += spanScore;
 		}
 		return score;
 	}
