@@ -187,6 +187,8 @@ public class Test {
 			totalOutput += result.numberOutput;
 		}
 		
+		pool.shutdown();
+		
 		double precision = totalCorrect / (double)totalOutput;
 		double recall = totalCorrect / (double)totalGold;
 
