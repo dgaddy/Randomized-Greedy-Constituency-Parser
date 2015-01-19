@@ -116,6 +116,11 @@ public class DiscriminitiveCKYSampler {
 	 * @return
 	 */
 	private double addProbabilitiesLog(double x, double y) {
+		if(x == Double.NEGATIVE_INFINITY)
+			return y;
+		if(y == Double.NEGATIVE_INFINITY)
+			return x;
+		
 		double larger;
 		double smaller;
 		if(x > y) {
