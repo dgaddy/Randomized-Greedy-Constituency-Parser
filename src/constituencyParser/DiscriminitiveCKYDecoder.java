@@ -292,11 +292,13 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 
 	@Override
 	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold) {
-		throw new UnsupportedOperationException();
+		if(costAugmenting)
+			throw new UnsupportedOperationException();
 	}
 
 	@Override
 	public void setSecondOrder(boolean secondOrder) {
-		throw new UnsupportedOperationException();
+		if(secondOrder)
+			throw new UnsupportedOperationException();
 	}
 }
