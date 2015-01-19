@@ -106,6 +106,7 @@ public class FeatureParameters implements Serializable {
 			index = featureValues.size();
 			featureValues.add(0);
 			gradientsSquared.add(0);
+			total.add(0);
 			featureIndices.put(key, index);
 		}
 		else
