@@ -80,7 +80,7 @@ public class SpanProperties {
 		return properties;
 	}
 	
-	enum WordPropertyType {
+	public enum WordPropertyType {
 		FIRST,
 		LAST,
 		BEFORE,
