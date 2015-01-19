@@ -19,6 +19,8 @@ public class Train {
 	RuleEnumeration rules;
 	FeatureParameters parameters;
 	
+	int numberExamples = 0;
+	
 	public Train(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, Decoder decoder) {
 		this.wordEnum = words;
 		this.labels = labels;
@@ -36,10 +38,12 @@ public class Train {
 	}
 	
 	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting) {
-		int count = 0;
+		numberExamples = trainingExamples.size();
+		
+		int exampleNumber = 0; // first example is 1
 		int totalLoss = 0;
 		for(SpannedWords sw : trainingExamples) {
-			count++;
+			exampleNumber++;
 			//if(count % 5 == 0) {
 				//System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double) count));
 			//}
@@ -128,15 +132,19 @@ public class Train {
 					}
 				}
 				
-				parameters.update(features);
+				parameters.update(features, exampleNumber);
 			}
 		}
 		
-		System.out.println("Finished; Average loss: " + (totalLoss / (double)count));
+		System.out.println("Finished; Average loss: " + (totalLoss / (double)exampleNumber));
 	}
 	
 	public FeatureParameters getParameters() {
 		return parameters;
+	}
+	
+	public FeatureParameters getAverageParametersOverAllIterations() {
+		return parameters.averageOverIterations(numberExamples);
 	}
 	
 	static int computeLoss(List<Span> predicted, List<Span> gold) {

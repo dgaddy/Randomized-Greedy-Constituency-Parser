@@ -16,6 +16,7 @@ public class FeatureParameters implements Serializable {
 	TLongIntHashMap featureIndices;
 	
 	TDoubleArrayList featureValues = new TDoubleArrayList();
+	TDoubleArrayList total = new TDoubleArrayList();
 	TDoubleArrayList gradientsSquared = new TDoubleArrayList();
 	transient TIntArrayList dropout; // 1 if should drop, 0 if should keep
 	
@@ -33,6 +34,7 @@ public class FeatureParameters implements Serializable {
 			}
 		});
 		featureValues = new TDoubleArrayList(other.featureValues);
+		total = new TDoubleArrayList(other.total);
 		gradientsSquared = new TDoubleArrayList(other.gradientsSquared);
 	}
 	
@@ -70,9 +72,10 @@ public class FeatureParameters implements Serializable {
 	/**
 	 * updates parameters with featureUpdates using adagrad
 	 * @param featureUpdates difference counts between gold and predicted, positive is in gold but not predicted and negative is in predicted but not gold
+	 * @param updateNumber the number of the update, starting with one, used for averaging
 	 * @param scale
 	 */
-	public void update(TLongDoubleMap featureUpdates) {
+	public void update(TLongDoubleMap featureUpdates, final int updateNumber) {
 		featureUpdates.forEachEntry(new TLongDoubleProcedure() {
 
 			@Override
@@ -87,7 +90,10 @@ public class FeatureParameters implements Serializable {
 				
 				double newGradSquared = gradientsSquared.getQuick(index) + adjustment*adjustment;
 				gradientsSquared.setQuick(index, newGradSquared);
-				featureValues.setQuick(index, featureValues.getQuick(index) + adjustment/Math.sqrt(newGradSquared));
+				double normalizedAdjustment = adjustment/Math.sqrt(newGradSquared);
+				featureValues.setQuick(index, featureValues.getQuick(index) + normalizedAdjustment);
+				total.setQuick(index, total.getQuick(index) + normalizedAdjustment * updateNumber);
+				
 				return true;
 			}
 			
@@ -105,6 +111,19 @@ public class FeatureParameters implements Serializable {
 		else
 			index = featureIndices.get(key);
 		return index;
+	}
+	
+	public FeatureParameters averageOverIterations(int numberIterations) {
+		FeatureParameters average = new FeatureParameters();
+		average.featureIndices = new TLongIntHashMap(this.featureIndices);
+		average.gradientsSquared = new TDoubleArrayList(this.gradientsSquared);
+		int size = this.featureValues.size();
+		average.featureValues = new TDoubleArrayList(size);
+		for(int i = 0; i < size; i++) {
+			double averagedValue = ((numberIterations + 1) * this.featureValues.getQuick(i) - this.total.getQuick(i)) / numberIterations;
+			average.featureValues.add(averagedValue);
+		}
+		return average;
 	}
 	
 	/**

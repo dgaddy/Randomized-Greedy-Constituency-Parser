@@ -73,12 +73,17 @@ public class RunTraining {
 		so.save("model");
 	}
 	
+	static class TrainResult {
+		FeatureParameters finalParameters;
+		FeatureParameters parametersAveragedOverIterations;
+	}
+	
 	/**
 	 * Class used for running several trainings in parallel
 	 * @author david
 	 *
 	 */
-	static class TrainOneIteration implements Callable<FeatureParameters> {
+	static class TrainOneIteration implements Callable<TrainResult> {
 		WordEnumeration words;
 		LabelEnumeration labels;
 		RuleEnumeration rules;
@@ -100,7 +105,7 @@ public class RunTraining {
 		}
 
 		@Override
-		public FeatureParameters call() throws Exception {
+		public TrainResult call() throws Exception {
 			System.out.println("Starting new training.");
 			
 			RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules);
@@ -118,7 +123,11 @@ public class RunTraining {
 			data = null;
 			initialParams = null;
 			
-			return pa.getParameters();
+			TrainResult result = new TrainResult();
+			result.finalParameters = pa.getParameters();
+			result.parametersAveragedOverIterations = pa.getAverageParametersOverAllIterations();
+			
+			return result;
 		}
 	}
 	
@@ -161,6 +170,8 @@ public class RunTraining {
 		
 		Random random = new Random();
 		
+		List<FeatureParameters> averagesOverAllIterations = new ArrayList<>();
+		
 		for(int i = 0; i < iterations; i++) {
 			System.out.println("Iteration " + i);
 			
@@ -172,23 +183,27 @@ public class RunTraining {
 				data.get(random.nextInt(numberThreads)).add(example);
 			}
 			
-			List<Future<FeatureParameters>> futures = new ArrayList<>();
+			List<Future<TrainResult>> futures = new ArrayList<>();
 			for(List<SpannedWords> d : data) {
-				Future<FeatureParameters> future = pool.submit(new TrainOneIteration(new WordEnumeration(words), new LabelEnumeration(labels), new RuleEnumeration(rules), d, new FeatureParameters(shared), dropout, secondOrder, costAugmenting));
+				Future<TrainResult> future = pool.submit(new TrainOneIteration(new WordEnumeration(words), new LabelEnumeration(labels), new RuleEnumeration(rules), d, new FeatureParameters(shared), dropout, secondOrder, costAugmenting));
 				futures.add(future);
 			}
 			
-			List<FeatureParameters> results = new ArrayList<>();
-			for(Future<FeatureParameters> future : futures) {
-				results.add(future.get());
+			List<FeatureParameters> finalParams = new ArrayList<>();
+			for(Future<TrainResult> future : futures) {
+				TrainResult result = future.get();
+				finalParams.add(result.finalParameters);
+				averagesOverAllIterations.add(result.parametersAveragedOverIterations);
 			}
 			
-			shared = FeatureParameters.average(results);
+			shared = FeatureParameters.average(finalParams);
 			
 			Test.test(words, labels, rules, shared, dataFolder, secondOrder, 100, .1);
 			
 			SaveObject so = new SaveObject(words, labels, rules, shared);
 			so.save(outputFolder + "/modelIteration"+i);
+			SaveObject avgSo = new SaveObject(words, labels, rules, FeatureParameters.average(averagesOverAllIterations));
+			avgSo.save(outputFolder + "/modelAveragedIteration"+i);
 		}
 		
 		pool.shutdown();
