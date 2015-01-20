@@ -189,34 +189,37 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 			for(int start = 0; start < wordsSize + 1 - length; start++) {
 				max[start][start+length] = Double.NEGATIVE_INFINITY;
 				for(int split = 1; split < length; split++) {
+					int end = start + length;
+					int splitLocation = start + split;
+					double[] myStartSpanScores = startSpanScores[start];
+					double[] myEndSpanScores = endSpanScores[end];
+					double[] mySplitSpanScores = splitSpanScores[splitLocation];
+					double[] myLengthSpanScores = lengthSpanScores[length];
+					
 					for(int r = 0; r < rulesSize; r++) {
-						
+
 						Rule rule = rules.getBinaryRule(r);
 						int label = rule.getLabel();
 						
-						double leftChildScore = scores[start][start+split][rule.getLeft()];
-						double rightChildScore = scores[start+split][start+length][rule.getRight()];
-						if(leftChildScore < max[start][start+split] - PRUNE_THRESHOLD || rightChildScore < max[start+split][start+length] - PRUNE_THRESHOLD)
+						double leftChildScore = scores[start][splitLocation][rule.getLeft()];
+						double rightChildScore = scores[splitLocation][end][rule.getRight()];
+						if(leftChildScore < max[start][splitLocation] - PRUNE_THRESHOLD || rightChildScore < max[splitLocation][end] - PRUNE_THRESHOLD)
 							continue;
 						
-						double childScores = scores[start][start+split][rule.getLeft()] + scores[start+split][start+length][rule.getRight()];
+						double spanScore = myStartSpanScores[r] + mySplitSpanScores[r] + myEndSpanScores[r] + myLengthSpanScores[r] + binaryRuleScores[r];
 						
-						double spanScore = startSpanScores[start][r] + splitSpanScores[start+split][r] + endSpanScores[start+length][r] + lengthSpanScores[length][r] + binaryRuleScores[r];
-						
-						double fullScore = spanScore + childScores;
-						if(fullScore > scores[start][start+length][label]) {
+						double fullScore = spanScore + leftChildScore + rightChildScore;
+						if(fullScore > scores[start][end][label]) {
 							scores[start][start+length][label] = fullScore;
-							Span span = new Span(start, start + length, start + split, rule);
-							span.setLeft(spans[start][start+split][rule.getLeft()]);
-							span.setRight(spans[start+split][start+length][rule.getRight()]);
-							spans[start][start+length][label] = span;
+							Span span = new Span(start, end, splitLocation, rule);
+							span.setLeft(spans[start][splitLocation][rule.getLeft()]);
+							span.setRight(spans[splitLocation][end][rule.getRight()]);
+							spans[start][end][label] = span;
 							
-							if(fullScore > max[start][start+length]) {
-								max[start][start+length] = fullScore;
+							if(fullScore > max[start][end]) {
+								max[start][end] = fullScore;
 							}
 						}
-						
-						
 					}
 				}
 				
