@@ -51,6 +51,7 @@ public class SaveObject implements Serializable {
 	}
 	
 	public RuleEnumeration getRules() {
+		rules.checkUniqueness();
 		return rules;
 	}
 	

@@ -128,4 +128,15 @@ public class RuleEnumeration implements Serializable {
 		Type type = Type.values()[typeOrdinal];
 		return getRule(ruleId, type);
 	}
+	
+	/**
+	 * At one point there was a problem with having multiple of the same rule, this checks for that
+	 */
+	void checkUniqueness() {
+		int numBinRules = getNumberOfBinaryRules();
+		for(int r = 0; r < numBinRules; r++) {
+			if(getBinaryId(getBinaryRule(r)) != r)
+				throw new RuntimeException("Bad RuleEnumeration");
+		}
+	}
 }
