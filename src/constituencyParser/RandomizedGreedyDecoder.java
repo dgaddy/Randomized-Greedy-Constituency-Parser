@@ -9,8 +9,10 @@ import java.util.List;
 import java.util.Set;
 
 import constituencyParser.GreedyChange.ParentedSpans;
+import constituencyParser.Rule.Type;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
+import constituencyParser.features.FirstOrderFeatureHolder;
 
 /**
  * Samples parse trees then makes greedy updates on them
@@ -23,6 +25,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 	RuleEnumeration rules;
 	
 	GreedyChange greedyChange;
+	
+	FirstOrderFeatureHolder firstOrderFeatures;
 	
 	/**
 	 * Holds a span and its parent label.  Used for cacheing
@@ -66,6 +70,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
+		
+		firstOrderFeatures = new FirstOrderFeatureHolder(words, labels, rules);
 		
 		this.greedyChange = new GreedyChange(labels, rules);
 	}
@@ -263,20 +269,23 @@ public class RandomizedGreedyDecoder implements Decoder {
 		
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
+			Rule rule = s.getRule();
 			if(firstOrderSpanScoreCache.containsKey(s)) {
 				score += firstOrderSpanScoreCache.get(s);
 				continue;
 			}
 			else {
 				double spanScore = 0;
-				TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum);
-				for(int i = 0; i < featureCodes.size(); i++) {
-					spanScore += params.getScore(featureCodes.get(i), dropout);
+				if(rule.getType() == Type.BINARY) {
+					int ruleId = rules.getBinaryId(rule);
+					spanScore = firstOrderFeatures.scoreBinary(s.getStart(), s.getEnd(), s.getSplit(), ruleId);
 				}
-				spanScore += params.getScore(Features.getRuleFeature(s.getRule(), rules), dropout);
-				TLongList propertyByLabelCodes = Features.getSpanPropertyByLabelFeatures(words, s);
-				for(int i = 0; i < propertyByLabelCodes.size(); i++) {
-					spanScore += params.getScore(propertyByLabelCodes.get(i), dropout);
+				else if(rule.getType() == Type.UNARY) {
+					int ruleId = rules.getUnaryId(rule);
+					spanScore = firstOrderFeatures.scoreUnary(s.getStart(), s.getEnd(), ruleId);
+				}
+				else {// terminal
+					spanScore = firstOrderFeatures.scoreTerminal(s.getStart(), rule.getLabel());
 				}
 				firstOrderSpanScoreCache.put(s, spanScore);
 				score += spanScore;
@@ -290,7 +299,6 @@ public class RandomizedGreedyDecoder implements Decoder {
 			if(doSecondOrder && parents[j] != -1) {
 				double spanScore2 = 0;
 				
-				Rule rule = s.getRule();
 				Rule parentRule = spans.get(parents[j]).getRule();
 
 				if(rule.getType() == Rule.Type.UNARY) {
