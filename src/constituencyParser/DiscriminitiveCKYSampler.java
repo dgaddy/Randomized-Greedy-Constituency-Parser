@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 
 import constituencyParser.Rule.Type;
-import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.FirstOrderFeatureHolder;
 
 /**
@@ -23,7 +22,6 @@ public class DiscriminitiveCKYSampler {
 	// stuff set by calculateProbabilities
 	int wordsSize;
 	List<Integer> sentenceWords;
-	FeatureParameters parameters;
 	double[][][] insideLogProbabilitiesBeforeUnaries; // unnormalized probabilities; start, end, label
 	double[][][] insideLogProbabilitiesAfterUnaries;
 	double[][] maxBeforeUnaries; // used for pruning
@@ -31,12 +29,12 @@ public class DiscriminitiveCKYSampler {
 	boolean costAugmenting = false;
 	int[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
 	
-	public DiscriminitiveCKYSampler(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
+	public DiscriminitiveCKYSampler(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FirstOrderFeatureHolder features) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
 		
-		firstOrderFeatures = new FirstOrderFeatureHolder(words, labels, rules);
+		firstOrderFeatures = features;
 	}
 	
 	/**
@@ -49,8 +47,7 @@ public class DiscriminitiveCKYSampler {
 		this.goldLabels = gold;
 	}
 	
-	public void calculateProbabilities(List<Integer> words, FeatureParameters params) {
-		parameters = params;
+	public void calculateProbabilities(List<Integer> words) {
 		sentenceWords = words;
 		wordsSize = words.size();
 		int labelsSize = labels.getNumberOfLabels();

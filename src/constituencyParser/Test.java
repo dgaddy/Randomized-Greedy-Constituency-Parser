@@ -45,7 +45,7 @@ public class Test {
 		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 
-		testParallel(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, 1, numberOfThreads);
+		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, 1);
 	}
 
 	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder) throws IOException {
@@ -76,6 +76,8 @@ public class Test {
 						numberCorrect++;
 				}
 			}
+			
+			System.out.println("done");
 
 			numberGold += example.getSpans().size();
 			numberOutput += result.size();
@@ -243,15 +245,6 @@ public class Test {
 			//List<Span> result = decoder.decode(examples.get(0).getWords(), params);
 			//loss = PassiveAgressive.computeLoss(result, examples.get(0).getSpans());
 			//System.out.println("loss is "+ loss);
-		}
-	}
-
-	public static void sample(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters) {
-		DiscriminitiveCKYSampler sampler = new DiscriminitiveCKYSampler(words, labels, rules);
-		sampler.calculateProbabilities(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket")), parameters);
-		for(int i = 0; i < 100; i++) {
-			List<Span> spans = sampler.sample();
-			System.out.println(spans);
 		}
 	}
 

@@ -1,7 +1,5 @@
 package constituencyParser;
 
-import gnu.trove.list.TLongList;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -66,12 +64,12 @@ public class RandomizedGreedyDecoder implements Decoder {
 	int numberSampleIterations = 50;
 	
 	public RandomizedGreedyDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
-		sampler = new DiscriminitiveCKYSampler(words, labels, rules);
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
 		
 		firstOrderFeatures = new FirstOrderFeatureHolder(words, labels, rules);
+		sampler = new DiscriminitiveCKYSampler(words, labels, rules, firstOrderFeatures);
 		
 		this.greedyChange = new GreedyChange(labels, rules);
 	}
@@ -122,9 +120,11 @@ public class RandomizedGreedyDecoder implements Decoder {
 	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout) {
 		firstOrderSpanScoreCache = new HashMap<Span, Double>();
 		
+		firstOrderFeatures.fillScoreArrays(words, params, dropout);
+		
 		sampler.setCostAugmenting(costAugmenting, goldLabels);
 		
-		sampler.calculateProbabilities(words, params);
+		sampler.calculateProbabilities(words);
 		
 		//System.out.println("calculated probabilities");
 		
@@ -217,7 +217,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * @return
 	 */
 	public List<Span> decodeNoGreedy(List<Integer> words, FeatureParameters params, boolean dropout) {
-		sampler.calculateProbabilities(words, params);
+		firstOrderFeatures.fillScoreArrays(words, params, dropout);
+		sampler.calculateProbabilities(words);
 		List<ParentedSpans> options = new ArrayList<>();
 		for(int i = 0; i < 100; i++) {
 			List<Span> s = sampler.sample();

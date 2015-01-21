@@ -1,15 +1,10 @@
 package constituencyParser;
 
-import gnu.trove.list.TLongList;
-
 import java.util.ArrayList;
 import java.util.List;
 
-import constituencyParser.Rule.Type;
 import constituencyParser.features.FeatureParameters;
-import constituencyParser.features.Features;
 import constituencyParser.features.FirstOrderFeatureHolder;
-import constituencyParser.features.SpanProperties;
 
 /**
  * A discriminitive CKY decoder based on Less Grammar, More Features, David Hall, Greg Durrett and Dan
@@ -53,7 +48,6 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 		spans = new Span[wordsSize][wordsSize+1][labelsSize];
 		
 		for(int i = 0; i < wordsSize; i++) {
-			TLongList spanProperties = SpanProperties.getTerminalSpanProperties(words, i, wordEnum);
 			for(int label = 0; label < labelsSize; label++) {
 				Span span = new Span(i, label);
 				scores[i][i+1][label] = firstOrderFeatures.scoreTerminal(i, label);
