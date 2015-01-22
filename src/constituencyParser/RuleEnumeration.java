@@ -2,7 +2,6 @@ package constituencyParser;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import constituencyParser.Rule.Type;
@@ -14,38 +13,53 @@ public class RuleEnumeration implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	private List<Rule> binaryRules = new ArrayList<>();
-	HashMap<Rule, Integer> binaryIds = new HashMap<>();
+	int[][][] binaryIds;
 	
 	private List<Rule> unaryRules = new ArrayList<>();
-	HashMap<Rule, Integer> unaryIds = new HashMap<>();
+	int[][] unaryIds;
+	
+	static final int NUMBER_LABELS = 150;
 	
 	public RuleEnumeration() {
+		 binaryIds = new int[NUMBER_LABELS][NUMBER_LABELS][NUMBER_LABELS];
+		 unaryIds = new int[NUMBER_LABELS][NUMBER_LABELS];
+		 for(int i = 0; i < NUMBER_LABELS; i++)
+			 for(int j = 0; j < NUMBER_LABELS; j++)
+				 for(int k = 0; k < NUMBER_LABELS; k++)
+					 binaryIds[i][j][k] = -1;
+		 for(int i = 0; i < NUMBER_LABELS; i++)
+			 for(int j = 0; j < NUMBER_LABELS; j++)
+				 unaryIds[i][j] = -1;
 	}
 	
-	public RuleEnumeration(RuleEnumeration rules) {
-		this.binaryRules = new ArrayList<>(rules.binaryRules);
-		this.unaryRules = new ArrayList<>(rules.unaryRules);
-		this.binaryIds = new HashMap<>(rules.binaryIds);
-		this.unaryIds = new HashMap<>(rules.unaryIds);
+	public RuleEnumeration(RuleEnumeration other) {
+		this.binaryRules = new ArrayList<>(other.binaryRules);
+		this.unaryRules = new ArrayList<>(other.unaryRules);
+		
+		for(int i = 0; i < NUMBER_LABELS; i++)
+			 for(int j = 0; j < NUMBER_LABELS; j++)
+				 for(int k = 0; k < NUMBER_LABELS; k++)
+					 binaryIds[i][j][k] = other.binaryIds[i][j][k];
+		 for(int i = 0; i < NUMBER_LABELS; i++)
+			 for(int j = 0; j < NUMBER_LABELS; j++)
+				 unaryIds[i][j] = other.unaryIds[i][j];
 	}
 	
 	private void addBinaryRule(Rule rule) {
-		if(binaryIds.containsKey(rule))
-			return;
-		else {
+		int label = rule.getLabel(), left = rule.getLeft(), right = rule.getRight();
+		if(binaryIds[label][left][right] == -1) {
 			int id = binaryRules.size();
 			binaryRules.add(rule);
-			binaryIds.put(rule, id);
+			binaryIds[label][left][right] = id;
 		}
 	}
 	
 	private void addUnaryRule(Rule rule) {
-		if(unaryIds.containsKey(rule))
-			return;
-		else {
+		int label = rule.getLabel(), left = rule.getLeft();
+		if(unaryIds[label][left] == -1) {
 			int id = unaryRules.size();
 			unaryRules.add(rule);
-			unaryIds.put(rule, id);
+			unaryIds[label][left] = id;
 		}
 	}
 	
@@ -65,7 +79,7 @@ public class RuleEnumeration implements Serializable {
 	}
 	
 	public int getBinaryId(Rule rule) {
-		return binaryIds.get(rule);
+		return binaryIds[rule.getLabel()][rule.getLeft()][rule.getRight()];
 	}
 	
 	public int getNumberOfBinaryRules() {
@@ -77,7 +91,7 @@ public class RuleEnumeration implements Serializable {
 	}
 	
 	public int getUnaryId(Rule rule) {
-		return unaryIds.get(rule);
+		return unaryIds[rule.getLabel()][rule.getLeft()];
 	}
 	
 	public int getNumberOfUnaryRules() {
@@ -96,9 +110,9 @@ public class RuleEnumeration implements Serializable {
 	
 	public boolean isExistingRule(Rule rule) {
 		if(rule.getType() == Type.BINARY)
-			return binaryIds.containsKey(rule);
+			return getBinaryId(rule) != -1;
 		else if(rule.getType() == Type.UNARY)
-			return unaryIds.containsKey(rule);
+			return getUnaryId(rule) != -1;
 		else // all terminals are existing
 			return true;
 	}
