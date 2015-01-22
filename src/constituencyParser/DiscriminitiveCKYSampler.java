@@ -85,11 +85,13 @@ public class DiscriminitiveCKYSampler {
 						
 						double probability = binaryProbability(start, start+length, start+split, r, rule);
 						
-						double fullProbability = addProbabilitiesLog(insideLogProbabilitiesBeforeUnaries[start][start+length][label], probability);  
-						insideLogProbabilitiesBeforeUnaries[start][start+length][label] = fullProbability;
-						
-						if(fullProbability > maxBeforeUnaries[start][start+length]) {
-							maxBeforeUnaries[start][start+length] = fullProbability;
+						if(probability != 0) {
+							double fullProbability = addProbabilitiesLog(insideLogProbabilitiesBeforeUnaries[start][start+length][label], probability);  
+							insideLogProbabilitiesBeforeUnaries[start][start+length][label] = fullProbability;
+							
+							if(fullProbability > maxBeforeUnaries[start][start+length]) {
+								maxBeforeUnaries[start][start+length] = fullProbability;
+							}
 						}
 					}
 				}
