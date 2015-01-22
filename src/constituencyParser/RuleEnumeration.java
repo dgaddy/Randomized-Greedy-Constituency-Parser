@@ -36,6 +36,8 @@ public class RuleEnumeration implements Serializable {
 		this.binaryRules = new ArrayList<>(other.binaryRules);
 		this.unaryRules = new ArrayList<>(other.unaryRules);
 		
+		binaryIds = new int[NUMBER_LABELS][NUMBER_LABELS][NUMBER_LABELS];
+		unaryIds = new int[NUMBER_LABELS][NUMBER_LABELS];
 		for(int i = 0; i < NUMBER_LABELS; i++)
 			 for(int j = 0; j < NUMBER_LABELS; j++)
 				 for(int k = 0; k < NUMBER_LABELS; k++)
