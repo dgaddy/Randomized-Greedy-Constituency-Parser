@@ -76,8 +76,6 @@ public class Test {
 						numberCorrect++;
 				}
 			}
-			
-			System.out.println("done");
 
 			numberGold += example.getSpans().size();
 			numberOutput += result.size();

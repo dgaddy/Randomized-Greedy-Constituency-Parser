@@ -118,7 +118,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * Returns a parse tree in the form of a list of spans
 	 */
 	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout) {
-		firstOrderSpanScoreCache = new HashMap<Span, Double>(1000);
+		firstOrderSpanScoreCache = new HashMap<Span, Double>(30000, .5f); // usually holds less than 15000 items
 		
 		firstOrderFeatures.fillScoreArrays(words, params, dropout);
 		

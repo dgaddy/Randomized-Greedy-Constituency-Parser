@@ -85,7 +85,7 @@ public class DiscriminitiveCKYSampler {
 						
 						double probability = binaryProbability(start, start+length, start+split, r, rule);
 						
-						if(probability != 0) {
+						if(probability != Double.NEGATIVE_INFINITY) {
 							double fullProbability = addProbabilitiesLog(insideLogProbabilitiesBeforeUnaries[start][start+length][label], probability);  
 							insideLogProbabilitiesBeforeUnaries[start][start+length][label] = fullProbability;
 							
@@ -152,7 +152,7 @@ public class DiscriminitiveCKYSampler {
 		double leftChildProb = insideLogProbabilitiesAfterUnaries[start][split][rule.getLeft()];
 		double rightChildProb = insideLogProbabilitiesAfterUnaries[split][end][rule.getRight()];
 		if(leftChildProb < maxBeforeUnaries[start][split] - PRUNE_THRESHOLD || rightChildProb < maxBeforeUnaries[split][end] - PRUNE_THRESHOLD)
-			return 0;
+			return Double.NEGATIVE_INFINITY;
 		
 		double spanScore = firstOrderFeatures.scoreBinary(start, end, split, ruleNumber);
 		if(costAugmenting && goldLabels[start][end] != rule.getLabel()) {
@@ -191,49 +191,32 @@ public class DiscriminitiveCKYSampler {
 	}
 	
 	public List<Span> sample() {
-		List<Span> sample = null;
-		boolean success = false;
-		int count = 0;
-		while(!success) {
-			try {
-				List<Double> logProbabilities = new ArrayList<>();
-				List<Integer> labelsToSample = new ArrayList<>();
-				for(Integer topLabel : labels.getTopLevelLabelIds()) {
-					double score = insideLogProbabilitiesAfterUnaries[0][wordsSize][topLabel];
-					if(score == Double.NEGATIVE_INFINITY)
-						continue;
-					
-					logProbabilities.add(score);
-					labelsToSample.add(topLabel);
-				}
-				
-				if(logProbabilities.size() == 0) {
-					System.out.println("top level fail");
-					return new ArrayList<>();
-				}
-				
-				int chosenTopLabel = labelsToSample.get(sample(logProbabilities));
-				
-				sample = new ArrayList<>();
-				
-				sample(0, wordsSize, chosenTopLabel, true, sample);
-				success = true;
-			}
-			catch(NoOptionsException ex) {
-				count++;
-				if(count > 50) {
-					System.out.println("Sampler not finding any valid options.");
-					return new ArrayList<>();
-				}
-			}
+		List<Double> logProbabilities = new ArrayList<>();
+		List<Integer> labelsToSample = new ArrayList<>();
+		for(Integer topLabel : labels.getTopLevelLabelIds()) {
+			double score = insideLogProbabilitiesAfterUnaries[0][wordsSize][topLabel];
+			if(score == Double.NEGATIVE_INFINITY)
+				continue;
+			
+			logProbabilities.add(score);
+			labelsToSample.add(topLabel);
 		}
+		
+		if(logProbabilities.size() == 0) {
+			System.out.println("top level fail");
+			return new ArrayList<>();
+		}
+		
+		int chosenTopLabel = labelsToSample.get(sample(logProbabilities));
+		
+		List<Span> sample = new ArrayList<>();
+		
+		sample(0, wordsSize, chosenTopLabel, true, sample);
 		
 		return sample;
 	}
 	
-	private void sample(int start, int end, int label, boolean allowUnaries, List<Span> resultAccumulator) throws NoOptionsException {
-		//double[][] probabilities = ruleProbabilities[start][end];
-		//double [] unaryProbabilities = unaryRuleProbabilities[start][end];
+	private void sample(int start, int end, int label, boolean allowUnaries, List<Span> resultAccumulator) {
 		List<Double> logProbabilities = new ArrayList<>();
 		List<Span> spans = new ArrayList<>();
 		if(allowUnaries) {
@@ -280,19 +263,8 @@ public class DiscriminitiveCKYSampler {
 			}
 		}
 		
-		//System.out.println(cumulativeValues);
-		//System.out.println(spans);
-		
-		if(logProbabilities.size() == 0) {
-			System.out.println("no options s:"+start+",e:"+end+",l:"+label+",u:"+allowUnaries+",r:"+resultAccumulator+",s:");
-			for(Integer i : sentenceWords) {
-				System.out.print(wordEnum.getWord(i));
-				System.out.print(" ");
-			}
-			throw new NoOptionsException(label);
-		}
-		
-		Span span = spans.get(sample(logProbabilities));
+		int sampleIndex = sample(logProbabilities);
+		Span span = spans.get(sampleIndex);
 		resultAccumulator.add(span);
 		if(span.getRule().getType() == Type.UNARY) {
 			sample(start, end, span.getRule().getLeft(), false, resultAccumulator);
@@ -302,7 +274,7 @@ public class DiscriminitiveCKYSampler {
 		else {
 			sample(start, span.getSplit(), span.getRule().getLeft(), true, resultAccumulator);
 			sample(span.getSplit(), end, span.getRule().getRight(), true, resultAccumulator);
-		} 
+		}
 	}
 	
 	/**
@@ -338,16 +310,5 @@ public class DiscriminitiveCKYSampler {
 			sampleIndex = logProbabilities.size() - 1;
 		}
 		return sampleIndex;
-	}
-	
-	/**
-	 * Thrown when a sample was made that leads to a dead end - a label for a constituent where we can't put a rule under it
-	 */
-	private class NoOptionsException extends Exception {
-		private static final long serialVersionUID = 1L;
-
-		public NoOptionsException(int label) {
-			super("No options with label " + label);
-		}
 	}
 }
