@@ -26,34 +26,6 @@ public class RandomizedGreedyDecoder implements Decoder {
 	
 	FirstOrderFeatureHolder firstOrderFeatures;
 	
-	/**
-	 * Holds a span and its parent label.  Used for cacheing
-	 *
-	 */
-	class SpanAndParent {
-		Span span;
-		int parentLabel;
-		
-		public SpanAndParent(Span s, int parentLabel) {
-			this.span = s;
-			this.parentLabel = parentLabel;
-		}
-		
-		@Override
-		public int hashCode() {
-			return parentLabel + span.hashCode();
-		}
-		
-		@Override
-		public boolean equals(Object other) {
-			if(other instanceof SpanAndParent) {
-				SpanAndParent sp = (SpanAndParent)other;
-				return sp.span.equals(this.span) && sp.parentLabel == this.parentLabel; 
-			}
-			return false;
-		}
-	}
-	
 	HashMap<Span, Double> firstOrderSpanScoreCache;
 	
 	boolean doSecondOrder = true;
@@ -132,9 +104,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 		
 		List<Span> best = new ArrayList<Span>();
 		double bestScore = Double.NEGATIVE_INFINITY;
-		int numberOfUpdates = 0;
 		
-		for(int iteration = 0; iteration < numberSampleIterations && numberOfUpdates < numberSampleIterations; iteration++) {
+		for(int iteration = 0; iteration < numberSampleIterations; iteration++) {
 			//System.out.println("new iteration");
 			
 			List<Span> spans = sampler.sample();
@@ -150,8 +121,6 @@ public class RandomizedGreedyDecoder implements Decoder {
 						break;
 					else
 						alreadyDone.add(spansSet);
-					
-					numberOfUpdates++;
 					
 					double score = score(words, spans, params, dropout);
 					//System.out.println("score: " + score);
