@@ -118,7 +118,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * Returns a parse tree in the form of a list of spans
 	 */
 	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout) {
-		firstOrderSpanScoreCache = new HashMap<Span, Double>();
+		firstOrderSpanScoreCache = new HashMap<Span, Double>(1000);
 		
 		firstOrderFeatures.fillScoreArrays(words, params, dropout);
 		
@@ -263,10 +263,6 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 */
 	double score(List<Integer> words, List<Span> spans, int[] parents, FeatureParameters params, boolean dropout) {
 		double score = 0;
-		for(Span s : spans) {
-			if(!rules.isExistingRule(s.getRule()))
-				return Double.NEGATIVE_INFINITY;
-		}
 		
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
@@ -279,10 +275,14 @@ public class RandomizedGreedyDecoder implements Decoder {
 				double spanScore = 0;
 				if(rule.getType() == Type.BINARY) {
 					int ruleId = rules.getBinaryId(rule);
+					if(ruleId == -1)
+						return Double.NEGATIVE_INFINITY;
 					spanScore = firstOrderFeatures.scoreBinary(s.getStart(), s.getEnd(), s.getSplit(), ruleId);
 				}
 				else if(rule.getType() == Type.UNARY) {
 					int ruleId = rules.getUnaryId(rule);
+					if(ruleId == -1)
+						return Double.NEGATIVE_INFINITY;
 					spanScore = firstOrderFeatures.scoreUnary(s.getStart(), s.getEnd(), ruleId);
 				}
 				else {// terminal

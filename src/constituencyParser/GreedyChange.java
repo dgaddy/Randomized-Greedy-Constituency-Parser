@@ -331,10 +331,17 @@ public class GreedyChange {
 			if(topLevel && !topLevelLabels.contains(i))
 				continue;
 			
+			Span newToIterate = spanToIterate.changeLabel(i);
+			if(!rules.isExistingRule(newToIterate.getRule()))
+				continue;
 			List<Span> newSpans = new ArrayList<>(spans.spans);
-			newSpans.set(spanToIterateIndex, spanToIterate.changeLabel(i));
-			if(parentIndex != -1)
-				newSpans.set(parentIndex, parent.changeChildLabel(leftChild, i));
+			newSpans.set(spanToIterateIndex, newToIterate);
+			if(parentIndex != -1) {
+				Span newParent = parent.changeChildLabel(leftChild, i);
+				if(!rules.isExistingRule(newParent.getRule()))
+					continue;
+				newSpans.set(parentIndex, newParent);
+			}
 			
 			resultAccumulator.add(new ParentedSpans(newSpans, spans.parents));
 		}
@@ -363,11 +370,19 @@ public class GreedyChange {
 			if(topLevel && !topLevelLabels.contains(rule.getLabel()))
 				continue;
 
+			Span newToIterate = spanToIterate.changeLabel(rule.getLeft());
+			if(!rules.isExistingRule(newToIterate.getRule()))
+				continue;
+			Span newUnary = unary.changeChildLabel(true, rule.getLeft()).changeLabel(rule.getLabel());
 			List<Span> newSpans = new ArrayList<>(spans.spans);
-			newSpans.set(spanToIterateIndex, spanToIterate.changeLabel(rule.getLeft()));
-			newSpans.set(unaryIndex, unary.changeChildLabel(true, rule.getLeft()).changeLabel(rule.getLabel()));
-			if(parentIndex != -1)
-				newSpans.set(parentIndex, parent.changeChildLabel(leftChild, rule.getLabel()));
+			newSpans.set(spanToIterateIndex, newToIterate);
+			newSpans.set(unaryIndex, newUnary);
+			if(parentIndex != -1) {
+				Span newParent = parent.changeChildLabel(leftChild, rule.getLabel());
+				if(!rules.isExistingRule(newParent.getRule()))
+					continue;
+				newSpans.set(parentIndex, newParent);
+			}
 			
 			resultAccumulator.add(new ParentedSpans(newSpans, spans.parents));
 		}
