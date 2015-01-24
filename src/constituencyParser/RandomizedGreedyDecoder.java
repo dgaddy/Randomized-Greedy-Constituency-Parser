@@ -156,6 +156,9 @@ public class RandomizedGreedyDecoder implements Decoder {
 					
 					// iterate top level again with constraint to top level label in training set
 					List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, 0, words.size(), true);
+					if(options.size() == 0) {
+						break; // no valid option that uses top level labels
+					}
 					spans = getMax(options, words, params, dropout);
 				}
 			}
