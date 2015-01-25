@@ -1,10 +1,16 @@
 package constituencyParser;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import constituencyParser.GreedyChange.ParentedSpans;
 import constituencyParser.Rule.Type;
@@ -26,7 +32,12 @@ public class RandomizedGreedyDecoder implements Decoder {
 	
 	FirstOrderFeatureHolder firstOrderFeatures;
 	
-	HashMap<Span, Double> firstOrderSpanScoreCache;
+	ConcurrentHashMap<Span, Double> firstOrderSpanScoreCache;
+	Set<Set<Span>> alreadySeenSpans;
+	
+	DecoderTask[] decoderTasks;
+	ExecutorService executorService;
+	ExecutorCompletionService<List<Span>> completionService;
 	
 	boolean doSecondOrder = true;
 	
@@ -35,7 +46,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	
 	int numberSampleIterations = 50;
 	
-	public RandomizedGreedyDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
+	public RandomizedGreedyDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, int threads) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
@@ -44,6 +55,13 @@ public class RandomizedGreedyDecoder implements Decoder {
 		sampler = new DiscriminitiveCKYSampler(words, labels, rules, firstOrderFeatures);
 		
 		this.greedyChange = new GreedyChange(labels, rules);
+		
+		executorService = Executors.newFixedThreadPool(threads);
+		completionService = new ExecutorCompletionService<>(executorService);
+		decoderTasks = new DecoderTask[threads];
+		for(int i = 0; i < threads; i++) {
+			decoderTasks[i] = new DecoderTask();
+		}
 	}
 	
 	/**
@@ -85,12 +103,22 @@ public class RandomizedGreedyDecoder implements Decoder {
 		numberSampleIterations = iterations;
 	}
 	
-	double lastScore = 0;
+	List<Integer> words;
+	FeatureParameters params;
+	boolean dropout;
+	int numberIterationsStarted = 0;
+	Object lockObject = new Object();
+	
 	/**
 	 * Returns a parse tree in the form of a list of spans
 	 */
 	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout) {
-		firstOrderSpanScoreCache = new HashMap<Span, Double>(30000, .5f); // usually holds less than 15000 items
+		this.words = words;
+		this.params = params;
+		this.dropout = dropout;
+		numberIterationsStarted = 0;
+		
+		firstOrderSpanScoreCache = new ConcurrentHashMap<Span, Double>(30000, .5f); // usually holds less than 15000 items
 		
 		firstOrderFeatures.fillScoreArrays(words, params, dropout);
 		
@@ -100,85 +128,108 @@ public class RandomizedGreedyDecoder implements Decoder {
 		
 		//System.out.println("calculated probabilities");
 		
-		Set<Set<Span>> alreadyDone = new HashSet<>(); // a set of the spans we have sampled so if we sample the same again, we don't have to greedy update
+		alreadySeenSpans = Collections.newSetFromMap(new ConcurrentHashMap<Set<Span>, Boolean>()); // a set of the spans we have sampled so if we sample the same again, we don't have to greedy update
 		
-		List<Span> best = new ArrayList<Span>();
-		double bestScore = Double.NEGATIVE_INFINITY;
+		for(DecoderTask task : decoderTasks) {
+			completionService.submit(task);
+		}
 		
-		for(int iteration = 0; iteration < numberSampleIterations; iteration++) {
-			//System.out.println("new iteration");
+		List<ParentedSpans> bestOptions = new ArrayList<>();
+		for(int i = 0; i < decoderTasks.length; i++) {
+			try {
+				List<Span> result = completionService.take().get();
+				bestOptions.add(new ParentedSpans(result, SpanUtilities.getParents(result)));
+			}
+			catch(ExecutionException|InterruptedException e) {
+				System.out.println("Exception in decoder worker thread");
+				e.printStackTrace();
+			}
+		}
+		
+		return getMax(bestOptions, words, params, dropout);
+	}
+	
+	private class DecoderTask implements Callable<List<Span>> {
+		@Override
+		public List<Span> call() {
+			List<Span> best = new ArrayList<Span>();
+			double bestScore = Double.NEGATIVE_INFINITY;
 			
-			List<Span> spans = sampler.sample();
-			
-			if(spans.size() > 0) { // sometimes sampler fails to find valid sample and returns empty list
-				SpanUtilities.checkCorrectness(spans);
-				
-				boolean changed = true;
-				double lastScore = Double.NEGATIVE_INFINITY;
-				while(changed) {
-					Set<Span> spansSet = new HashSet<>(spans);
-					if(alreadyDone.contains(spansSet))
+			while(true) {
+				synchronized(lockObject) {
+					if(numberIterationsStarted < numberSampleIterations) {
+						numberIterationsStarted++;
+					}
+					else {
 						break;
-					else
-						alreadyDone.add(spansSet);
-					
-					double score = score(words, spans, params, dropout);
-					//System.out.println("score: " + score);
-					if(score <= lastScore) {
-						changed = false;
 					}
-					lastScore = score;
+				}
+				//System.out.println("new iteration");
+				
+				List<Span> spans = sampler.sample();
+				
+				if(spans.size() > 0) { // sometimes sampler fails to find valid sample and returns empty list
+					SpanUtilities.checkCorrectness(spans);
 					
-					// terminal labels
-					for(int i = 0; i < words.size(); i++) {
-						List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, i, i+1, false);
+					boolean changed = true;
+					double lastScore = Double.NEGATIVE_INFINITY;
+					while(changed) {
+						Set<Span> spansSet = new HashSet<>(spans);
+						if(alreadySeenSpans.contains(spansSet))
+							break;
+						else
+							alreadySeenSpans.add(spansSet);
 						
-						spans = getMax(options, words, params, dropout);
-					}
-					
-					// other spans
-					for(int length = 1; length < words.size() + 1; length++) {
-						for(int start = 0; start < words.size() - length + 1; start++) {
-							boolean exists = false; // if there is actually a span with this start and length
-							for(int i = 0; i < spans.size(); i++) {
-								Span s = spans.get(i);
-								if(s.getStart() == start && s.getEnd() == start + length) {
-									exists = true;
+						double score = score(words, spans, params, dropout);
+						//System.out.println("score: " + score);
+						if(score <= lastScore) {
+							changed = false;
+						}
+						lastScore = score;
+						
+						// terminal labels
+						for(int i = 0; i < words.size(); i++) {
+							List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, i, i+1, false);
+							
+							spans = getMax(options, words, params, dropout);
+						}
+						
+						// other spans
+						for(int length = 1; length < words.size() + 1; length++) {
+							for(int start = 0; start < words.size() - length + 1; start++) {
+								boolean exists = false; // if there is actually a span with this start and length
+								for(int i = 0; i < spans.size(); i++) {
+									Span s = spans.get(i);
+									if(s.getStart() == start && s.getEnd() == start + length) {
+										exists = true;
+									}
+								}
+								if(exists) {
+									List<ParentedSpans> update = greedyChange.makeGreedyChanges(spans, start, start + length);
+									
+									spans = getMax(update, words, params, dropout);
 								}
 							}
-							if(exists) {
-								List<ParentedSpans> update = greedyChange.makeGreedyChanges(spans, start, start + length);
-								
-								spans = getMax(update, words, params, dropout);
-							}
 						}
+						
+						// iterate top level again with constraint to top level label in training set
+						List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, 0, words.size(), true);
+						if(options.size() == 0) {
+							break; // no valid option that uses top level labels
+						}
+						spans = getMax(options, words, params, dropout);
 					}
-					
-					// iterate top level again with constraint to top level label in training set
-					List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, 0, words.size(), true);
-					if(options.size() == 0) {
-						break; // no valid option that uses top level labels
-					}
-					spans = getMax(options, words, params, dropout);
+				}
+				
+				double score = score(words, spans, params, dropout);
+				if(score > bestScore) {
+					best = new ArrayList<>(spans);
+					bestScore = score;
 				}
 			}
 			
-			double score = score(words, spans, params, dropout);
-			if(score > bestScore) {
-				best = new ArrayList<>(spans);
-				bestScore = score;
-			}
+			return best;
 		}
-		lastScore = bestScore;
-		return best;
-	}
-	
-	/**
-	 * Gets the score of the last result returned by decode
-	 * @return
-	 */
-	public double getLastScore() {
-		return lastScore;
 	}
 	
 	/**

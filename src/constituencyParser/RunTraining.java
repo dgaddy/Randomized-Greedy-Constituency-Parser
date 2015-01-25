@@ -55,22 +55,40 @@ public class RunTraining {
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		trainParallel(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting);
 	}
 	
-	public static void train(String folder) throws IOException {
+	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting) throws IOException, ClassNotFoundException {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
-		List<SpannedWords> examples = PennTreebankReader.loadFromFiles(folder, 2, 3, words, labels, rules);
+		FeatureParameters params = new FeatureParameters();
 		
-		RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules);
+		if(startModel != null) {
+			SaveObject start = SaveObject.loadSaveObject(startModel);
+			words = start.getWords();
+			labels = start.getLabels();
+			rules = start.getRules();
+			params = start.getParameters();
+		}
+		
+		List<SpannedWords> examples = PennTreebankReader.loadFromFiles(dataFolder, 2,22, words, labels, rules); // use only between 2 and 21 for training
+		if(percentOfData < 1) {
+			examples = new ArrayList<>(examples.subList(0, (int)(examples.size() * percentOfData)));
+		}
+		
+		RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules, cores);
 		Train pa = new Train(words, labels, rules, decoder);
-		pa.train(examples, .05, true, true);
-		FeatureParameters params = pa.getParameters();
 		
-		SaveObject so = new SaveObject(words, labels, rules, params);
-		so.save("model");
+		for(int i = 0; i < iterations; i++) {
+			pa.train(examples, dropout, secondOrder, costAugmenting);
+			params = pa.getParameters();
+			
+			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .1, cores);
+			
+			SaveObject so = new SaveObject(words, labels, rules, params);
+			so.save(outputFolder + "/modelIteration"+i);
+		}
 	}
 	
 	static class TrainResult {
@@ -108,7 +126,7 @@ public class RunTraining {
 		public TrainResult call() throws Exception {
 			System.out.println("Starting new training.");
 			
-			RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules);
+			RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules, 1);
 			Train pa = new Train(words, labels, rules, decoder, initialParams);
 			try {
 				pa.train(data, dropout, secondOrder, costAugmenting);
@@ -198,7 +216,7 @@ public class RunTraining {
 			
 			shared = FeatureParameters.average(finalParams);
 			
-			Test.test(words, labels, rules, shared, dataFolder, secondOrder, 100, .1);
+			Test.test(words, labels, rules, shared, dataFolder, secondOrder, 100, .1, 1);
 			
 			SaveObject so = new SaveObject(words, labels, rules, shared);
 			so.save(outputFolder + "/modelIteration"+i);

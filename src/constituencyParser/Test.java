@@ -45,15 +45,11 @@ public class Test {
 		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 
-		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, 1);
+		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, 1, numberOfThreads);
 	}
 
-	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder) throws IOException {
-		test(words, labels, rules, parameters, dataFolder, secondOrder, 100, 1);
-	}
-
-	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData) throws IOException {
-		RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules);
+	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads) throws IOException {
+		RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules, threads);
 		//randGreedyDecoder.samplerDoCounts(PennTreebankReader.loadFromFiles(dataFolder, 2, 22, words, labels, rules)); for non-discriminitive
 
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
@@ -126,7 +122,7 @@ public class Test {
 		
 		@Override
 		public TestResult call() throws Exception {
-			RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules);
+			RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules, 1);
 			randGreedyDecoder.setNumberSampleIterations(randomizedGreedyIterations);
 
 			randGreedyDecoder.setSecondOrder(secondOrder);
@@ -213,7 +209,7 @@ public class Test {
 
 		List<Span> result = decoder.decode(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
 
-		RandomizedGreedyDecoder decoder2 = new RandomizedGreedyDecoder(words, labels, rules);
+		RandomizedGreedyDecoder decoder2 = new RandomizedGreedyDecoder(words, labels, rules, 1);
 
 		List<Span> result2 = decoder2.decode(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
 
