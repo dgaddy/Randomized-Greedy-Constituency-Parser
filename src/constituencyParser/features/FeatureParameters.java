@@ -10,6 +10,10 @@ import gnu.trove.procedure.TLongIntProcedure;
 import java.io.Serializable;
 import java.util.List;
 
+import constituencyParser.LabelEnumeration;
+import constituencyParser.RuleEnumeration;
+import constituencyParser.WordEnumeration;
+
 public class FeatureParameters implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
@@ -150,6 +154,74 @@ public class FeatureParameters implements Serializable {
 			});
 		}
 		return average;
+	}
+	
+	class StatCollector implements TLongIntProcedure {
+		long maxValuedFeature = -1;
+		double maxFeatureValue = Double.NEGATIVE_INFINITY;
+		long minValuedFeature = -1;
+		double minFeatureValue = Double.POSITIVE_INFINITY;
+		double totalScore = 0;
+		double totalAbsScore = 0;
+		
+		int numberSecondOrder = 0;
+		long maxSecondOrder = -1;
+		double maxValueSecOrder = Double.NEGATIVE_INFINITY;
+		long minSecondOrder = -1;
+		double minValueSecOrder = Double.POSITIVE_INFINITY;
+		double totalSecondOrder = 0;
+		double totalAbsSecondOrder = 0;
+		
+		@Override
+		public boolean execute(long key, int index) {
+			double value = featureValues.get(index);
+			if(value > maxFeatureValue) {
+				maxFeatureValue = value;
+				maxValuedFeature = key;
+			}
+			if(value < minFeatureValue) {
+				minFeatureValue = value;
+				minValuedFeature = key;
+			}
+			totalScore += value;
+			totalAbsScore += Math.abs(value);
+			
+			if(Features.isSecondOrderFeature(key)) {
+				numberSecondOrder++;
+				if(value > maxValueSecOrder) {
+					maxValueSecOrder = value;
+					maxSecondOrder = key;
+				}
+				if(value < minValueSecOrder) {
+					minValueSecOrder = value;
+					minSecondOrder = key;
+				}
+				totalSecondOrder += value;
+				totalAbsSecondOrder += Math.abs(value);
+			}
+			return true;
+		}
+	}
+	
+	public void printStats(WordEnumeration words, RuleEnumeration rules, LabelEnumeration labels) {
+		StatCollector collector = new StatCollector();
+		
+		System.out.println("Number features: " + featureIndices.size());
+		if(featureIndices.size() > 0) {
+			featureIndices.forEachEntry(collector);
+			System.out.println("Max valued feature: " + Features.getStringForCode(collector.maxValuedFeature, words, rules, labels) + " " + collector.maxFeatureValue);
+			System.out.println("Min valued feature: " + Features.getStringForCode(collector.minValuedFeature, words, rules, labels) + " " + collector.minFeatureValue);
+			System.out.println("Average score: " + collector.totalScore / featureIndices.size());
+			System.out.println("Average absolute value: " + collector.totalAbsScore / featureIndices.size());
+		}
+		
+		if(collector.numberSecondOrder > 0) {
+			System.out.println("Number second order features: " + collector.numberSecondOrder);
+			System.out.println("Max valued second order feature: " + Features.getStringForCode(collector.maxSecondOrder, words, rules, labels) + " " + collector.maxValueSecOrder);
+			System.out.println("Min valued second order feature: " + Features.getStringForCode(collector.minSecondOrder, words, rules, labels) + " " + collector.minValueSecOrder);
+			System.out.println("Average second order score: " + collector.totalSecondOrder / collector.numberSecondOrder);
+			System.out.println("Average second order absolute value: " + collector.totalAbsSecondOrder / collector.numberSecondOrder);
+		}
 	}
 	
 	public String toString() {

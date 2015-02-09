@@ -1,14 +1,15 @@
 package constituencyParser.features;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import gnu.trove.list.TLongList;
-import gnu.trove.list.array.TLongArrayList;
 import constituencyParser.LabelEnumeration;
 import constituencyParser.Rule;
 import constituencyParser.Rule.Type;
 import constituencyParser.RuleEnumeration;
 import constituencyParser.Span;
+import constituencyParser.SpanUtilities;
 import constituencyParser.WordEnumeration;
 
 /**
@@ -53,6 +54,10 @@ public class Features {
 	 */
 	public static long getSecondOrderRuleFeature(long childLabel, long label, long parentLabel) {
 		return (4L << 52L) + (childLabel << 32L) + (label << 16L) + parentLabel;
+	}
+	
+	public static boolean isSecondOrderFeature(long code) {
+		return (code >> 52L) == 4;
 	}
 	
 	/**
@@ -107,8 +112,8 @@ public class Features {
 	 * @param wordEnum
 	 * @return
 	 */
-	public static TLongList getSpanPropertyByRuleFeatures(List<Integer> words, Span span, RuleEnumeration rules, WordEnumeration wordEnum) {
-		TLongList codes = new TLongArrayList();
+	public static List<Long> getSpanPropertyByRuleFeatures(List<Integer> words, Span span, RuleEnumeration rules, WordEnumeration wordEnum) {
+		List<Long> codes = new ArrayList<>();
 		if(span.getRule().getType() == Type.UNARY) {
 			long ruleCode = RuleEnumeration.getRuleCode(rules.getUnaryId(span.getRule()), Type.UNARY);
 			TLongList propertyCodes = SpanProperties.getUnarySpanProperties(words, span.getStart(), span.getEnd());
@@ -139,8 +144,8 @@ public class Features {
 	 * @param span
 	 * @return
 	 */
-	public static TLongList getSpanPropertyByLabelFeatures(List<Integer> words, Span span) {
-		TLongList codes = new TLongArrayList();
+	public static List<Long> getSpanPropertyByLabelFeatures(List<Integer> words, Span span) {
+		List<Long> codes = new ArrayList<>();
 		if(span.getRule().getType() == Type.UNARY) {
 			int label = span.getRule().getLabel();
 			TLongList propertyCodes = SpanProperties.getUnarySpanProperties(words, span.getStart(), span.getEnd());
@@ -177,5 +182,35 @@ public class Features {
 		else {
 			return getRuleFeature(RuleEnumeration.getTerminalRuleCode(rule.getLabel()));
 		}
+	}
+	
+	public static List<Long> getAllFeatures(List<Span> spans, List<Integer> words, boolean doSecondOrder, WordEnumeration wordEnum, LabelEnumeration labels, RuleEnumeration rules) {
+		List<Long> features = new ArrayList<>();
+		int[] parents = SpanUtilities.getParents(spans);
+		for(int j = 0; j < spans.size(); j++) {
+			Span s = spans.get(j);
+			features.addAll(Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum));
+			features.add(Features.getRuleFeature(s.getRule(), rules));
+			features.addAll(Features.getSpanPropertyByLabelFeatures(words, s));
+			
+			if(doSecondOrder) {
+				if(parents[j] != -1) {
+					Rule rule = s.getRule();
+					Rule parentRule = spans.get(parents[j]).getRule();
+
+					if(rule.getType() == Rule.Type.UNARY) {
+						long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
+						features.add(code);
+					}
+					else if(rule.getType() == Rule.Type.BINARY) {
+						long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
+						features.add(code);
+						code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getLabel(), parentRule.getLabel());
+						features.add(code);
+					}
+				}
+			}
+		}
+		return features;
 	}
 }

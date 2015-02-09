@@ -1,6 +1,5 @@
 package constituencyParser;
 
-import gnu.trove.list.TLongList;
 import gnu.trove.map.hash.TLongDoubleHashMap;
 
 import java.util.HashSet;
@@ -61,75 +60,16 @@ public class Train {
 			
 			if(loss > 0) {
 				TLongDoubleHashMap features = new TLongDoubleHashMap();
-				//System.out.println("positive");
 				List<Span> gold = sw.getSpans();
-				int[] goldParents = SpanUtilities.getParents(gold);
-				int[] predictedParents = SpanUtilities.getParents(predicted);
-				for(int j = 0; j < gold.size(); j++) {
-					Span s = gold.get(j);
-					TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum);
-					for(int i = 0; i < featureCodes.size(); i++) {
-						features.adjustOrPutValue(featureCodes.get(i), 1, 1);
-						//System.out.println(Features.getStringForCode(featureCodes.get(i), wordEnum, rules, labels));
-					}
-					features.adjustOrPutValue(Features.getRuleFeature(s.getRule(), rules), 1, 1);
-					//System.out.println(Features.getStringForCode(Features.getRuleFeature(s.getRule(), rules), wordEnum, rules));
-					TLongList propertyByLabelCodes = Features.getSpanPropertyByLabelFeatures(words, s);
-					for(int i = 0; i < propertyByLabelCodes.size(); i++) {
-						features.adjustOrPutValue(propertyByLabelCodes.get(i), 1, 1);
-						//System.out.println(Features.getStringForCode(propertyByLabelCodes.get(i), wordEnum, rules, labels));
-					}
-					
-					if(doSecondOrder) {
-						if(goldParents[j] != -1) {
-							Rule rule = s.getRule();
-							Rule parentRule = gold.get(goldParents[j]).getRule();
-
-							if(rule.getType() == Rule.Type.UNARY) {
-								long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-								features.adjustOrPutValue(code, 1, 1);
-							}
-							else if(rule.getType() == Rule.Type.BINARY) {
-								long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-								features.adjustOrPutValue(code, 1, 1);
-								code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getLabel(), parentRule.getLabel());
-								features.adjustOrPutValue(code, 1, 1);
-							}
-						}
-					}
+				
+				// positive
+				for(Long code : Features.getAllFeatures(gold, words, doSecondOrder, wordEnum, labels, rules)) {
+					features.adjustOrPutValue(code, 1, 1);
 				}
-				//System.out.println("negative");
-				for(int j = 0; j < predicted.size(); j++) {
-					Span s = predicted.get(j);
-					TLongList featureCodes = Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum);
-					for(int i = 0; i < featureCodes.size(); i++) {
-						features.adjustOrPutValue(featureCodes.get(i), -1, -1);
-						//System.out.println(Features.getStringForCode(featureCodes.get(i), wordEnum, rules));
-					}
-					features.adjustOrPutValue(Features.getRuleFeature(s.getRule(), rules), -1, -1);
-					//System.out.println(Features.getStringForCode(Features.getRuleFeature(s.getRule(), rules), wordEnum, rules));
-					TLongList propertyByLabelCodes = Features.getSpanPropertyByLabelFeatures(words, s);
-					for(int i = 0; i < propertyByLabelCodes.size(); i++) {
-						features.adjustOrPutValue(propertyByLabelCodes.get(i), -1, -1);
-					}
-					
-					if(doSecondOrder) {
-						if(predictedParents[j] != -1) {
-							Rule rule = s.getRule();
-							Rule parentRule = predicted.get(predictedParents[j]).getRule();
-
-							if(rule.getType() == Rule.Type.UNARY) {
-								long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-								features.adjustOrPutValue(code, -1, -1);
-							}
-							else if(rule.getType() == Rule.Type.BINARY) {
-								long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-								features.adjustOrPutValue(code, -1, -1);
-								code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getLabel(), parentRule.getLabel());
-								features.adjustOrPutValue(code, -1, -1);
-							}
-						}
-					}
+				
+				// negative
+				for(Long code : Features.getAllFeatures(predicted, words, doSecondOrder, wordEnum, labels, rules)) {
+					features.adjustOrPutValue(code, -1, -1);
 				}
 				
 				parameters.update(features, exampleNumber);
