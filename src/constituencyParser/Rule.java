@@ -75,6 +75,15 @@ public class Rule implements Serializable {
 		return type.hashCode() * 11 + label * 13 + left * 17 + right * 19;
 	}
 	
+	public String toString(LabelEnumeration labels) {
+		if(type == Type.TERMINAL)
+			return "{" + labels.getLabel(label) + "}";
+		else if(type == Type.UNARY)
+			return "{" + labels.getLabel(label) + "->" + labels.getLabel(left) + "}";
+		else
+			return "{" + labels.getLabel(label) + "->" + labels.getLabel(left) + " " + labels.getLabel(right) + "}";
+	}
+	
 	public String toString() {
 		if(type == Type.TERMINAL)
 			return "{" + label + "}";

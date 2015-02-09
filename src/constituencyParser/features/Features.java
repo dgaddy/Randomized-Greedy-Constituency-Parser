@@ -73,15 +73,15 @@ public class Features {
 		if(type == 1) {
 			int ruleCode = extractBits(code, 52, 32);
 			int spanPropertyCode = extractBits(code, 32, 0);
-			return rules.getRuleFromCode(ruleCode) + " " + SpanProperties.getSpanPropertyCodeString(spanPropertyCode, words);
+			return rules.getRuleFromCode(ruleCode).toString(labels) + " " + SpanProperties.getSpanPropertyCodeString(spanPropertyCode, words);
 		}
 		else if (type == 2) {
-			return "" + rules.getRuleFromCode(extractBits(code, 52, 0));
+			return "" + rules.getRuleFromCode(extractBits(code, 52, 0)).toString(labels);
 		}
 		else if(type == 3) {
 			int label = extractBits(code, 52,32);
 			int spanPropertyCode = extractBits(code, 32, 0);
-			return label + " " + SpanProperties.getSpanPropertyCodeString(spanPropertyCode, words);
+			return labels.getLabel(label) + " " + SpanProperties.getSpanPropertyCodeString(spanPropertyCode, words);
 		}
 		else if(type == 4) {
 			int childLabel = extractBits(code, 52, 32);
