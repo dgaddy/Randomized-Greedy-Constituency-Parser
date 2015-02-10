@@ -107,7 +107,7 @@ public class SpanUtilities {
 	}
 	
 	/**
-	 * Returns an int[] where each element is the index of the parent span in spans
+	 * Returns an int[] where each element is the index of the parent span in spans or -1 if no parent
 	 * @param spans
 	 * @return
 	 */

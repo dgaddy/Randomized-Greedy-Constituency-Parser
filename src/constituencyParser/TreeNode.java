@@ -1,6 +1,10 @@
 package constituencyParser;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+
+import constituencyParser.Rule.Type;
 
 /**
  * A tree representation of a parse tree.  Used for reading in parse trees, then converted to span form using getSpans. 
@@ -234,5 +238,38 @@ public class TreeNode {
 			builder.append(')');
 			return builder.toString();
 		}
+	}
+	
+	public static TreeNode makeTreeFromSpans(List<Span> spans, List<Integer> words, WordEnumeration wordEnum, LabelEnumeration labels) {
+		spans = new ArrayList<Span>(spans);
+		Collections.sort(spans, new Comparator<Span>() {
+
+			@Override
+			public int compare(Span o1, Span o2) {
+				return o1.getStart() - o2.getStart();
+			}
+			
+		});
+		
+		int[] parents = SpanUtilities.getParents(spans);
+		TreeNode[] nodes = new TreeNode[spans.size()];
+		for(int i = 0; i < spans.size(); i++) {
+			nodes[i] = new TreeNode();
+		}
+		TreeNode top = null;
+		for(int i = 0; i < spans.size(); i++) {
+			Span s = spans.get(i);
+			nodes[i].setLabel(labels.getLabel(s.getRule().getLabel()));
+			if(s.getRule().getType() == Type.TERMINAL) {
+				nodes[i].addChild(new TreeNode(wordEnum.getWord(words.get(s.getStart()))));
+			}
+			if(parents[i] != -1) {
+				nodes[parents[i]].addChild(nodes[i]);
+			}
+			else {
+				top = nodes[i];
+			}
+		}
+		return top;
 	}
 }
