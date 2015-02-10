@@ -63,6 +63,15 @@ public class StatisticsCollector {
 
 		String modelFile = args[0];
 		String dataDir = args[1];
+		
+		{
+			System.out.println("From data shuffled numberings:");
+			WordEnumeration shuffledWords = new WordEnumeration();
+			LabelEnumeration shuffledLabels = new LabelEnumeration();
+			RuleEnumeration shuffledRules = new RuleEnumeration();
+			List<SpannedWords> shuffledExamples = PennTreebankReader.loadFromFiles(dataDir, 2, 22, shuffledWords, shuffledLabels, shuffledRules, true);
+			printFeatureStats(shuffledExamples, shuffledWords, shuffledRules, shuffledLabels);
+		} // in brackets for garbage collecting purposes
 
 		SaveObject savedModel = SaveObject.loadSaveObject(modelFile);
 
@@ -71,9 +80,11 @@ public class StatisticsCollector {
 		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 		
+		//System.out.println(parameters.getScore(Features.getSecondOrderRuleFeature(labels.getId("DT"), labels.getId("NP"), labels.getId("PP")), false));
+		
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles(dataDir, 2,22, words, labels, rules);
 		
-		System.out.println("From data:");
+		System.out.println("From data using loaded numberings:");
 		printFeatureStats(examples, words, rules, labels);
 		
 		System.out.println();
