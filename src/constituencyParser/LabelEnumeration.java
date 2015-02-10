@@ -2,6 +2,7 @@ package constituencyParser;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -41,6 +42,15 @@ public class LabelEnumeration implements Serializable {
 		for(String label : labels) {
 			addLabel(label);
 		}
+	}
+	
+	public void shuffleLabels() {
+		List<String> labels = idToLabel;
+		labelToId = new HashMap<>();
+		idToLabel = new ArrayList<>();
+		
+		Collections.shuffle(labels);
+		addAllLabels(labels);
 	}
 	
 	public void addTopLevelLabel(String label) {

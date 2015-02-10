@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -172,7 +173,14 @@ public class PennTreebankReader implements Closeable {
 	 * @throws IOException 
 	 */
 	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) throws IOException {
-
+		return loadFromFiles(folder, firstFile, lastFile, words, labels, rules, false);
+	}
+	
+	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle) throws IOException {
+		if(shuffle && (words.getNumberOfWords() > 0 || labels.getNumberOfLabels() > 0)) {
+			throw new IllegalArgumentException("Cannot shuffle when there are already words or labels because this would invalidate previously loaded trees.");
+		}
+		
 		List<SpannedWords> loaded = new ArrayList<>();
 		List<TreeNode> trees = new ArrayList<>();
 		
@@ -193,6 +201,13 @@ public class PennTreebankReader implements Closeable {
 			}
 			
 			reader.close();
+		}
+		
+		if(shuffle) {
+			words.shuffleWords();
+			labels.shuffleLabels();
+			
+			Collections.shuffle(trees);
 		}
 		
 		

@@ -2,6 +2,7 @@ package constituencyParser;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -70,6 +71,24 @@ public class WordEnumeration implements Serializable {
 		for(String word : words) {
 			addWord(word);
 		}
+	}
+	
+	public void shuffleWords() {
+		List<String> words = idToWord;
+		idToWord = new ArrayList<>();
+		wordToId = new HashMap<>();
+		
+		idToPrefix = new ArrayList<>();
+		prefixToId = new HashMap<>();
+		
+		idToSuffix = new ArrayList<>();
+		suffixToId = new HashMap<>();
+		
+		suffixes = new ArrayList<>();
+		prefixes = new ArrayList<>();
+		
+		Collections.shuffle(words);
+		addAllWords(words);
 	}
 	
 	public String getWord(int id) {
