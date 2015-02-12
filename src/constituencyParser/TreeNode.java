@@ -185,6 +185,39 @@ public class TreeNode {
 		throw new RuntimeException("Should never get here.");
 	}
 	
+	public TreeNode unbinarize() {
+		if(isWord)
+			return new TreeNode(word);
+		
+		if(children.size() == 0)
+			throw new RuntimeException("Non-word nodes must have children");
+		if(children.size() > 2)
+			throw new RuntimeException("Tree must be binary before calling unbinarize.");
+		
+		TreeNode result = new TreeNode();
+		result.setLabel(label);
+		TreeNode left = children.get(0).unbinarize();
+		if(left.label != null && left.label.endsWith("-BAR" )) {
+			if(!left.label.startsWith(label))
+				throw new RuntimeException("-BAR label below a non-matching parent");
+			
+			for(TreeNode child : left.children) {
+				child.parent = null;
+				result.addChild(child);
+			}
+		}
+		else {
+			result.addChild(left);
+		}
+		
+		if(children.size() > 1) {
+			TreeNode right = children.get(1).unbinarize();
+			result.addChild(right);
+		}
+		
+		return result;
+	}
+	
 	public void makeLabelsSimple() {
 		if(isWord)
 			return;

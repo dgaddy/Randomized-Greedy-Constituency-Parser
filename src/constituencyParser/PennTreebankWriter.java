@@ -10,14 +10,34 @@ public class PennTreebankWriter {
 	
 	Writer writer;
 	
-	public PennTreebankWriter(String file, WordEnumeration words, LabelEnumeration labels) throws IOException {
+	boolean addTop;
+	boolean first = true;
+	
+	public PennTreebankWriter(String file, WordEnumeration words, LabelEnumeration labels, boolean addTop) throws IOException {
 		this.words = words;
 		this.labels = labels;
 		this.writer = new FileWriter(file);
+		this.addTop = addTop;
 	}
 	
 	public void writeTree(SpannedWords tree) throws IOException {
-		writer.append("\n");
-		writer.append(TreeNode.makeTreeFromSpans(tree.getSpans(), tree.getWords(), words, labels).toString());
+		if(first) {
+			first = false;
+		}
+		else {
+			writer.append('\n');
+		}
+		if(addTop) {
+			writer.append("(TOP ");
+		}
+		
+		writer.append(TreeNode.makeTreeFromSpans(tree.getSpans(), tree.getWords(), words, labels).unbinarize().toString());
+		
+		if(addTop)
+			writer.append(')');
+	}
+	
+	public void close() throws IOException {
+		writer.close();
 	}
 }

@@ -10,6 +10,11 @@ public class SpannedWords {
 	private List<Span> spans = new ArrayList<>();
 	private List<Integer> words = new ArrayList<>();
 	
+	public SpannedWords(List<Span> spans, List<Integer> words) {
+		this.spans = spans;
+		this.words = words;
+	}
+	
 	// These constructors are used to build a span representation from a tree representation
 	
 	public SpannedWords(int word) {

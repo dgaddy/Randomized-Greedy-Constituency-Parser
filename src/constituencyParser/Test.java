@@ -61,10 +61,13 @@ public class Test {
 		int numberCorrect = 0;
 		int numberGold = 0;
 		int numberOutput = 0;
+		
+		PennTreebankWriter writer = new PennTreebankWriter("output.tst", words, labels, false);
 		for(SpannedWords example : gold) {
 			randGreedyDecoder.setSecondOrder(secondOrder);
 
 			List<Span> result = randGreedyDecoder.decode(example.getWords(), parameters, false);
+			writer.writeTree(new SpannedWords(result, example.getWords()));
 
 			for(Span span : result) {
 				for(Span goldSpan : example.getSpans()) {
@@ -76,6 +79,7 @@ public class Test {
 			numberGold += example.getSpans().size();
 			numberOutput += result.size();
 		}
+		writer.close();
 		double precision = numberCorrect / (double)numberOutput;
 		double recall = numberCorrect / (double)numberGold;
 
