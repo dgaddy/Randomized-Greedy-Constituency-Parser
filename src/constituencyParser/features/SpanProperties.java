@@ -5,6 +5,7 @@ import gnu.trove.list.array.TLongArrayList;
 
 import java.util.List;
 
+import constituencyParser.Word;
 import constituencyParser.WordEnumeration;
 
 /**
@@ -22,7 +23,7 @@ public class SpanProperties {
 	 * @param location
 	 * @return
 	 */
-	public static TLongList getTerminalSpanProperties(List<Integer> words, int location, WordEnumeration wordEnum) {
+	public static TLongList getTerminalSpanProperties(List<Word> words, int location, WordEnumeration wordEnum) {
 		TLongList properties = new TLongArrayList();
 		
 		properties.add(getWordPropertyCode(words.get(location), WordPropertyType.FIRST));
@@ -32,18 +33,18 @@ public class SpanProperties {
 		if(location + 1 < words.size())
 			properties.add(getWordPropertyCode(words.get(location + 1), WordPropertyType.AFTER));
 		
-		for(int prefix : wordEnum.getPrefixes(words.get(location))) {
+		for(int prefix : words.get(location).getPrefixIds()) {
 			properties.add(getPrefixPropertyCode(prefix));
 		}
 		
-		for(int suffix : wordEnum.getSuffixes(words.get(location))) {
+		for(int suffix : words.get(location).getSuffixIds()) {
 			properties.add(getSuffixPropertyCode(suffix));
 		}
 		
 		return properties;
 	}
 	
-	public static TLongList getUnarySpanProperties(List<Integer> words, int start, int end) {
+	public static TLongList getUnarySpanProperties(List<Word> words, int start, int end) {
 		TLongList properties = new TLongArrayList();
 		
 		properties.add(getLengthPropertyCode(end - start));
@@ -60,7 +61,7 @@ public class SpanProperties {
 		return properties;
 	}
 	
-	public static TLongList getBinarySpanProperties(List<Integer> words, int start, int end, int split) {
+	public static TLongList getBinarySpanProperties(List<Word> words, int start, int end, int split) {
 		TLongList properties = new TLongArrayList();
 		
 		properties.add(getLengthPropertyCode(end - start));
@@ -95,8 +96,8 @@ public class SpanProperties {
 	 * @param type
 	 * @return
 	 */
-	public static long getWordPropertyCode(int word, WordPropertyType type) {
-		return (1L << 28L) + (((long)type.ordinal()) << 24L) + word;
+	public static long getWordPropertyCode(Word word, WordPropertyType type) {
+		return (1L << 28L) + (((long)type.ordinal()) << 24L) + word.getId();
 	}
 	
 	/**
@@ -131,7 +132,7 @@ public class SpanProperties {
 			int wordId = (int) (code % (1L << 24L));
 			int typeOrdinal = (int) ((code % (1L<<28L)) >> 24L);
 			WordPropertyType propType = WordPropertyType.values()[typeOrdinal];
-			String word = words.getWord(wordId);
+			String word = words.getWordForId(wordId);
 			return "Word " + propType + " " + word;
 		}
 		else if(type == 2) {

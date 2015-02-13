@@ -5,12 +5,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class WordEnumeration implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
+	HashMap<String, Integer> trainingSuffixCounts;
+	
 	List<String> idToWord = new ArrayList<>();
-	HashMap<String, Integer> wordToId = new HashMap<>();
+	HashMap<String, Integer> wordToId = new HashMap<>(); // if word is most common suffix, will be "-ffix"
 	
 	List<String> idToPrefix = new ArrayList<>();
 	HashMap<String, Integer> prefixToId = new HashMap<>();
@@ -18,14 +22,13 @@ public class WordEnumeration implements Serializable {
 	List<String> idToSuffix = new ArrayList<>();
 	HashMap<String, Integer> suffixToId = new HashMap<>();
 	
-	List<List<Integer>> suffixes = new ArrayList<>();
-	List<List<Integer>> prefixes = new ArrayList<>();
-	
 	public WordEnumeration() {
-		
+		getOrAddWordId("-UNK-");
 	}
 	
 	public WordEnumeration(WordEnumeration other) {
+		trainingSuffixCounts = new HashMap<>(other.trainingSuffixCounts);
+		
 		this.idToWord = new ArrayList<>(other.idToWord);
 		this.wordToId = new HashMap<>(other.wordToId);
 		
@@ -34,75 +37,108 @@ public class WordEnumeration implements Serializable {
 		
 		idToSuffix = new ArrayList<>(other.idToSuffix);
 		suffixToId = new HashMap<>(other.suffixToId);
-		
-		suffixes = new ArrayList<>(other.suffixes);
-		prefixes = new ArrayList<>(other.prefixes);
 	}
 	
 	/**
-	 * Adds word if not already added
-	 * @param word
+	 * 
+	 * @param words A map from all words in training set to number of times they occur
 	 */
-	public void addWord(String word) {
+	public void addTrainingWords(Map<String, Integer> wordCounts) {
+		if(trainingSuffixCounts != null)
+			throw new RuntimeException("Should only call addTrainingWords once");
+		trainingSuffixCounts = new HashMap<String, Integer>();
+		
+		for(Entry<String, Integer> entry : wordCounts.entrySet()) {
+			for(String suffix : getAllSuffixes(entry.getKey())) {
+				Integer currentCount = trainingSuffixCounts.get(suffix);
+				if(currentCount == null)
+					trainingSuffixCounts.put(suffix, entry.getValue());
+				else
+					trainingSuffixCounts.put(suffix, currentCount+entry.getValue());
+			}
+		}
+		
+		for(Entry<String, Integer> entry : wordCounts.entrySet()) {
+			if(entry.getValue() >= 100) {
+				getOrAddWordId(entry.getKey()); // this should be the only place we add full words; the only other things that can get added are suffixes and UNK
+			}
+		}
+	}
+	
+	public Word getWord(String word) {
+		int id = getOrAddWordId("-UNK-");
 		if(wordToId.containsKey(word))
-			return;
-		
-		List<Integer> pfxs = new ArrayList<>();
-		for(int i = 1; i <= 5 && i <= word.length(); i++) {
-			String pfx = word.substring(0, i);
-			int id = getOrAddPrefix(pfx);
-			pfxs.add(id);
+			id = wordToId.get(word);
+		else {
+			for(String suffix : getAllSuffixes(word)) { // getAllSuffixes starts with largest (including full word)
+				Integer count = trainingSuffixCounts.get(suffix);
+				if(count != null && count >= 100)
+					id =  getOrAddWordId("-" + suffix);
+			}
 		}
-		
-		List<Integer> sfxs = new ArrayList<>();
-		for(int i = Math.max(word.length() - 5, 0); i < word.length(); i++) {
-			String sfx = word.substring(i, word.length());
-			int id = getOrAddSuffix(sfx);
-			sfxs.add(id);
-		}
-		
-		wordToId.put(word, idToWord.size());
-		idToWord.add(word);
-		prefixes.add(pfxs);
-		suffixes.add(sfxs);
+		return new Word(word, id, getPrefixIds(word), getSuffixIds(word));
 	}
 	
-	public void addAllWords(List<String> words) {
-		for(String word : words) {
-			addWord(word);
+	/**
+	 * In order from largest to smallest
+	 * @param word
+	 * @return
+	 */
+	private List<String> getAllSuffixes(String word) {
+		List<String> result = new ArrayList<>();
+		for(int i = 0; i < word.length(); i++) {
+			result.add(word.substring(i));
+		}
+		return result;
+	}
+	
+	/**
+	 * Get the ids of 5 prefixes
+	 * @param word
+	 * @param number
+	 * @return
+	 */
+	private List<Integer> getPrefixIds(String word) {
+		List<Integer> result = new ArrayList<>();
+		for(int i = 1; i <= word.length() && result.size() < 5; i++) {
+			result.add(getOrAddPrefix(word.substring(0,i)));
+		}
+		return result;
+	}
+	
+	/**
+	 * Get the ids of 5 suffixes
+	 * @param word
+	 * @param number
+	 * @return
+	 */
+	private List<Integer> getSuffixIds(String word) {
+		List<Integer> result = new ArrayList<>();
+		for(int i = word.length() - 1; i >= 0 && result.size() < 5; i--) {
+			result.add(getOrAddSuffix(word.substring(i)));
+		}
+		return result;
+	}
+	
+	private int getOrAddWordId(String word) {
+		if(wordToId.containsKey(word))
+			return wordToId.get(word);
+		else {
+			int id = idToWord.size();
+			wordToId.put(word, id);
+			idToWord.add(word);
+			return id;
 		}
 	}
 	
-	public void shuffleWords() {
-		List<String> words = idToWord;
-		idToWord = new ArrayList<>();
-		wordToId = new HashMap<>();
-		
-		idToPrefix = new ArrayList<>();
-		prefixToId = new HashMap<>();
-		
-		idToSuffix = new ArrayList<>();
-		suffixToId = new HashMap<>();
-		
-		suffixes = new ArrayList<>();
-		prefixes = new ArrayList<>();
-		
-		Collections.shuffle(words);
-		addAllWords(words);
-	}
-	
-	public String getWord(int id) {
+	public String getWordForId(int id) {
 		return idToWord.get(id);
 	}
 	
-	public int getId(String word) {
-		return wordToId.get(word);
-	}
-	
-	public List<Integer> getIds(List<String> words) {
-		List<Integer> result = new ArrayList<>();
+	public List<Word> getWords(List<String> words) {
+		List<Word> result = new ArrayList<>();
 		for(String word : words) {
-			result.add(getId(word));
+			result.add(getWord(word));
 		}
 		return result;
 	}
@@ -133,19 +169,37 @@ public class WordEnumeration implements Serializable {
 		}
 	}
 	
-	public List<Integer> getPrefixes(int word) {
-		return prefixes.get(word);
-	}
-	
-	public List<Integer> getSuffixes(int word) {
-		return suffixes.get(word);
-	}
-	
 	public String getSuffixForId(int id) {
 		return idToSuffix.get(id);
 	}
 	
 	public String getPrefixForId(int id) {
 		return idToPrefix.get(id);
+	}
+	
+	public void shuffleWordIds() {
+		List<String> words = idToWord;
+		idToWord = new ArrayList<>();
+		wordToId = new HashMap<>();
+		
+		Collections.shuffle(words);
+		for(String word : words)
+			getOrAddWordId(word);
+		
+		List<String> prefixes = idToPrefix;
+		idToPrefix = new ArrayList<>();
+		prefixToId = new HashMap<>();
+		
+		Collections.shuffle(prefixes);
+		for(String prefix : prefixes)
+			getOrAddPrefix(prefix);
+		
+		List<String> suffixes = idToSuffix;
+		idToSuffix = new ArrayList<>();
+		suffixToId = new HashMap<>();
+		
+		Collections.shuffle(suffixes);
+		for(String suffix : suffixes)
+			getOrAddSuffix(suffix);
 	}
 }

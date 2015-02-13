@@ -40,7 +40,7 @@ public class CKYSampler {
 		}
 		
 		for(SpannedWords sw : examples) {
-			List<Integer> words = sw.getWords();
+			List<Word> words = sw.getWords();
 			for(Span s : sw.getSpans()) {
 				Rule rule = s.getRule();
 				labelCounts[rule.getLabel()]++;
@@ -51,7 +51,7 @@ public class CKYSampler {
 					unaryRuleCounts[rules.getUnaryId(rule)]++;
 				}
 				else if(rule.getType() == Type.TERMINAL) {
-					terminalCounts[rule.getLabel()][words.get(s.getStart())]++;
+					terminalCounts[rule.getLabel()][words.get(s.getStart()).getId()]++;
 				}
 				else {
 					throw new RuntimeException("Invalid type.");
@@ -60,7 +60,7 @@ public class CKYSampler {
 		}
 	}
 	
-	public void calculateProbabilities(List<Integer> words) {
+	public void calculateProbabilities(List<Word> words) {
 		int wordsSize = words.size();
 		int numWords = terminalCounts[0].length;
 		int numLabels = labelCounts.length;
@@ -69,7 +69,7 @@ public class CKYSampler {
 		insideProbabilitiesAfterUnaries = new double[wordsSize][wordsSize+1][numLabels];
 		
 		for(int i = 0; i < wordsSize; i++) {
-			int word = words.get(i);
+			int word = words.get(i).getId();
 			for(int label = 0; label < numLabels; label++) {
 				double labelCount = labelCounts[label];
 				double wordCount = word >= numWords ? 1 : terminalCounts[label][word]; // the 1 is for the out of vocabulary words, which we count as being seen once with all labels

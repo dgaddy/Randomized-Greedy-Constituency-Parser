@@ -49,7 +49,7 @@ public class Train {
 			
 			parameters.resetDropout(dropout);
 			
-			List<Integer> words = sw.getWords();
+			List<Word> words = sw.getWords();
 			
 			decoder.setCostAugmenting(costAugmenting, sw);
 			decoder.setSecondOrder(doSecondOrder);

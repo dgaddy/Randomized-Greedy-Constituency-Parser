@@ -72,7 +72,7 @@ public class RunTraining {
 			params = start.getParameters();
 		}
 		
-		List<SpannedWords> examples = PennTreebankReader.loadFromFiles(dataFolder, 2,22, words, labels, rules); // use only between 2 and 21 for training
+		List<SpannedWords> examples = PennTreebankReader.loadFromFiles(dataFolder, 2,22, words, labels, rules, true); // use only between 2 and 21 for training
 		if(percentOfData < 1) {
 			examples = new ArrayList<>(examples.subList(0, (int)(examples.size() * percentOfData)));
 		}
@@ -179,7 +179,7 @@ public class RunTraining {
 			shared = start.getParameters();
 		}
 		
-		List<SpannedWords> unsplitData = PennTreebankReader.loadFromFiles(dataFolder, 2,22, words, labels, rules); // use only between 2 and 21 for training
+		List<SpannedWords> unsplitData = PennTreebankReader.loadFromFiles(dataFolder, 2,22, words, labels, rules, true); // use only between 2 and 21 for training
 		if(percentOfData < 1) {
 			unsplitData = new ArrayList<>(unsplitData.subList(0, (int)(unsplitData.size() * percentOfData)));
 		}

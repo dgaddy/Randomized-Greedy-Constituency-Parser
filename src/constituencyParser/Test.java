@@ -52,7 +52,7 @@ public class Test {
 		RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules, threads);
 		//randGreedyDecoder.samplerDoCounts(PennTreebankReader.loadFromFiles(dataFolder, 2, 22, words, labels, rules)); for non-discriminitive
 
-		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
+		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules, false);
 		int number = (int)(gold.size() * fractionOfData);
 		gold = gold.subList(0, number);
 
@@ -157,7 +157,7 @@ public class Test {
 	public static void testParallel(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int numberThreads) throws IOException, InterruptedException, ExecutionException {
 		Random random = new Random();
 		
-		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
+		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules, false);
 		int number = (int)(gold.size() * fractionOfData);
 		gold = gold.subList(0, number);
 
@@ -211,13 +211,13 @@ public class Test {
 
 		DiscriminitiveCKYDecoder decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
 
-		List<Span> result = decoder.decode(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
+		List<Span> result = decoder.decode(words.getWords(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
 
 		RandomizedGreedyDecoder decoder2 = new RandomizedGreedyDecoder(words, labels, rules, 1);
 
-		List<Span> result2 = decoder2.decode(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
+		List<Span> result2 = decoder2.decode(words.getWords(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
 
-		List<Span> result3 = decoder2.decodeNoGreedy(words.getIds(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
+		List<Span> result3 = decoder2.decodeNoGreedy(words.getWords(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
 
 		System.out.println(result);
 		System.out.println(result2);
@@ -228,7 +228,7 @@ public class Test {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
-		List<SpannedWords> examples = PennTreebankReader.loadFromFiles("../WSJ data/", 2, 3, words, labels, rules);
+		List<SpannedWords> examples = PennTreebankReader.loadFromFiles("../WSJ data/", 2, 3, words, labels, rules, false);
 
 		int loss = 1;
 		FeatureParameters params = new FeatureParameters();
@@ -252,8 +252,8 @@ public class Test {
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
 		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
-		decoder.doCounts(PennTreebankReader.loadFromFiles(dataFolder, 2, 22, words, labels, rules));
-		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules);
+		decoder.doCounts(PennTreebankReader.loadFromFiles(dataFolder, 2, 22, words, labels, rules, false));
+		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules, false);
 		List<Span> result = decoder.decode(gold.get(0).getWords());
 		System.out.println(result);
 	}

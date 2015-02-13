@@ -34,7 +34,7 @@ public class FirstOrderFeatureHolder {
 		this.rules = rules;
 	}
 	
-	public void fillScoreArrays(List<Integer> words, FeatureParameters params, boolean dropout) {
+	public void fillScoreArrays(List<Word> words, FeatureParameters params, boolean dropout) {
 		int wordsSize = words.size();
 		int labelsSize = labels.getNumberOfLabels();
 		int binaryRulesSize = rules.getNumberOfBinaryRules();
@@ -53,9 +53,9 @@ public class FirstOrderFeatureHolder {
 		terminalScores = new double[wordsSize][labelsSize];
 		
 		for(int i = 0; i < wordsSize; i++) {
-			int word = words.get(i);
-			int wordBefore = i == 0 ? -1 : words.get(i-1);
-			int wordAfter = i == wordsSize - 1 ? -1 : words.get(i+1);
+			Word word = words.get(i);
+			Word wordBefore = i == 0 ? null : words.get(i-1);
+			Word wordAfter = i == wordsSize - 1 ? null : words.get(i+1);
 			for(int r = 0; r < binaryRulesSize; r++) {
 				int label = rules.getBinaryRule(r).getLabel();
 				long ruleCode = RuleEnumeration.getRuleCode(r, Type.BINARY);
@@ -64,7 +64,7 @@ public class FirstOrderFeatureHolder {
 				double score = 0;
 				long propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.FIRST);
 				score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
-				if(wordBefore != -1) {
+				if(wordBefore != null) {
 					propertyCode = SpanProperties.getWordPropertyCode(wordBefore, SpanProperties.WordPropertyType.BEFORE);
 					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
 				}
@@ -74,7 +74,7 @@ public class FirstOrderFeatureHolder {
 				score = 0;
 				propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.LAST);
 				score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
-				if(wordAfter != -1) {
+				if(wordAfter != null) {
 					propertyCode = SpanProperties.getWordPropertyCode(wordAfter, SpanProperties.WordPropertyType.AFTER);
 					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
 				}
@@ -82,7 +82,7 @@ public class FirstOrderFeatureHolder {
 				
 				// split score
 				score = 0;
-				if(wordBefore != -1) {
+				if(wordBefore != null) {
 					propertyCode = SpanProperties.getWordPropertyCode(wordBefore, SpanProperties.WordPropertyType.BEFORE_SPLIT);
 					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
 					propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.AFTER_SPLIT);
@@ -105,7 +105,7 @@ public class FirstOrderFeatureHolder {
 				double score = 0;
 				long propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.FIRST);
 				score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
-				if(wordBefore != -1) {
+				if(wordBefore != null) {
 					propertyCode = SpanProperties.getWordPropertyCode(wordBefore, SpanProperties.WordPropertyType.BEFORE);
 					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
 				}
@@ -115,7 +115,7 @@ public class FirstOrderFeatureHolder {
 				score = 0;
 				propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.LAST);
 				score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
-				if(wordAfter != -1) {
+				if(wordAfter != null) {
 					propertyCode = SpanProperties.getWordPropertyCode(wordAfter, SpanProperties.WordPropertyType.AFTER);
 					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
 				}

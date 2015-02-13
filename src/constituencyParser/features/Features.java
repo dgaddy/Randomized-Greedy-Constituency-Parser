@@ -10,12 +10,28 @@ import constituencyParser.Rule.Type;
 import constituencyParser.RuleEnumeration;
 import constituencyParser.Span;
 import constituencyParser.SpanUtilities;
+import constituencyParser.Word;
 import constituencyParser.WordEnumeration;
 
 /**
  * This class is used for making codes of long type to represent features
  */
 public class Features {
+	
+	enum FeatureType {
+		NONE, // placeholder for model backwards compatibility
+		SPAN_PROPERY_BY_RULE,
+		RULE,
+		SPAN_PROPERTY_BY_LABEL,
+		SECOND_ORDER_RULE,
+		CO_PAR,
+		CO_LEN_PAR,
+	}
+	
+	public static long getCodeBase(FeatureType type) {
+		return ((long) type.ordinal()) << 52L;
+	}
+	
 	/**
 	 * Combines a span property (such as words at certain positions, length, prefixes and suffixes etc.) with a rule
 	 * @param spanPropertyCode
@@ -23,7 +39,7 @@ public class Features {
 	 * @return
 	 */
 	public static long getSpanPropertyByRuleFeature(long spanPropertyCode, long ruleCode) {
-		return (1L << 52L) + (ruleCode << 32L) + spanPropertyCode;
+		return getCodeBase(FeatureType.SPAN_PROPERY_BY_RULE) + (ruleCode << 32L) + spanPropertyCode;
 	}
 	
 	/**
@@ -32,7 +48,7 @@ public class Features {
 	 * @return
 	 */
 	public static long getRuleFeature(long ruleCode) {
-		return (2L << 52L) + ruleCode;
+		return getCodeBase(FeatureType.RULE) + ruleCode;
 	}
 	
 	/**
@@ -42,7 +58,7 @@ public class Features {
 	 * @return
 	 */
 	public static long getSpanPropertyByLabelFeature(long spanPropertyCode, long label) {
-		return (3L << 52L) + (label << 32L) + spanPropertyCode;
+		return getCodeBase(FeatureType.SPAN_PROPERTY_BY_LABEL) + (label << 32L) + spanPropertyCode;
 	}
 	
 	/**
@@ -53,11 +69,11 @@ public class Features {
 	 * @return
 	 */
 	public static long getSecondOrderRuleFeature(long childLabel, long label, long parentLabel) {
-		return (4L << 52L) + (childLabel << 32L) + (label << 16L) + parentLabel;
+		return getCodeBase(FeatureType.SECOND_ORDER_RULE) + (childLabel << 32L) + (label << 16L) + parentLabel;
 	}
 	
 	public static boolean isSecondOrderFeature(long code) {
-		return (code >> 52L) == 4;
+		return (code >> 52L) == FeatureType.SECOND_ORDER_RULE.ordinal();
 	}
 	
 	/**
@@ -69,21 +85,21 @@ public class Features {
 	 * @return
 	 */
 	public static String getStringForCode(long code, WordEnumeration words, RuleEnumeration rules, LabelEnumeration labels) {
-		int type = (int) (code >> 52L);
-		if(type == 1) {
+		FeatureType type = FeatureType.values()[(int)(code >> 52L)];
+		if(type == FeatureType.SPAN_PROPERY_BY_RULE) {
 			int ruleCode = extractBits(code, 52, 32);
 			int spanPropertyCode = extractBits(code, 32, 0);
 			return rules.getRuleFromCode(ruleCode).toString(labels) + " " + SpanProperties.getSpanPropertyCodeString(spanPropertyCode, words);
 		}
-		else if (type == 2) {
+		else if (type == FeatureType.RULE) {
 			return "" + rules.getRuleFromCode(extractBits(code, 52, 0)).toString(labels);
 		}
-		else if(type == 3) {
+		else if(type == FeatureType.SPAN_PROPERTY_BY_LABEL) {
 			int label = extractBits(code, 52,32);
 			int spanPropertyCode = extractBits(code, 32, 0);
 			return labels.getLabel(label) + " " + SpanProperties.getSpanPropertyCodeString(spanPropertyCode, words);
 		}
-		else if(type == 4) {
+		else if(type == FeatureType.SECOND_ORDER_RULE) {
 			int childLabel = extractBits(code, 52, 32);
 			int label = extractBits(code, 32, 16);
 			int parentLabel = extractBits(code, 16, 0);
@@ -112,7 +128,7 @@ public class Features {
 	 * @param wordEnum
 	 * @return
 	 */
-	public static List<Long> getSpanPropertyByRuleFeatures(List<Integer> words, Span span, RuleEnumeration rules, WordEnumeration wordEnum) {
+	public static List<Long> getSpanPropertyByRuleFeatures(List<Word> words, Span span, RuleEnumeration rules, WordEnumeration wordEnum) {
 		List<Long> codes = new ArrayList<>();
 		if(span.getRule().getType() == Type.UNARY) {
 			long ruleCode = RuleEnumeration.getRuleCode(rules.getUnaryId(span.getRule()), Type.UNARY);
@@ -144,7 +160,7 @@ public class Features {
 	 * @param span
 	 * @return
 	 */
-	public static List<Long> getSpanPropertyByLabelFeatures(List<Integer> words, Span span) {
+	public static List<Long> getSpanPropertyByLabelFeatures(List<Word> words, Span span) {
 		List<Long> codes = new ArrayList<>();
 		if(span.getRule().getType() == Type.UNARY) {
 			int label = span.getRule().getLabel();
@@ -184,7 +200,7 @@ public class Features {
 		}
 	}
 	
-	public static List<Long> getAllFeatures(List<Span> spans, List<Integer> words, boolean doSecondOrder, WordEnumeration wordEnum, LabelEnumeration labels, RuleEnumeration rules) {
+	public static List<Long> getAllFeatures(List<Span> spans, List<Word> words, boolean doSecondOrder, WordEnumeration wordEnum, LabelEnumeration labels, RuleEnumeration rules) {
 		List<Long> features = new ArrayList<>();
 		int[] parents = SpanUtilities.getParents(spans);
 		for(int j = 0; j < spans.size(); j++) {

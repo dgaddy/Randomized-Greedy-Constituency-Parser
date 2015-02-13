@@ -8,16 +8,16 @@ import java.util.List;
  */
 public class SpannedWords {
 	private List<Span> spans = new ArrayList<>();
-	private List<Integer> words = new ArrayList<>();
+	private List<Word> words = new ArrayList<>();
 	
-	public SpannedWords(List<Span> spans, List<Integer> words) {
+	public SpannedWords(List<Span> spans, List<Word> words) {
 		this.spans = spans;
 		this.words = words;
 	}
 	
 	// These constructors are used to build a span representation from a tree representation
 	
-	public SpannedWords(int word) {
+	public SpannedWords(Word word) {
 		words.add(word);
 	}
 	
@@ -80,7 +80,7 @@ public class SpannedWords {
 	 * Note: editing result will mutate this part
 	 * @return
 	 */
-	public List<Integer> getWords() {
+	public List<Word> getWords() {
 		return words;
 	}
 	

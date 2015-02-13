@@ -113,7 +113,7 @@ public class TreeNode {
 	
 	public SpannedWords getSpans(WordEnumeration words, LabelEnumeration labels) {
 		if(isWord)
-			return new SpannedWords(words.getId(word));
+			return new SpannedWords(words.getWord(word));
 			
 		if(label == null)
 			throw new IllegalStateException("Must have label for non-terminals.");
@@ -273,7 +273,7 @@ public class TreeNode {
 		}
 	}
 	
-	public static TreeNode makeTreeFromSpans(List<Span> spans, List<Integer> words, WordEnumeration wordEnum, LabelEnumeration labels) {
+	public static TreeNode makeTreeFromSpans(List<Span> spans, List<Word> words, WordEnumeration wordEnum, LabelEnumeration labels) {
 		spans = new ArrayList<Span>(spans);
 		Collections.sort(spans, new Comparator<Span>() {
 
@@ -294,7 +294,7 @@ public class TreeNode {
 			Span s = spans.get(i);
 			nodes[i].setLabel(labels.getLabel(s.getRule().getLabel()));
 			if(s.getRule().getType() == Type.TERMINAL) {
-				nodes[i].addChild(new TreeNode(wordEnum.getWord(words.get(s.getStart()))));
+				nodes[i].addChild(new TreeNode(words.get(s.getStart()).getWord()));
 			}
 			if(parents[i] != -1) {
 				nodes[parents[i]].addChild(nodes[i]);

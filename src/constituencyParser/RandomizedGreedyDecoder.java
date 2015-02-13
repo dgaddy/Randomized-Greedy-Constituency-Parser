@@ -103,7 +103,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		numberSampleIterations = iterations;
 	}
 	
-	List<Integer> words;
+	List<Word> words;
 	FeatureParameters params;
 	boolean dropout;
 	int numberIterationsStarted = 0;
@@ -112,7 +112,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	/**
 	 * Returns a parse tree in the form of a list of spans
 	 */
-	public List<Span> decode(List<Integer> words, FeatureParameters params, boolean dropout) {
+	public List<Span> decode(List<Word> words, FeatureParameters params, boolean dropout) {
 		this.words = words;
 		this.params = params;
 		this.dropout = dropout;
@@ -239,7 +239,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * @param dropout
 	 * @return
 	 */
-	public List<Span> decodeNoGreedy(List<Integer> words, FeatureParameters params, boolean dropout) {
+	public List<Span> decodeNoGreedy(List<Word> words, FeatureParameters params, boolean dropout) {
 		firstOrderFeatures.fillScoreArrays(words, params, dropout);
 		sampler.calculateProbabilities(words);
 		List<ParentedSpans> options = new ArrayList<>();
@@ -258,7 +258,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * @param dropout
 	 * @return
 	 */
-	private List<Span> getMax(List<ParentedSpans> options, List<Integer> words, FeatureParameters params, boolean dropout) {
+	private List<Span> getMax(List<ParentedSpans> options, List<Word> words, FeatureParameters params, boolean dropout) {
 		double bestScore = Double.NEGATIVE_INFINITY;
 		List<Span> best = null;
 		for(ParentedSpans option : options) {
@@ -271,7 +271,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		return best;
 	}
 	
-	private double score(List<Integer> words, List<Span> spans, FeatureParameters params, boolean dropout) {
+	private double score(List<Word> words, List<Span> spans, FeatureParameters params, boolean dropout) {
 		return score(words, spans, SpanUtilities.getParents(spans), params, dropout);
 	}
 	
@@ -284,7 +284,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * @param dropout
 	 * @return
 	 */
-	double score(List<Integer> words, List<Span> spans, int[] parents, FeatureParameters params, boolean dropout) {
+	double score(List<Word> words, List<Span> spans, int[] parents, FeatureParameters params, boolean dropout) {
 		double score = 0;
 		
 		for(int j = 0; j < spans.size(); j++) {

@@ -21,7 +21,7 @@ public class DiscriminitiveCKYSampler {
 	
 	// stuff set by calculateProbabilities
 	int wordsSize;
-	List<Integer> sentenceWords;
+	List<Word> sentenceWords;
 	double[][][] insideLogProbabilitiesBeforeUnaries; // unnormalized probabilities; start, end, label
 	double[][][] insideLogProbabilitiesAfterUnaries;
 	double[][] maxBeforeUnaries; // used for pruning
@@ -47,7 +47,7 @@ public class DiscriminitiveCKYSampler {
 		this.goldLabels = gold;
 	}
 	
-	public void calculateProbabilities(List<Integer> words) {
+	public void calculateProbabilities(List<Word> words) {
 		sentenceWords = words;
 		wordsSize = words.size();
 		int labelsSize = labels.getNumberOfLabels();
@@ -163,7 +163,7 @@ public class DiscriminitiveCKYSampler {
 		return probability;
 	}
 	
-	private void doUnaryProbabilities(List<Integer> words, int start, int end) {
+	private void doUnaryProbabilities(List<Word> words, int start, int end) {
 		int numUnaryRules = rules.getNumberOfUnaryRules();
 		
 		double[] probs = insideLogProbabilitiesAfterUnaries[start][end];

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -172,11 +173,11 @@ public class PennTreebankReader implements Closeable {
 	 * @return
 	 * @throws IOException 
 	 */
-	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) throws IOException {
-		return loadFromFiles(folder, firstFile, lastFile, words, labels, rules, false);
+	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean training) throws IOException {
+		return loadFromFiles(folder, firstFile, lastFile, words, labels, rules, false, training);
 	}
 	
-	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle) throws IOException {
+	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
 		if(shuffle && (words.getNumberOfWords() > 0 || labels.getNumberOfLabels() > 0)) {
 			throw new IllegalArgumentException("Cannot shuffle when there are already words or labels because this would invalidate previously loaded trees.");
 		}
@@ -186,6 +187,7 @@ public class PennTreebankReader implements Closeable {
 		
 		String formatString = folder+"wsj.%1$02d.txt";
 		
+		HashMap<String, Integer> wordCounts = new HashMap<>();
 		for(int i = firstFile; i < lastFile; i++) {
 			String fileName = String.format(formatString, i);
 			PennTreebankReader reader = new PennTreebankReader(fileName);
@@ -195,16 +197,25 @@ public class PennTreebankReader implements Closeable {
 				tree.makeLabelsSimple();
 				tree = tree.makeBinary();
 				trees.add(tree);
-				words.addAllWords(tree.getAllWords());
 				labels.addAllLabels(tree.getAllLabels());
 				labels.addTopLevelLabel(tree.getLabel());
+				
+				for(String word : tree.getAllWords()) {
+					Integer count = wordCounts.get(word);
+					if(count == null)
+						wordCounts.put(word, 1);
+					else
+						wordCounts.put(word, count+1);
+				}
 			}
 			
 			reader.close();
 		}
+		if(training)
+			words.addTrainingWords(wordCounts);
 		
 		if(shuffle) {
-			words.shuffleWords();
+			words.shuffleWordIds();
 			labels.shuffleLabels();
 			
 			Collections.shuffle(trees);
