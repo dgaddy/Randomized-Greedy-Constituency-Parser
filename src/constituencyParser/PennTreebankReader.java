@@ -221,13 +221,14 @@ public class PennTreebankReader implements Closeable {
 			Collections.shuffle(trees);
 		}
 		
-		
 		for(TreeNode tree : trees) {
 			loaded.add(tree.getSpans(words, labels));
 		}
 		
-
-		rules.addAllRules(loaded);
+		if(training)
+			rules.addAllRules(loaded);
+		else
+			rules.countMissingRules(loaded);
 		
 		return loaded;
 	}

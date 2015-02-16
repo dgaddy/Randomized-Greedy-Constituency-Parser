@@ -2,6 +2,7 @@ package constituencyParser;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import constituencyParser.Rule.Type;
@@ -74,6 +75,24 @@ public class RuleEnumeration implements Serializable {
 					addUnaryRule(s.getRule());
 			}
 		}
+	}
+	
+	public void countMissingRules(List<SpannedWords> spannedWords) {
+		int badSentenceCount = 0;
+		HashSet<Rule> rulesMissing = new HashSet<>();
+		for(SpannedWords sw : spannedWords) {
+			boolean missing = false;
+			for(Span s : sw.getSpans()) {
+				if(!isExistingRule(s.getRule())) {
+					rulesMissing.add(s.getRule());
+					missing = true;
+				}
+			}
+			if(missing)
+				badSentenceCount++;
+		}
+		System.out.println("Number sentences with missing rules: " + badSentenceCount);
+		System.out.println("Number of missing rules: " + rulesMissing.size());
 	}
 	
 	public Rule getBinaryRule(int index) {
