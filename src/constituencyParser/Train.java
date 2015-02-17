@@ -85,15 +85,17 @@ public class Train {
 				
 				// used to double check scoring
 				int augmentingScore = 0;
-				for(Span s : predicted) {
-					boolean inGold = false;
-					for(Span gs : gold) {
-						if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
-							inGold = true;
+				if(costAugmenting) {
+					for(Span s : predicted) {
+						boolean inGold = false;
+						for(Span gs : gold) {
+							if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
+								inGold = true;
+							}
 						}
-					}
-					if(!inGold) {
-						augmentingScore++;
+						if(!inGold) {
+							augmentingScore++;
+						}
 					}
 				}
 				

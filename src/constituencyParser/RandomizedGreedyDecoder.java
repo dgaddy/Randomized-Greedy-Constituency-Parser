@@ -44,6 +44,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	
 	boolean costAugmenting = false;
 	int[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
+	int[][] goldUnaryLabels;
 	
 	int numberSampleIterations = 50;
 	
@@ -87,12 +88,19 @@ public class RandomizedGreedyDecoder implements Decoder {
 		this.costAugmenting = costAugmenting;
 		int size = gold.getWords().size();
 		goldLabels = new int[size][size+1];
-		for(int i = 0; i < size; i++)
-			for(int j = 0; j < size+1; j++)
+		goldUnaryLabels = new int[size][size+1];
+		for(int i = 0; i < size; i++) {
+			for(int j = 0; j < size+1; j++) {
 				goldLabels[i][j] = -1;
+				goldUnaryLabels[i][j] = -1;
+			}
+		}
 		
 		for(Span s : gold.getSpans()) {
-			goldLabels[s.getStart()][s.getEnd()] = s.getRule().getLabel();
+			if(s.getRule().getType() == Type.UNARY)
+				goldUnaryLabels[s.getStart()][s.getEnd()] = s.getRule().getLabel();
+			else
+				goldLabels[s.getStart()][s.getEnd()] = s.getRule().getLabel();
 		}
 	}
 	
@@ -336,7 +344,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 				score += spanScore;
 			}
 			
-			if(costAugmenting && goldLabels[s.getStart()][s.getEnd()] != s.getRule().getLabel()) {
+			if(costAugmenting && !(goldLabels[s.getStart()][s.getEnd()] == s.getRule().getLabel() || goldUnaryLabels[s.getStart()][s.getEnd()] == s.getRule().getLabel())) {
 				score += 1;
 			}
 			
