@@ -178,7 +178,7 @@ public class PennTreebankReader implements Closeable {
 	}
 	
 	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
-		if(shuffle && (words.getNumberOfWords() > 0 || labels.getNumberOfLabels() > 0)) {
+		if(shuffle && (words.getNumberOfWords() > 1 || labels.getNumberOfLabels() > 0)) { // words can be size 1 because of special unknown word
 			throw new IllegalArgumentException("Cannot shuffle when there are already words or labels because this would invalidate previously loaded trees.");
 		}
 		

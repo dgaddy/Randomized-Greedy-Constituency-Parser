@@ -6,8 +6,10 @@ import gnu.trove.map.TLongDoubleMap;
 import gnu.trove.map.hash.TLongIntHashMap;
 import gnu.trove.procedure.TLongDoubleProcedure;
 import gnu.trove.procedure.TLongIntProcedure;
+import gnu.trove.procedure.TLongProcedure;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 import constituencyParser.LabelEnumeration;
@@ -222,6 +224,18 @@ public class FeatureParameters implements Serializable {
 			System.out.println("Average second order score: " + collector.totalSecondOrder / collector.numberSecondOrder);
 			System.out.println("Average second order absolute value: " + collector.totalAbsSecondOrder / collector.numberSecondOrder);
 		}
+	}
+	
+	public List<Long> getStoredFeatures() {
+		final List<Long> result = new ArrayList<>();
+		featureIndices.forEach(new TLongProcedure() {
+			@Override
+			public boolean execute(long arg0) {
+				result.add(arg0);
+				return true;
+			}
+		});
+		return result;
 	}
 	
 	public String toString() {

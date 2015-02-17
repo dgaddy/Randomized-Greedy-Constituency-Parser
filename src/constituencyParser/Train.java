@@ -18,6 +18,9 @@ public class Train {
 	RuleEnumeration rules;
 	FeatureParameters parameters;
 	
+	TLongDoubleHashMap predictedFeatureCounts = new TLongDoubleHashMap();
+	TLongDoubleHashMap goldFeatureCounts = new TLongDoubleHashMap();
+	
 	int numberExamples = 0;
 	
 	public Train(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, Decoder decoder) {
@@ -63,20 +66,67 @@ public class Train {
 				List<Span> gold = sw.getSpans();
 				
 				// positive
-				for(Long code : Features.getAllFeatures(gold, words, doSecondOrder, wordEnum, labels, rules)) {
+				List<Long> goldFeatures = Features.getAllFeatures(gold, words, doSecondOrder, wordEnum, labels, rules);
+				double goldScore = 0;
+				for(Long code : goldFeatures) {
 					features.adjustOrPutValue(code, 1, 1);
+					goldScore += parameters.getScore(code, true);
+					goldFeatureCounts.adjustOrPutValue(code, 1, 1);
 				}
 				
 				// negative
-				for(Long code : Features.getAllFeatures(predicted, words, doSecondOrder, wordEnum, labels, rules)) {
+				List<Long> predictedFeatures = Features.getAllFeatures(predicted, words, doSecondOrder, wordEnum, labels, rules);
+				double predictedScore = 0;
+				for(Long code : predictedFeatures) {
 					features.adjustOrPutValue(code, -1, -1);
+					predictedScore += parameters.getScore(code, true);
+					predictedFeatureCounts.adjustOrPutValue(code, 1, 1);
+				}
+				
+				// used to double check scoring
+				int augmentingScore = 0;
+				for(Span s : predicted) {
+					boolean inGold = false;
+					for(Span gs : gold) {
+						if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
+							inGold = true;
+						}
+					}
+					if(!inGold) {
+						augmentingScore++;
+					}
+				}
+				
+				if(Math.abs(predictedScore + augmentingScore - decoder.getLastScore()) > 1e-4) {
+					throw new RuntimeException("" + exampleNumber + " Decoder score and freshly calculated score don't match: " + (predictedScore + augmentingScore) + " " + decoder.getLastScore());
+				}
+				
+				if(goldScore > predictedScore) {
+					System.out.println("Warning: Gold score greater than predicted score, but decoder didn't find it");
 				}
 				
 				parameters.update(features, exampleNumber);
 			}
 		}
+		checkParameterSanity();
 		
 		System.out.println("Finished; Average loss: " + (totalLoss / (double)exampleNumber));
+	}
+	
+	private void checkParameterSanity() {
+		for(Long feature : parameters.getStoredFeatures()) {
+			double score = parameters.getScore(feature, false);
+			double predictedCount = predictedFeatureCounts.get(feature);
+			double goldCount = goldFeatureCounts.get(feature);
+			if(score > 1 && predictedCount > goldCount) {
+				System.out.println("Feature " + Features.getStringForCode(feature, wordEnum, rules, labels) + " has positive score,");
+				System.out.println("but it appears " + predictedCount + " in predicted and " + goldCount + " in gold");
+			}
+			if(score < -1 && goldCount > predictedCount) {
+				System.out.println("Feature " + Features.getStringForCode(feature, wordEnum, rules, labels) + " has negative score,");
+				System.out.println("but it appears " + predictedCount + " in predicted and " + goldCount + " in gold");
+			}
+		}
 	}
 	
 	public FeatureParameters getParameters() {

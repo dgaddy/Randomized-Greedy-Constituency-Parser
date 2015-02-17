@@ -1,6 +1,7 @@
 package constituencyParser;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -146,7 +147,14 @@ public class RandomizedGreedyDecoder implements Decoder {
 			}
 		}
 		
-		return getMax(bestOptions, words, params, dropout);
+		MaxResult result = getMax(bestOptions, words, params, dropout);
+		lastScore = result.score;
+		return result.spans;
+	}
+	
+	double lastScore = 0;
+	public double getLastScore() {
+		return lastScore;
 	}
 	
 	private class DecoderTask implements Callable<List<Span>> {
@@ -191,7 +199,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 						for(int i = 0; i < words.size(); i++) {
 							List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, i, i+1, false);
 							
-							spans = getMax(options, words, params, dropout);
+							spans = getMax(options, words, params, dropout).spans;
 						}
 						
 						// other spans
@@ -207,7 +215,14 @@ public class RandomizedGreedyDecoder implements Decoder {
 								if(exists) {
 									List<ParentedSpans> update = greedyChange.makeGreedyChanges(spans, start, start + length);
 									
-									spans = getMax(update, words, params, dropout);
+									// occasionally check that parents are correct
+									if(update.size() > 0 && Math.random() < .005) {
+										ParentedSpans ps = update.get(0);
+										if(!Arrays.equals(ps.parents, SpanUtilities.getParents(ps.spans)))
+											throw new RuntimeException("Parents incorrect");
+									}
+									
+									spans = getMax(update, words, params, dropout).spans;
 								}
 							}
 						}
@@ -217,10 +232,9 @@ public class RandomizedGreedyDecoder implements Decoder {
 						if(options.size() == 0) {
 							break; // no valid option that uses top level labels
 						}
-						spans = getMax(options, words, params, dropout);
+						spans = getMax(options, words, params, dropout).spans;
 					}
 				}
-				
 				double score = score(words, spans, params, dropout);
 				if(score > bestScore) {
 					best = new ArrayList<>(spans);
@@ -247,7 +261,16 @@ public class RandomizedGreedyDecoder implements Decoder {
 			List<Span> s = sampler.sample();
 			options.add(new ParentedSpans(s, SpanUtilities.getParents(s)));
 		}
-		return getMax(options, words, params, dropout);
+		return getMax(options, words, params, dropout).spans;
+	}
+	
+	private class MaxResult {
+		List<Span> spans;
+		double score;
+		public MaxResult(List<Span> spans, double score) {
+			this.spans = spans;
+			this.score = score;
+		}
 	}
 	
 	/**
@@ -258,7 +281,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * @param dropout
 	 * @return
 	 */
-	private List<Span> getMax(List<ParentedSpans> options, List<Word> words, FeatureParameters params, boolean dropout) {
+	private MaxResult getMax(List<ParentedSpans> options, List<Word> words, FeatureParameters params, boolean dropout) {
 		double bestScore = Double.NEGATIVE_INFINITY;
 		List<Span> best = null;
 		for(ParentedSpans option : options) {
@@ -268,7 +291,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 				best = option.spans;
 			}
 		}
-		return best;
+		return new MaxResult(best, bestScore);
 	}
 	
 	private double score(List<Word> words, List<Span> spans, FeatureParameters params, boolean dropout) {
@@ -286,13 +309,11 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 */
 	double score(List<Word> words, List<Span> spans, int[] parents, FeatureParameters params, boolean dropout) {
 		double score = 0;
-		
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
 			Rule rule = s.getRule();
 			if(firstOrderSpanScoreCache.containsKey(s)) {
 				score += firstOrderSpanScoreCache.get(s);
-				continue;
 			}
 			else {
 				double spanScore = 0;
@@ -339,6 +360,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 				score += spanScore2;
 			}
 		}
+		
 		return score;
 	}
 }

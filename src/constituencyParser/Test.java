@@ -52,7 +52,7 @@ public class Test {
 		RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules, threads);
 		//randGreedyDecoder.samplerDoCounts(PennTreebankReader.loadFromFiles(dataFolder, 2, 22, words, labels, rules)); for non-discriminitive
 
-		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 0, 1, words, labels, rules, false);
+		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 23, 24, words, labels, rules, false);
 		int number = (int)(gold.size() * fractionOfData);
 		gold = gold.subList(0, number);
 
