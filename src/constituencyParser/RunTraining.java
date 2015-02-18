@@ -78,7 +78,7 @@ public class RunTraining {
 		}
 		
 		RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules, cores);
-		Train pa = new Train(words, labels, rules, decoder);
+		Train pa = new Train(words, labels, rules, decoder, params);
 		
 		for(int i = 0; i < iterations; i++) {
 			pa.train(examples, dropout, secondOrder, costAugmenting);
