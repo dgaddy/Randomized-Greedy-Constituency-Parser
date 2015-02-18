@@ -44,23 +44,26 @@ public class WordEnumeration implements Serializable {
 	 * @param words A map from all words in training set to number of times they occur
 	 */
 	public void addTrainingWords(Map<String, Integer> wordCounts) {
-		if(trainingSuffixCounts != null)
-			throw new RuntimeException("Should only call addTrainingWords once");
-		trainingSuffixCounts = new HashMap<String, Integer>();
-		
-		for(Entry<String, Integer> entry : wordCounts.entrySet()) {
-			for(String suffix : getAllSuffixes(entry.getKey())) {
-				Integer currentCount = trainingSuffixCounts.get(suffix);
-				if(currentCount == null)
-					trainingSuffixCounts.put(suffix, entry.getValue());
-				else
-					trainingSuffixCounts.put(suffix, currentCount+entry.getValue());
-			}
+		if(trainingSuffixCounts != null) {
+			System.out.println("Warning: not adding words to existing model to prevent repeats, should only call addTrainingWords once");
 		}
-		
-		for(Entry<String, Integer> entry : wordCounts.entrySet()) {
-			if(entry.getValue() >= 100) {
-				getOrAddWordId(entry.getKey()); // this should be the only place we add full words; the only other things that can get added are suffixes and UNK
+		else {
+			trainingSuffixCounts = new HashMap<String, Integer>();
+			
+			for(Entry<String, Integer> entry : wordCounts.entrySet()) {
+				for(String suffix : getAllSuffixes(entry.getKey())) {
+					Integer currentCount = trainingSuffixCounts.get(suffix);
+					if(currentCount == null)
+						trainingSuffixCounts.put(suffix, entry.getValue());
+					else
+						trainingSuffixCounts.put(suffix, currentCount+entry.getValue());
+				}
+			}
+			
+			for(Entry<String, Integer> entry : wordCounts.entrySet()) {
+				if(entry.getValue() >= 100) {
+					getOrAddWordId(entry.getKey()); // this should be the only place we add full words; the only other things that can get added are suffixes and UNK
+				}
 			}
 		}
 	}
@@ -72,8 +75,10 @@ public class WordEnumeration implements Serializable {
 		else {
 			for(String suffix : getAllSuffixes(word)) { // getAllSuffixes starts with largest (including full word)
 				Integer count = trainingSuffixCounts.get(suffix);
-				if(count != null && count >= 100)
+				if(count != null && count >= 100) {
 					id =  getOrAddWordId("-" + suffix);
+					break;
+				}
 			}
 		}
 		return new Word(word, id, getPrefixIds(word), getSuffixIds(word));
