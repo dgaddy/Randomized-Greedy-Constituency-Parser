@@ -5,6 +5,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import constituencyParser.Rule.Type;
+
 public class SpanUtilities {
 	/**
 	 * Prints spans for a sentence in a way that is relatively easier to read
@@ -116,26 +118,31 @@ public class SpanUtilities {
 		for(int i = 0; i < result.length; i++) {
 			Span s = spans.get(i);
 			result[i] = -1;
+			// connect to a unary if possible
+			for(int j = 0; j < result.length; j++) {
+				if(i==j)
+					continue;
+				
+				Span p = spans.get(j);
+				if(p.getRule().getType() == Type.UNARY) {
+					if(p.getStart() == s.getStart() && p.getEnd() == s.getEnd() && p.getRule().getLeft() == s.getRule().getLabel())
+						result[i] = j;
+				}
+			}
+			
+			if(result[i] != -1)
+				continue;
 			for(int j = 0; j < result.length; j++) {
 				if(i == j)
 					continue;
 				
 				Span p = spans.get(j);
-				switch(p.getRule().getType()) {
-				case BINARY:
+				if(p.getRule().getType() == Type.BINARY) {
 					if((p.getStart() == s.getStart() && p.getSplit() == s.getEnd() && p.getRule().getLeft() == s.getRule().getLabel())
 							|| (p.getSplit() == s.getStart() && p.getEnd() == s.getEnd() && p.getRule().getRight() == s.getRule().getLabel())) {
 						result[i] = j;
 					}
-					break;
-				case UNARY:
-					if(p.getStart() == s.getStart() && p.getEnd() == s.getEnd() && p.getRule().getLeft() == s.getRule().getLabel())
-						result[i] = j;
-					break;
-				case TERMINAL:
-					break;
 				}
-				
 			}
 		}
 		return result;
