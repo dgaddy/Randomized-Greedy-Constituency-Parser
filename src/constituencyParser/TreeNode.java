@@ -1,7 +1,9 @@
 package constituencyParser;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 
 import constituencyParser.Rule.Type;
@@ -10,6 +12,11 @@ import constituencyParser.Rule.Type;
  * A tree representation of a parse tree.  Used for reading in parse trees, then converted to span form using getSpans. 
  */
 public class TreeNode {
+	static HashSet<String> specialLabels;
+	static {
+		specialLabels = new HashSet<>(Arrays.asList("-LRB-", "-RRB-", "-LCB-", "-RCB-", "-LSB-", "-RSB-"));
+	}
+	
 	private TreeNode parent;
 	
 	private boolean isWord;
@@ -222,12 +229,17 @@ public class TreeNode {
 		if(isWord)
 			return;
 		
-		int dash = label.indexOf('-');
-		if(dash != -1)
-			label = label.substring(0, dash);
-		int equals = label.indexOf('=');
-		if(equals != -1)
-			label = label.substring(0, equals);
+		if(!specialLabels.contains(label)) {
+			int dash = label.indexOf('-');
+			if(dash != -1)
+				label = label.substring(0, dash);
+			int equals = label.indexOf('=');
+			if(equals != -1)
+				label = label.substring(0, equals);
+		}
+		
+		if(label.isEmpty())
+			throw new RuntimeException("Empty label: may have been a label starting with - or =");
 		
 		for(TreeNode child : children) {
 			child.makeLabelsSimple();
