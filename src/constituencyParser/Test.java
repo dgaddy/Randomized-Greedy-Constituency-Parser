@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import constituencyParser.features.FeatureParameters;
+import constituencyParser.features.Features;
 
 /**
  * Has methods for testing parsers in comparison to development / test data
@@ -74,6 +75,16 @@ public class Test {
 					if(span.getStart() == goldSpan.getStart() && span.getEnd() == goldSpan.getEnd() && span.getRule().getLabel() == goldSpan.getRule().getLabel())
 						numberCorrect++;
 				}
+			}
+			
+			List<Long> goldFeatures = Features.getAllFeatures(example.getSpans(), example.getWords(), secondOrder, words, labels, rules);
+			double goldScore = 0;
+			for(Long code : goldFeatures) {
+				goldScore += parameters.getScore(code, true);
+			}
+			
+			if(goldScore > randGreedyDecoder.getLastScore()) {
+				System.out.println("Gold score higher than predicted, but was not found.");
 			}
 
 			numberGold += example.getSpans().size();

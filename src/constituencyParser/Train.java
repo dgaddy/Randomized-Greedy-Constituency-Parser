@@ -124,6 +124,9 @@ public class Train {
 	
 	private void checkParameterSanity() {
 		for(Long feature : parameters.getStoredFeatures()) {
+			if(!Features.isSecondOrderFeature(feature))
+				continue;
+			
 			double score = parameters.getScore(feature, false);
 			double predictedCount = predictedFeatureCounts.get(feature);
 			double goldCount = goldFeatureCounts.get(feature);
