@@ -70,7 +70,9 @@ public class WordEnumeration implements Serializable {
 	
 	public Word getWord(String word) {
 		int id = getOrAddWordId("-UNK-");
-		if(wordToId.containsKey(word))
+		if(word.matches("[0-9]+|[0-9]+[0-9,]*\\.[0-9]+|[0-9]+[0-9,]+"))
+			id = getOrAddWordId("-NUM-");
+		else if(wordToId.containsKey(word))
 			id = wordToId.get(word);
 		else {
 			for(String suffix : getAllSuffixes(word)) { // getAllSuffixes starts with largest (including full word)
