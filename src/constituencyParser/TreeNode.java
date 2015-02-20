@@ -257,6 +257,24 @@ public class TreeNode {
 		return false;
 	}
 	
+	/**
+	 * In training data, after removing none labels, sometimes it leaves two unary rules directly above eachother.
+	 * This method removes one of the layers, since the decoder can't handle two unaries like this
+	 * @return
+	 */
+	public void removeStackedUnaries() {
+		if(children.size() == 1) {
+			TreeNode child = children.get(0);
+			if(child.children.size() == 1) {
+				// remove child, connecting grandChild directly to this
+				TreeNode grandChild = child.children.get(0);
+				grandChild.parent = null;
+				children = new ArrayList<>();
+				addChild(grandChild);
+			}
+		}
+	}
+	
 	public String toString() {
 		if(word != null)
 			return word;

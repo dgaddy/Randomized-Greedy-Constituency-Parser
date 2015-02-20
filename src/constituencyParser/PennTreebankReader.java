@@ -194,6 +194,7 @@ public class PennTreebankReader implements Closeable {
 			TreeNode tree;
 			while((tree = reader.readPtbTree()) != null) {
 				tree.removeNoneLabel();
+				tree.removeStackedUnaries();
 				tree.makeLabelsSimple();
 				tree = tree.makeBinary();
 				trees.add(tree);
