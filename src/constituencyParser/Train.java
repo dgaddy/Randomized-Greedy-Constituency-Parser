@@ -2,6 +2,7 @@ package constituencyParser;
 
 import gnu.trove.map.hash.TLongDoubleHashMap;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 
@@ -100,10 +101,16 @@ public class Train {
 				}
 				
 				if(Math.abs(predictedScore + augmentingScore - decoder.getLastScore()) > 1e-4) {
+					SpanUtilities.printSpans(predicted, sw.getWords().size(), labels);
+					SaveObject so = new SaveObject(wordEnum, labels, rules, parameters);
+					try {
+						so.save("modelBeforeCrash");
+					} catch (IOException e) {
+					}
 					throw new RuntimeException("" + exampleNumber + " Decoder score and freshly calculated score don't match: " + (predictedScore + augmentingScore) + " " + decoder.getLastScore());
 				}
 				
-				if(goldScore > predictedScore) {
+				if(goldScore > predictedScore + augmentingScore) {
 					System.out.println("Warning: Gold score greater than predicted score, but decoder didn't find it");
 				}
 				
