@@ -285,6 +285,9 @@ public class TreeNode {
 				addChild(grandChild);
 			}
 		}
+		for(TreeNode child : children) {
+			child.removeStackedUnaries();
+		}
 	}
 	
 	public String toString() {
