@@ -2,6 +2,7 @@ package constituencyParser;
 
 import gnu.trove.map.hash.TLongDoubleHashMap;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
@@ -123,22 +124,28 @@ public class Train {
 	}
 	
 	private void checkParameterSanity() {
-		for(Long feature : parameters.getStoredFeatures()) {
-			if(!Features.isSecondOrderFeature(feature))
-				continue;
-			
-			double score = parameters.getScore(feature, false);
-			double predictedCount = predictedFeatureCounts.get(feature);
-			double goldCount = goldFeatureCounts.get(feature);
-			if(score > 1 && predictedCount > goldCount) {
-				System.out.println("Feature " + Features.getStringForCode(feature, wordEnum, rules, labels) + " has positive score,");
-				System.out.println("but it appears " + predictedCount + " in predicted and " + goldCount + " in gold");
+		try {
+			FileWriter writer = new FileWriter("second_order_features");
+			for(Long feature : parameters.getStoredFeatures()) {
+				if(!Features.isSecondOrderFeature(feature))
+					continue;
+				
+				double score = parameters.getScore(feature, false);
+				double predictedCount = predictedFeatureCounts.get(feature);
+				double goldCount = goldFeatureCounts.get(feature);
+				writer.write(Features.getStringForCode(feature, wordEnum, rules, labels) + " " + score + " " + predictedCount + " " + goldCount);
+				if(score > 1 && predictedCount > goldCount) {
+					System.out.println("Feature " + Features.getStringForCode(feature, wordEnum, rules, labels) + " has positive score,");
+					System.out.println("but it appears " + predictedCount + " in predicted and " + goldCount + " in gold");
+				}
+				if(score < -1 && goldCount > predictedCount) {
+					System.out.println("Feature " + Features.getStringForCode(feature, wordEnum, rules, labels) + " has negative score,");
+					System.out.println("but it appears " + predictedCount + " in predicted and " + goldCount + " in gold");
+				}
 			}
-			if(score < -1 && goldCount > predictedCount) {
-				System.out.println("Feature " + Features.getStringForCode(feature, wordEnum, rules, labels) + " has negative score,");
-				System.out.println("but it appears " + predictedCount + " in predicted and " + goldCount + " in gold");
-			}
+			writer.close();
 		}
+		catch(IOException ex) {}
 	}
 	
 	public FeatureParameters getParameters() {

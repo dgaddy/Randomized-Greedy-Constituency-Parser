@@ -30,4 +30,9 @@ public class Word {
 	public List<Integer> getPrefixIds() {
 		return prefixIds;
 	}
+	
+	@Override
+	public String toString() {
+		return word;
+	}
 }
