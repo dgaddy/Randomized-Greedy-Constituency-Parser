@@ -36,6 +36,14 @@ public class TreeNode {
 		isWord = false;
 	}
 	
+	public TreeNode(String label, TreeNode... children) {
+		isWord = false;
+		this.label = label;
+		for(TreeNode child : children) {
+			this.children.add(child);
+		}
+	}
+	
 	/**
 	 * Make word node with word
 	 * @param word
@@ -275,18 +283,18 @@ public class TreeNode {
 	 * @return
 	 */
 	public void removeStackedUnaries() {
+		for(TreeNode child : children) {
+			child.removeStackedUnaries();
+		}
 		if(children.size() == 1) {
 			TreeNode child = children.get(0);
-			if(child.children.size() == 1) {
+			if(child.children.size() == 1 && !child.children.get(0).isWord) {
 				// remove child, connecting grandChild directly to this
 				TreeNode grandChild = child.children.get(0);
 				grandChild.parent = null;
 				children = new ArrayList<>();
 				addChild(grandChild);
 			}
-		}
-		for(TreeNode child : children) {
-			child.removeStackedUnaries();
 		}
 	}
 	

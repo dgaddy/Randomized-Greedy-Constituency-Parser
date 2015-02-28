@@ -80,11 +80,11 @@ public class Test {
 			List<Long> goldFeatures = Features.getAllFeatures(example.getSpans(), example.getWords(), secondOrder, words, labels, rules);
 			double goldScore = 0;
 			for(Long code : goldFeatures) {
-				goldScore += parameters.getScore(code, true);
+				goldScore += parameters.getScore(code, false);
 			}
 			
-			if(goldScore > randGreedyDecoder.getLastScore()) {
-				System.out.println("Gold score higher than predicted, but was not found.");
+			if(goldScore > randGreedyDecoder.getLastScore() + 1e-5) {
+				System.out.println("Gold score higher than predicted, but was not found. " + goldScore + " " + randGreedyDecoder.getLastScore());
 			}
 
 			numberGold += example.getSpans().size();
