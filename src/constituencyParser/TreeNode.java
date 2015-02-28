@@ -314,6 +314,26 @@ public class TreeNode {
 		}
 	}
 	
+	public int hashCode() {
+		if(isWord)
+			return 37 + word.hashCode();
+		else
+			return 53 + label.hashCode() + children.hashCode();
+	}
+	
+	public boolean equals(Object other) {
+		if(other instanceof TreeNode) {
+			TreeNode otherTree = (TreeNode)other;
+			if(isWord != otherTree.isWord)
+				return false;
+			if(isWord)
+				return word.equals(otherTree.word);
+			else
+				return label.equals(otherTree.label) && children.equals(otherTree.children);
+		}
+		return false;
+	}
+	
 	public static TreeNode makeTreeFromSpans(List<Span> spans, List<Word> words, WordEnumeration wordEnum, LabelEnumeration labels) {
 		spans = new ArrayList<Span>(spans);
 		Collections.sort(spans, new Comparator<Span>() {

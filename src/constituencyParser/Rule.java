@@ -92,4 +92,16 @@ public class Rule implements Serializable {
 		else
 			return "{" + label + "->" + left + " " + right + "}";
 	}
+	
+	public static Rule getRule(String label, LabelEnumeration labelEnum) {
+		return new Rule(labelEnum.getId(label));
+	}
+	
+	public static Rule getRule(String parent, String child, LabelEnumeration labelEnum) {
+		return new Rule(labelEnum.getId(parent), labelEnum.getId(child));
+	}
+	
+	public static Rule getRule(String parent, String left, String right, LabelEnumeration labelEnum) {
+		return new Rule(labelEnum.getId(parent), labelEnum.getId(left), labelEnum.getId(right));
+	}
 }
