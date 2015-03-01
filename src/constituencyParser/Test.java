@@ -242,7 +242,7 @@ public class Test {
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles("../WSJ data/", 2, 3, words, labels, rules, false);
 
 		int loss = 1;
-		FeatureParameters params = new FeatureParameters();
+		FeatureParameters params = new FeatureParameters(1);
 
 		while(loss > 0) {
 			// run passive aggressive on the first example

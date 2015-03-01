@@ -55,14 +55,14 @@ public class RunTraining {
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, .1);
 	}
 	
-	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting) throws IOException, ClassNotFoundException {
+	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate) throws IOException, ClassNotFoundException {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
-		FeatureParameters params = new FeatureParameters();
+		FeatureParameters params = new FeatureParameters(learningRate);
 		
 		if(startModel != null) {
 			SaveObject start = SaveObject.loadSaveObject(startModel);
@@ -169,7 +169,7 @@ public class RunTraining {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
-		FeatureParameters shared = new FeatureParameters();
+		FeatureParameters shared = new FeatureParameters(1);
 		
 		if(startModel != null) {
 			SaveObject start = SaveObject.loadSaveObject(startModel);

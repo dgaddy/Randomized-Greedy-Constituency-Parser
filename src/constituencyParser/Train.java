@@ -25,14 +25,6 @@ public class Train {
 	
 	int numberExamples = 0;
 	
-	public Train(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, Decoder decoder) {
-		this.wordEnum = words;
-		this.labels = labels;
-		this.rules = rules;
-		this.decoder = decoder;
-		parameters = new FeatureParameters();
-	}
-	
 	public Train(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, Decoder decoder, FeatureParameters parameters) {
 		this.wordEnum = words;
 		this.labels = labels;
