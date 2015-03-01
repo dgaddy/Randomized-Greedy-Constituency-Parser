@@ -143,7 +143,6 @@ public class RunTraining {
 			
 			TrainResult result = new TrainResult();
 			result.finalParameters = pa.getParameters();
-			result.parametersAveragedOverIterations = pa.getAverageParametersOverAllIterations();
 			
 			return result;
 		}
@@ -188,8 +187,6 @@ public class RunTraining {
 		
 		Random random = new Random();
 		
-		List<FeatureParameters> averagesOverAllIterations = new ArrayList<>();
-		
 		for(int i = 0; i < iterations; i++) {
 			System.out.println("Iteration " + i);
 			
@@ -211,7 +208,6 @@ public class RunTraining {
 			for(Future<TrainResult> future : futures) {
 				TrainResult result = future.get();
 				finalParams.add(result.finalParameters);
-				averagesOverAllIterations.add(result.parametersAveragedOverIterations);
 			}
 			
 			shared = FeatureParameters.average(finalParams);
@@ -220,8 +216,6 @@ public class RunTraining {
 			
 			SaveObject so = new SaveObject(words, labels, rules, shared);
 			so.save(outputFolder + "/modelIteration"+i);
-			SaveObject avgSo = new SaveObject(words, labels, rules, FeatureParameters.average(averagesOverAllIterations));
-			avgSo.save(outputFolder + "/modelAveragedIteration"+i);
 		}
 		
 		pool.shutdown();

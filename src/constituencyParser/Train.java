@@ -23,8 +23,6 @@ public class Train {
 	TLongDoubleHashMap predictedFeatureCounts = new TLongDoubleHashMap();
 	TLongDoubleHashMap goldFeatureCounts = new TLongDoubleHashMap();
 	
-	int numberExamples = 0;
-	
 	public Train(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, Decoder decoder, FeatureParameters parameters) {
 		this.wordEnum = words;
 		this.labels = labels;
@@ -34,12 +32,9 @@ public class Train {
 	}
 	
 	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting) {
-		numberExamples = trainingExamples.size();
-		
-		int exampleNumber = 0; // first example is 1
 		int totalLoss = 0;
-		for(SpannedWords sw : trainingExamples) {
-			exampleNumber++;
+		for(int i = 0; i < trainingExamples.size(); i++) {
+			SpannedWords sw = trainingExamples.get(i);
 			//if(count % 5 == 0) {
 				//System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double) count));
 			//}
@@ -100,19 +95,19 @@ public class Train {
 						so.save("modelBeforeCrash");
 					} catch (IOException e) {
 					}
-					throw new RuntimeException("" + exampleNumber + " Decoder score and freshly calculated score don't match: " + (predictedScore + augmentingScore) + " " + decoder.getLastScore());
+					throw new RuntimeException("" + i + " Decoder score and freshly calculated score don't match: " + (predictedScore + augmentingScore) + " " + decoder.getLastScore());
 				}
 				
 				if(goldScore > predictedScore + augmentingScore) {
 					System.out.println("Warning: Gold score greater than predicted score, but decoder didn't find it");
 				}
 				
-				parameters.update(features, exampleNumber);
+				parameters.update(features);
 			}
 		}
 		checkParameterSanity();
 		
-		System.out.println("Finished; Average loss: " + (totalLoss / (double)exampleNumber));
+		System.out.println("Finished; Average loss: " + (totalLoss / (double)trainingExamples.size()));
 	}
 	
 	private void checkParameterSanity() {
@@ -142,10 +137,6 @@ public class Train {
 	
 	public FeatureParameters getParameters() {
 		return parameters;
-	}
-	
-	public FeatureParameters getAverageParametersOverAllIterations() {
-		return parameters.averageOverIterations(numberExamples);
 	}
 	
 	static int computeLoss(List<Span> predicted, List<Span> gold) {
