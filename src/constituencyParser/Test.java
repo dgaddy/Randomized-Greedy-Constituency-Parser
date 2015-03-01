@@ -11,6 +11,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 
@@ -25,18 +27,29 @@ public class Test {
 			return;
 		}
 
-		String modelFile = args[0];
-		String dataDir = args[1];
-		boolean secondOrder = args[2].equals("t");
-		if(!secondOrder && !args[2].equals("f")) {
-			System.out.println("second order must be t or f");
-		}
+		OptionParser parser = new OptionParser("m:d:s:t:i:");
+		OptionSet options = parser.parse(args);
 		
-		int numberOfThreads = Integer.parseInt(args[3]);
-
+		String modelFile = "";
+		String dataDir = "";
+		boolean secondOrder = true;
+		int numberOfThreads = 1;
 		int greedyIterations = 100;
-		if(args.length > 4) {
-			greedyIterations = Integer.parseInt(args[4]);
+		
+		if(options.has("m")) {
+			modelFile = (String)options.valueOf("m");
+		}
+		if(options.has("d")) {
+			dataDir = (String)options.valueOf("d");
+		}
+		if(options.has("s")) {
+			secondOrder = "t".equals(options.valueOf("s"));
+		}
+		if(options.has("t")) {
+			numberOfThreads = Integer.parseInt((String)options.valueOf("t"));
+		}
+		if(options.has("i")) {
+			greedyIterations = Integer.parseInt((String)options.valueOf("i"));
 		}
 
 		SaveObject savedModel = SaveObject.loadSaveObject(modelFile);

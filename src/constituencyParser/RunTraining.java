@@ -8,6 +8,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
 
 import constituencyParser.features.FeatureParameters;
 
@@ -19,32 +21,50 @@ public class RunTraining {
 			return;
 		}
 		
-		double dropout = .45;
+		OptionParser parser = new OptionParser("d:o:c:i:s:a:p:m:l:b:");
+		OptionSet options = parser.parse(args);
 		
-		String dataFolder = args[0];
-		String outputFolder = args[1];
-		int cores = Integer.parseInt(args[2]);
-		int iterations = Integer.parseInt(args[3]);
-		boolean secondOrder = args[4].equals("t");
-		boolean costAugmenting = args[5].equals("t");
-		
-		if((!secondOrder && !args[4].equals("f")) || (!costAugmenting && !args[5].equals("f"))) {
-			System.out.println("second order and cost augmentation args must be t or f");
-			return;
-		}
-		
+		double dropout = .5;
+		String dataFolder = "";
+		String outputFolder = "";
+		int cores = 1;
+		int iterations = 1;
+		boolean secondOrder = true;
+		boolean costAugmenting = true;
 		String startModel = null;
 		double percentOfData = 1;
+		double learningRate = 1;
+		int batchSize = 1;
 		
-		if(args.length > 7) {
-			startModel = args[7];
+		if(options.has("d")) {
+			dataFolder = (String)options.valueOf("d");
 		}
-		if(args.length > 6) {
-			percentOfData = Double.parseDouble(args[6]);
-			if(percentOfData > 1) {
-				System.out.println("Percent of data must be less than 1");
-				return;
-			}
+		if(options.has("o")) {
+			outputFolder = (String)options.valueOf("o");
+		}
+		if(options.has("c")) {
+			cores = Integer.parseInt((String)options.valueOf("c"));
+		}
+		if(options.has("i")) {
+			iterations = Integer.parseInt((String)options.valueOf("i"));
+		}
+		if(options.has("s")) {
+			secondOrder = "t".equals(options.valueOf("s"));
+		}
+		if(options.has("a")) {
+			costAugmenting = "t".equals(options.valueOf("a"));
+		}
+		if(options.has("p")) {
+			percentOfData = Double.parseDouble((String)options.valueOf("p"));
+		}
+		if(options.has("m")) {
+			startModel = (String)options.valueOf("m");
+		}
+		if(options.has("l")) {
+			learningRate = Integer.parseInt((String)options.valueOf("l"));
+		}
+		if(options.has("b")) {
+			batchSize = Integer.parseInt((String)options.valueOf("b"));
 		}
 		
 		System.out.println("Running training with " + cores + " cores for " + iterations + " iterations.");
@@ -55,7 +75,7 @@ public class RunTraining {
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, .1, 1);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize);
 	}
 	
 	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize) throws IOException, ClassNotFoundException {
