@@ -55,10 +55,10 @@ public class RunTraining {
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, .1);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, .1, 1);
 	}
 	
-	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate) throws IOException, ClassNotFoundException {
+	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize) throws IOException, ClassNotFoundException {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
@@ -81,7 +81,7 @@ public class RunTraining {
 		Train pa = new Train(words, labels, rules, decoder, params);
 		
 		for(int i = 0; i < iterations; i++) {
-			pa.train(examples, dropout, secondOrder, costAugmenting);
+			pa.train(examples, dropout, secondOrder, costAugmenting, batchSize);
 			params = pa.getParameters();
 			
 			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .1, cores);
@@ -129,7 +129,7 @@ public class RunTraining {
 			RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules, 1);
 			Train pa = new Train(words, labels, rules, decoder, initialParams);
 			try {
-				pa.train(data, dropout, secondOrder, costAugmenting);
+				pa.train(data, dropout, secondOrder, costAugmenting, 1);
 			}
 			catch(Exception ex) {
 				ex.printStackTrace(); //because otherwise exceptions get caught by the executor and don't give a stack trace

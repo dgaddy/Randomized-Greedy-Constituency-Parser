@@ -31,79 +31,84 @@ public class Train {
 		this.parameters = parameters;
 	}
 	
-	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting) {
+	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, int batchSize) {
 		int totalLoss = 0;
-		for(int i = 0; i < trainingExamples.size(); i++) {
-			SpannedWords sw = trainingExamples.get(i);
-			//if(count % 5 == 0) {
-				//System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double) count));
-			//}
-			
+		int index = -1;
+		while(index < trainingExamples.size()) {
+
+			TLongDoubleHashMap features = new TLongDoubleHashMap();
 			parameters.resetDropout(dropout);
 			
-			List<Word> words = sw.getWords();
-			
-			decoder.setCostAugmenting(costAugmenting, sw);
-			decoder.setSecondOrder(doSecondOrder);
-			List<Span> predicted = decoder.decode(words, parameters, true);
-			
-			int loss = computeLoss(predicted, sw.getSpans()); 
-			totalLoss += loss;
-			
-			if(loss > 0) {
-				TLongDoubleHashMap features = new TLongDoubleHashMap();
-				List<Span> gold = sw.getSpans();
+			for(int b = 0; b < batchSize && index < trainingExamples.size()-1; b++) {
+				index++;
+				SpannedWords sw = trainingExamples.get(index);
+				//if(count % 5 == 0) {
+					//System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double) count));
+				//}
 				
-				// positive
-				List<Long> goldFeatures = Features.getAllFeatures(gold, words, doSecondOrder, wordEnum, labels, rules);
-				double goldScore = 0;
-				for(Long code : goldFeatures) {
-					features.adjustOrPutValue(code, 1, 1);
-					goldScore += parameters.getScore(code, true);
-					goldFeatureCounts.adjustOrPutValue(code, 1, 1);
-				}
+				List<Word> words = sw.getWords();
 				
-				// negative
-				List<Long> predictedFeatures = Features.getAllFeatures(predicted, words, doSecondOrder, wordEnum, labels, rules);
-				double predictedScore = 0;
-				for(Long code : predictedFeatures) {
-					features.adjustOrPutValue(code, -1, -1);
-					predictedScore += parameters.getScore(code, true);
-					predictedFeatureCounts.adjustOrPutValue(code, 1, 1);
-				}
+				decoder.setCostAugmenting(costAugmenting, sw);
+				decoder.setSecondOrder(doSecondOrder);
+				List<Span> predicted = decoder.decode(words, parameters, true);
 				
-				// used to double check scoring
-				int augmentingScore = 0;
-				if(costAugmenting) {
-					for(Span s : predicted) {
-						boolean inGold = false;
-						for(Span gs : gold) {
-							if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
-								inGold = true;
+				int loss = computeLoss(predicted, sw.getSpans()); 
+				totalLoss += loss;
+				
+				if(loss > 0) {
+					List<Span> gold = sw.getSpans();
+					
+					// positive
+					List<Long> goldFeatures = Features.getAllFeatures(gold, words, doSecondOrder, wordEnum, labels, rules);
+					double goldScore = 0;
+					for(Long code : goldFeatures) {
+						features.adjustOrPutValue(code, 1, 1);
+						goldScore += parameters.getScore(code, true);
+						goldFeatureCounts.adjustOrPutValue(code, 1, 1);
+					}
+					
+					// negative
+					List<Long> predictedFeatures = Features.getAllFeatures(predicted, words, doSecondOrder, wordEnum, labels, rules);
+					double predictedScore = 0;
+					for(Long code : predictedFeatures) {
+						features.adjustOrPutValue(code, -1, -1);
+						predictedScore += parameters.getScore(code, true);
+						predictedFeatureCounts.adjustOrPutValue(code, 1, 1);
+					}
+					
+					// used to double check scoring
+					int augmentingScore = 0;
+					if(costAugmenting) {
+						for(Span s : predicted) {
+							boolean inGold = false;
+							for(Span gs : gold) {
+								if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
+									inGold = true;
+								}
+							}
+							if(!inGold) {
+								augmentingScore++;
 							}
 						}
-						if(!inGold) {
-							augmentingScore++;
+					}
+					
+					if(Math.abs(predictedScore + augmentingScore - decoder.getLastScore()) > 1e-4) {
+						SpanUtilities.printSpans(predicted, sw.getWords().size(), labels);
+						SaveObject so = new SaveObject(wordEnum, labels, rules, parameters);
+						try {
+							so.save("modelBeforeCrash");
+						} catch (IOException e) {
 						}
+						throw new RuntimeException("" + index + " Decoder score and freshly calculated score don't match: " + (predictedScore + augmentingScore) + " " + decoder.getLastScore());
+					}
+					
+					if(goldScore > predictedScore + augmentingScore) {
+						System.out.println("Warning: Gold score greater than predicted score, but decoder didn't find it");
 					}
 				}
-				
-				if(Math.abs(predictedScore + augmentingScore - decoder.getLastScore()) > 1e-4) {
-					SpanUtilities.printSpans(predicted, sw.getWords().size(), labels);
-					SaveObject so = new SaveObject(wordEnum, labels, rules, parameters);
-					try {
-						so.save("modelBeforeCrash");
-					} catch (IOException e) {
-					}
-					throw new RuntimeException("" + i + " Decoder score and freshly calculated score don't match: " + (predictedScore + augmentingScore) + " " + decoder.getLastScore());
-				}
-				
-				if(goldScore > predictedScore + augmentingScore) {
-					System.out.println("Warning: Gold score greater than predicted score, but decoder didn't find it");
-				}
-				
-				parameters.update(features);
 			}
+			
+			parameters.update(features);
 		}
 		checkParameterSanity();
 		
