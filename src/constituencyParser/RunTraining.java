@@ -21,10 +21,9 @@ public class RunTraining {
 			return;
 		}
 		
-		OptionParser parser = new OptionParser("d:o:c:i:s:a:p:m:l:b:");
+		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:");
 		OptionSet options = parser.parse(args);
 		
-		double dropout = .5;
 		String dataFolder = "";
 		String outputFolder = "";
 		int cores = 1;
@@ -35,9 +34,11 @@ public class RunTraining {
 		double percentOfData = 1;
 		double learningRate = 1;
 		int batchSize = 1;
+		double regularization = 0;
+		double dropout = .5;
 		
-		if(options.has("d")) {
-			dataFolder = (String)options.valueOf("d");
+		if(options.has("t")) {
+			dataFolder = (String)options.valueOf("t");
 		}
 		if(options.has("o")) {
 			outputFolder = (String)options.valueOf("o");
@@ -61,10 +62,16 @@ public class RunTraining {
 			startModel = (String)options.valueOf("m");
 		}
 		if(options.has("l")) {
-			learningRate = Integer.parseInt((String)options.valueOf("l"));
+			learningRate = Double.parseDouble((String)options.valueOf("l"));
 		}
 		if(options.has("b")) {
 			batchSize = Integer.parseInt((String)options.valueOf("b"));
+		}
+		if(options.has("r")) {
+			regularization = Double.parseDouble((String)options.valueOf("r"));
+		}
+		if(options.has("d")) {
+			dropout = Double.parseDouble((String)options.valueOf("d"));
 		}
 		
 		System.out.println("Running training with " + cores + " cores for " + iterations + " iterations.");
@@ -75,14 +82,14 @@ public class RunTraining {
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization);
 	}
 	
-	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize) throws IOException, ClassNotFoundException {
+	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization) throws IOException, ClassNotFoundException {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
-		FeatureParameters params = new FeatureParameters(learningRate);
+		FeatureParameters params = new FeatureParameters(learningRate, regularization);
 		
 		if(startModel != null) {
 			SaveObject start = SaveObject.loadSaveObject(startModel);
@@ -188,7 +195,7 @@ public class RunTraining {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
-		FeatureParameters shared = new FeatureParameters(1);
+		FeatureParameters shared = new FeatureParameters(1, 0);
 		
 		if(startModel != null) {
 			SaveObject start = SaveObject.loadSaveObject(startModel);

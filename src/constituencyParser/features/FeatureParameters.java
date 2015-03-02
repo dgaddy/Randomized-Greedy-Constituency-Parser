@@ -17,22 +17,26 @@ import constituencyParser.RuleEnumeration;
 import constituencyParser.WordEnumeration;
 
 public class FeatureParameters implements Serializable {
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 2L;
+	private static final double DELTA = 1e-4;
 	
 	TLongIntHashMap featureIndices;
 	
 	double learningRate;
+	double regularization;
 	TDoubleArrayList featureValues = new TDoubleArrayList();
 	TDoubleArrayList gradientsSquared = new TDoubleArrayList();
 	transient TIntArrayList dropout; // 1 if should drop, 0 if should keep
 	
-	public FeatureParameters(double learningRate) {
+	public FeatureParameters(double learningRate, double regularization) {
 		featureIndices = new TLongIntHashMap(500, 0.2f, 0, -1);
 		this.learningRate = learningRate;
+		this.regularization = regularization;
 	}
 
 	public FeatureParameters(FeatureParameters other) {
 		learningRate = other.learningRate;
+		regularization = other.regularization;
 		featureIndices = new TLongIntHashMap(other.featureIndices.size(), 0.2f, 0, -1);
 		other.featureIndices.forEachEntry(new TLongIntProcedure() {
 			@Override
@@ -82,6 +86,10 @@ public class FeatureParameters implements Serializable {
 	 * @param updateNumber the number of the update, starting with one, used for averaging
 	 */
 	public void update(TLongDoubleMap featureUpdates) {
+		final TDoubleArrayList updates = new TDoubleArrayList((int)(featureValues.size() * 1.5));
+		for(int i = 0; i < featureValues.size(); i++) {
+			updates.add(0);
+		}
 		featureUpdates.forEachEntry(new TLongDoubleProcedure() {
 
 			@Override
@@ -89,20 +97,30 @@ public class FeatureParameters implements Serializable {
 				if(value < 1e-5 && value > -1e-5)
 					return true;
 				
-				double adjustment = value;
 				int index = getOrMakeIndex(key);
+				if(index == updates.size()) {
+					updates.add(0);
+				}
 				if(getDropout(index))
 					return true;
 				
-				double newGradSquared = gradientsSquared.getQuick(index) + adjustment*adjustment;
-				gradientsSquared.setQuick(index, newGradSquared);
-				double normalizedAdjustment = adjustment/Math.sqrt(newGradSquared);
-				featureValues.setQuick(index, featureValues.getQuick(index) + normalizedAdjustment * learningRate);
-				
+				updates.set(index, value);
 				return true;
 			}
 			
 		});
+		
+		for(int i = 0; i < featureValues.size(); i++) {
+			double adjustment = updates.get(i);
+			double newGradSquared = gradientsSquared.getQuick(i) + adjustment*adjustment;
+			gradientsSquared.setQuick(i, newGradSquared);
+			
+			double s = Math.sqrt(newGradSquared);
+			double oldVal = featureValues.getQuick(i);
+			double newVal = (s * oldVal - learningRate * adjustment) / (learningRate * regularization + DELTA + s);
+			
+			featureValues.setQuick(i, newVal);
+		}
 	}
 	
 	private int getOrMakeIndex(long key) {
@@ -124,7 +142,7 @@ public class FeatureParameters implements Serializable {
 	 * @return
 	 */
 	public static FeatureParameters average(List<FeatureParameters> toAverage) {
-		final FeatureParameters average = new FeatureParameters(toAverage.get(0).learningRate);
+		final FeatureParameters average = new FeatureParameters(toAverage.get(0).learningRate, toAverage.get(0).regularization);
 		final double factor = 1.0/toAverage.size();
 		for(FeatureParameters params : toAverage) {
 			final FeatureParameters parameters = params;
