@@ -34,7 +34,7 @@ public class FirstOrderFeatureHolder {
 		this.rules = rules;
 	}
 	
-	public void fillScoreArrays(List<Word> words, FeatureParameters params, boolean dropout) {
+	public void fillScoreArrays(List<Word> words, FeatureParameters params) {
 		int wordsSize = words.size();
 		int labelsSize = labels.getNumberOfLabels();
 		int binaryRulesSize = rules.getNumberOfBinaryRules();
@@ -63,20 +63,20 @@ public class FirstOrderFeatureHolder {
 				// start score
 				double score = 0;
 				long propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.FIRST);
-				score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
+				score += scoreProperty(propertyCode, ruleCode, label, params);
 				if(wordBefore != null) {
 					propertyCode = SpanProperties.getWordPropertyCode(wordBefore, SpanProperties.WordPropertyType.BEFORE);
-					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
+					score += scoreProperty(propertyCode, ruleCode, label, params);
 				}
 				startSpanScores[i][r] = score;
 				
 				// end score
 				score = 0;
 				propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.LAST);
-				score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
+				score += scoreProperty(propertyCode, ruleCode, label, params);
 				if(wordAfter != null) {
 					propertyCode = SpanProperties.getWordPropertyCode(wordAfter, SpanProperties.WordPropertyType.AFTER);
-					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
+					score += scoreProperty(propertyCode, ruleCode, label, params);
 				}
 				endSpanScores[i+1][r] = score;
 				
@@ -84,16 +84,16 @@ public class FirstOrderFeatureHolder {
 				score = 0;
 				if(wordBefore != null) {
 					propertyCode = SpanProperties.getWordPropertyCode(wordBefore, SpanProperties.WordPropertyType.BEFORE_SPLIT);
-					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
+					score += scoreProperty(propertyCode, ruleCode, label, params);
 					propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.AFTER_SPLIT);
-					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
+					score += scoreProperty(propertyCode, ruleCode, label, params);
 				}
 				splitSpanScores[i][r] = score;
 				
 				// length score
 				int length = i+1; // from 1 to wordsSize
 				propertyCode = SpanProperties.getLengthPropertyCode(length);
-				lengthSpanScores[length][r] = scoreProperty(propertyCode, ruleCode, label, params, dropout);
+				lengthSpanScores[length][r] = scoreProperty(propertyCode, ruleCode, label, params);
 			}
 			
 			// unaries
@@ -104,38 +104,38 @@ public class FirstOrderFeatureHolder {
 				// start score
 				double score = 0;
 				long propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.FIRST);
-				score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
+				score += scoreProperty(propertyCode, ruleCode, label, params);
 				if(wordBefore != null) {
 					propertyCode = SpanProperties.getWordPropertyCode(wordBefore, SpanProperties.WordPropertyType.BEFORE);
-					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
+					score += scoreProperty(propertyCode, ruleCode, label, params);
 				}
 				unaryStartSpanScores[i][r] = score;
 				
 				// end score
 				score = 0;
 				propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.LAST);
-				score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
+				score += scoreProperty(propertyCode, ruleCode, label, params);
 				if(wordAfter != null) {
 					propertyCode = SpanProperties.getWordPropertyCode(wordAfter, SpanProperties.WordPropertyType.AFTER);
-					score += scoreProperty(propertyCode, ruleCode, label, params, dropout);
+					score += scoreProperty(propertyCode, ruleCode, label, params);
 				}
 				unaryEndSpanScores[i+1][r] = score;
 				
 				// length score
 				int length = i+1; // from 1 to wordsSize
 				propertyCode = SpanProperties.getLengthPropertyCode(length);
-				unaryLengthSpanScores[length][r] = scoreProperty(propertyCode, ruleCode, label, params, dropout);
+				unaryLengthSpanScores[length][r] = scoreProperty(propertyCode, ruleCode, label, params);
 			}
 		}
 		
 		for(int r = 0; r < binaryRulesSize; r++) {
 			long ruleCode = RuleEnumeration.getRuleCode(r, Type.BINARY);
-			binaryRuleScores[r] = params.getScore(Features.getRuleFeature(ruleCode), dropout);
+			binaryRuleScores[r] = params.getScore(Features.getRuleFeature(ruleCode));
 		}
 		
 		for(int r = 0; r < unaryRulesSize; r++) {
 			long ruleCode = RuleEnumeration.getRuleCode(r, Type.UNARY);
-			unaryRuleScores[r] = params.getScore(Features.getRuleFeature(ruleCode), dropout);
+			unaryRuleScores[r] = params.getScore(Features.getRuleFeature(ruleCode));
 		}
 		
 		for(int i = 0; i < wordsSize; i++) {
@@ -144,17 +144,17 @@ public class FirstOrderFeatureHolder {
 				double spanScore = 0;
 				final long ruleCode = RuleEnumeration.getTerminalRuleCode(label);
 				for(int p = 0; p < spanProperties.size(); p++) {
-					spanScore += params.getScore(Features.getSpanPropertyByRuleFeature(spanProperties.get(p), ruleCode), dropout);
+					spanScore += params.getScore(Features.getSpanPropertyByRuleFeature(spanProperties.get(p), ruleCode));
 				}
-				spanScore += params.getScore(Features.getRuleFeature(ruleCode), dropout);
+				spanScore += params.getScore(Features.getRuleFeature(ruleCode));
 				terminalScores[i][label] = spanScore;
 			}
 		}
 	}
 	
-	private double scoreProperty(long spanProperty, long ruleCode, int label, FeatureParameters params, boolean dropout) {
-		return params.getScore(Features.getSpanPropertyByRuleFeature(spanProperty, ruleCode), dropout)
-				+ params.getScore(Features.getSpanPropertyByLabelFeature(spanProperty, label), dropout);
+	private double scoreProperty(long spanProperty, long ruleCode, int label, FeatureParameters params) {
+		return params.getScore(Features.getSpanPropertyByRuleFeature(spanProperty, ruleCode))
+				+ params.getScore(Features.getSpanPropertyByLabelFeature(spanProperty, label));
 	}
 	
 	public double scoreTerminal(int position, int label) {

@@ -12,7 +12,7 @@ public interface Decoder {
 	 * @param dropout
 	 * @return
 	 */
-	public List<Span> decode(List<Word> words, FeatureParameters params, boolean dropout);
+	public List<Span> decode(List<Word> words, FeatureParameters params);
 	
 	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold);
 	public void setSecondOrder(boolean secondOrder);

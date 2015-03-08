@@ -62,18 +62,20 @@ public class FeatureParameters implements Serializable {
 	}
 	
 	private boolean getDropout(int index) {
+		if(dropout == null)
+			return false;
 		if(index >= dropout.size())
 			return false; // for features that are created after we made the dropout array, just keep them
 		
 		return dropout.get(index) > 0;
 	}
 	
-	public double getScore(long code, boolean doDropout) {
+	public double getScore(long code) {
 		int index = featureIndices.get(code);
 		if(index == -1) // default value, so feature isn't in map
 			return 0;
 		else {
-			if(doDropout && getDropout(index))
+			if(getDropout(index))
 				return 0;
 			else
 				return featureValues.getQuick(index);

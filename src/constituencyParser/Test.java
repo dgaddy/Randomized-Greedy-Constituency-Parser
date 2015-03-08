@@ -71,6 +71,8 @@ public class Test {
 		gold = gold.subList(0, number);
 
 		randGreedyDecoder.setNumberSampleIterations(randomizedGreedyIterations);
+		
+		parameters.resetDropout(0);
 
 		int numberCorrect = 0;
 		int numberGold = 0;
@@ -80,7 +82,7 @@ public class Test {
 		for(SpannedWords example : gold) {
 			randGreedyDecoder.setSecondOrder(secondOrder);
 
-			List<Span> result = randGreedyDecoder.decode(example.getWords(), parameters, false);
+			List<Span> result = randGreedyDecoder.decode(example.getWords(), parameters);
 			writer.writeTree(new SpannedWords(result, example.getWords()));
 
 			for(Span span : result) {
@@ -93,7 +95,7 @@ public class Test {
 			List<Long> goldFeatures = Features.getAllFeatures(example.getSpans(), example.getWords(), secondOrder, words, labels, rules);
 			double goldScore = 0;
 			for(Long code : goldFeatures) {
-				goldScore += parameters.getScore(code, false);
+				goldScore += parameters.getScore(code);
 			}
 			
 			if(goldScore > randGreedyDecoder.getLastScore() + 1e-5) {
@@ -159,7 +161,7 @@ public class Test {
 			int numberGold = 0;
 			int numberOutput = 0;
 			for(SpannedWords example : gold) {
-				List<Span> result = randGreedyDecoder.decode(example.getWords(), parameters, false);
+				List<Span> result = randGreedyDecoder.decode(example.getWords(), parameters);
 
 				for(Span span : result) {
 					for(Span goldSpan : example.getSpans()) {
@@ -235,13 +237,13 @@ public class Test {
 
 		DiscriminitiveCKYDecoder decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
 
-		List<Span> result = decoder.decode(words.getWords(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
+		List<Span> result = decoder.decode(words.getWords(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters);
 
 		RandomizedGreedyDecoder decoder2 = new RandomizedGreedyDecoder(words, labels, rules, 1);
 
-		List<Span> result2 = decoder2.decode(words.getWords(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
+		List<Span> result2 = decoder2.decode(words.getWords(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters);
 
-		List<Span> result3 = decoder2.decodeNoGreedy(words.getWords(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters, false);
+		List<Span> result3 = decoder2.decodeNoGreedy(words.getWords(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters);
 
 		System.out.println(result);
 		System.out.println(result2);

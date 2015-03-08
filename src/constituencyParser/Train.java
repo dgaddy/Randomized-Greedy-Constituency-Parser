@@ -4,6 +4,7 @@ import gnu.trove.map.hash.TLongDoubleHashMap;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -33,14 +34,15 @@ public class Train {
 	
 	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, int batchSize) {
 		int totalLoss = 0;
-		int index = -1;
+		int index = 0;
+		int batchNum = 0;
 		while(index < trainingExamples.size()) {
 
 			TLongDoubleHashMap features = new TLongDoubleHashMap();
 			parameters.resetDropout(dropout);
+			batchNum++;
 			
-			for(int b = 0; b < batchSize && index < trainingExamples.size()-1; b++) {
-				index++;
+			for(int b = 0; b < batchSize && index < trainingExamples.size(); b++, index++) {
 				SpannedWords sw = trainingExamples.get(index);
 				//if(count % 5 == 0) {
 					//System.out.println(count + " of " + trainingExamples.size() + "; Average loss: " + (totalLoss / (double) count));
@@ -50,7 +52,11 @@ public class Train {
 				
 				decoder.setCostAugmenting(costAugmenting, sw);
 				decoder.setSecondOrder(doSecondOrder);
-				List<Span> predicted = decoder.decode(words, parameters, true);
+				List<Span> predicted;
+				if(batchNum == 1)
+					predicted = new ArrayList<>();
+				else
+					predicted = decoder.decode(words, parameters);
 				
 				int loss = computeLoss(predicted, sw.getSpans()); 
 				totalLoss += loss;
@@ -62,8 +68,8 @@ public class Train {
 					List<Long> goldFeatures = Features.getAllFeatures(gold, words, doSecondOrder, wordEnum, labels, rules);
 					double goldScore = 0;
 					for(Long code : goldFeatures) {
-						features.adjustOrPutValue(code, 1, 1);
-						goldScore += parameters.getScore(code, true);
+						features.adjustOrPutValue(code, -1, -1);
+						goldScore += parameters.getScore(code);
 						goldFeatureCounts.adjustOrPutValue(code, 1, 1);
 					}
 					
@@ -71,8 +77,8 @@ public class Train {
 					List<Long> predictedFeatures = Features.getAllFeatures(predicted, words, doSecondOrder, wordEnum, labels, rules);
 					double predictedScore = 0;
 					for(Long code : predictedFeatures) {
-						features.adjustOrPutValue(code, -1, -1);
-						predictedScore += parameters.getScore(code, true);
+						features.adjustOrPutValue(code, 1, 1);
+						predictedScore += parameters.getScore(code);
 						predictedFeatureCounts.adjustOrPutValue(code, 1, 1);
 					}
 					
@@ -118,11 +124,12 @@ public class Train {
 	private void checkParameterSanity() {
 		try {
 			FileWriter writer = new FileWriter("second_order_features");
+			parameters.resetDropout(0);
 			for(Long feature : parameters.getStoredFeatures()) {
 				if(!Features.isSecondOrderFeature(feature))
 					continue;
 				
-				double score = parameters.getScore(feature, false);
+				double score = parameters.getScore(feature);
 				double predictedCount = predictedFeatureCounts.get(feature);
 				double goldCount = goldFeatureCounts.get(feature);
 				writer.write(Features.getStringForCode(feature, wordEnum, rules, labels) + " " + score + " " + predictedCount + " " + goldCount);

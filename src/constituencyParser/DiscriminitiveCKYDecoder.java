@@ -34,8 +34,8 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 	
 	double lastScore = 0;
 	
-	public List<Span> decode(List<Word> words, FeatureParameters params, boolean dropout) {
-		firstOrderFeatures.fillScoreArrays(words, params, dropout);
+	public List<Span> decode(List<Word> words, FeatureParameters params) {
+		firstOrderFeatures.fillScoreArrays(words, params);
 		
 		int wordsSize = words.size();
 		int labelsSize = labels.getNumberOfLabels();
@@ -54,7 +54,7 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 				spans[i][i+1][label] = span;
 			}
 			
-			doUnary(words, i, i+1, params, dropout);
+			doUnary(words, i, i+1, params);
 		}
 		
 		double[][] max = new double[wordsSize][wordsSize+1];
@@ -92,7 +92,7 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 					}
 				}
 				
-				doUnary(words, start, start + length, params, dropout);
+				doUnary(words, start, start + length, params);
 			}
 		}
 		
@@ -119,7 +119,7 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 		return lastScore;
 	}
 	
-	private void doUnary(List<Word> words, int start, int end, FeatureParameters parameters, boolean dropout) {
+	private void doUnary(List<Word> words, int start, int end, FeatureParameters parameters) {
 		int numUnaryRules = rules.getNumberOfUnaryRules();
 		int numLabels = labels.getNumberOfLabels();
 		

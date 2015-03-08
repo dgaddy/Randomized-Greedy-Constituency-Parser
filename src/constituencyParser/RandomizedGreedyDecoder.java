@@ -114,22 +114,21 @@ public class RandomizedGreedyDecoder implements Decoder {
 	
 	List<Word> words;
 	FeatureParameters params;
-	boolean dropout;
 	int numberIterationsStarted = 0;
 	Object lockObject = new Object();
 	
+	@Override
 	/**
 	 * Returns a parse tree in the form of a list of spans
 	 */
-	public List<Span> decode(List<Word> words, FeatureParameters params, boolean dropout) {
+	public List<Span> decode(List<Word> words, FeatureParameters params) {
 		this.words = words;
 		this.params = params;
-		this.dropout = dropout;
 		numberIterationsStarted = 0;
 		
 		firstOrderSpanScoreCache = new ConcurrentHashMap<Span, Double>(30000, .5f); // usually holds less than 15000 items
 		
-		firstOrderFeatures.fillScoreArrays(words, params, dropout);
+		firstOrderFeatures.fillScoreArrays(words, params);
 		
 		sampler.setCostAugmenting(costAugmenting, goldLabels);
 		
@@ -155,7 +154,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 			}
 		}
 		
-		MaxResult result = getMax(bestOptions, words, params, dropout);
+		MaxResult result = getMax(bestOptions, words, params);
 		lastScore = result.score;
 		return result.spans;
 	}
@@ -196,7 +195,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 						else
 							alreadySeenSpans.add(spansSet);
 						
-						double score = score(words, spans, params, dropout);
+						double score = score(words, spans, params);
 						//System.out.println("score: " + score);
 						if(score <= lastScore) {
 							changed = false;
@@ -207,7 +206,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 						for(int i = 0; i < words.size(); i++) {
 							List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, i, i+1, false);
 							
-							spans = getMax(options, words, params, dropout).spans;
+							spans = getMax(options, words, params).spans;
 						}
 						
 						// other spans
@@ -230,7 +229,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 											throw new RuntimeException("Parents incorrect");
 									}
 									
-									spans = getMax(update, words, params, dropout).spans;
+									spans = getMax(update, words, params).spans;
 								}
 							}
 						}
@@ -240,10 +239,10 @@ public class RandomizedGreedyDecoder implements Decoder {
 						if(options.size() == 0) {
 							break; // no valid option that uses top level labels
 						}
-						spans = getMax(options, words, params, dropout).spans;
+						spans = getMax(options, words, params).spans;
 					}
 				}
-				double score = score(words, spans, params, dropout);
+				double score = score(words, spans, params);
 				if(score > bestScore) {
 					best = new ArrayList<>(spans);
 					bestScore = score;
@@ -261,15 +260,15 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * @param dropout
 	 * @return
 	 */
-	public List<Span> decodeNoGreedy(List<Word> words, FeatureParameters params, boolean dropout) {
-		firstOrderFeatures.fillScoreArrays(words, params, dropout);
+	public List<Span> decodeNoGreedy(List<Word> words, FeatureParameters params) {
+		firstOrderFeatures.fillScoreArrays(words, params);
 		sampler.calculateProbabilities(words);
 		List<ParentedSpans> options = new ArrayList<>();
 		for(int i = 0; i < 100; i++) {
 			List<Span> s = sampler.sample();
 			options.add(new ParentedSpans(s, SpanUtilities.getParents(s)));
 		}
-		return getMax(options, words, params, dropout).spans;
+		return getMax(options, words, params).spans;
 	}
 	
 	private class MaxResult {
@@ -289,11 +288,11 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * @param dropout
 	 * @return
 	 */
-	private MaxResult getMax(List<ParentedSpans> options, List<Word> words, FeatureParameters params, boolean dropout) {
+	private MaxResult getMax(List<ParentedSpans> options, List<Word> words, FeatureParameters params) {
 		double bestScore = Double.NEGATIVE_INFINITY;
 		List<Span> best = null;
 		for(ParentedSpans option : options) {
-			double score = score(words, option.spans, option.parents, params, dropout);
+			double score = score(words, option.spans, option.parents, params);
 			if(score >= bestScore) {
 				bestScore = score;
 				best = option.spans;
@@ -302,8 +301,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 		return new MaxResult(best, bestScore);
 	}
 	
-	private double score(List<Word> words, List<Span> spans, FeatureParameters params, boolean dropout) {
-		return score(words, spans, SpanUtilities.getParents(spans), params, dropout);
+	private double score(List<Word> words, List<Span> spans, FeatureParameters params) {
+		return score(words, spans, SpanUtilities.getParents(spans), params);
 	}
 	
 	/**
@@ -315,7 +314,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 * @param dropout
 	 * @return
 	 */
-	double score(List<Word> words, List<Span> spans, int[] parents, FeatureParameters params, boolean dropout) {
+	double score(List<Word> words, List<Span> spans, int[] parents, FeatureParameters params) {
 		double score = 0;
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
@@ -356,13 +355,13 @@ public class RandomizedGreedyDecoder implements Decoder {
 
 				if(rule.getType() == Rule.Type.UNARY) {
 					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-					spanScore2 += params.getScore(code, dropout);
+					spanScore2 += params.getScore(code);
 				}
 				else if(rule.getType() == Rule.Type.BINARY) {
 					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-					spanScore2 += params.getScore(code, dropout);
+					spanScore2 += params.getScore(code);
 					code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getLabel(), parentRule.getLabel());
-					spanScore2 += params.getScore(code, dropout);
+					spanScore2 += params.getScore(code);
 				}
 				
 				score += spanScore2;
