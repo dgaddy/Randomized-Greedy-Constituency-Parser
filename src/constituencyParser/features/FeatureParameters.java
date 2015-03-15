@@ -84,8 +84,7 @@ public class FeatureParameters implements Serializable {
 	
 	/**
 	 * updates parameters with featureUpdates using adagrad
-	 * @param featureUpdates difference counts between gold and predicted, positive is in gold but not predicted and negative is in predicted but not gold
-	 * @param updateNumber the number of the update, starting with one, used for averaging
+	 * @param featureUpdates difference counts between gold and predicted, negative is in gold but not predicted and positive is in predicted but not gold
 	 */
 	public void update(TLongDoubleMap featureUpdates) {
 		final TDoubleArrayList updates = new TDoubleArrayList((int)(featureValues.size() * 1.5));

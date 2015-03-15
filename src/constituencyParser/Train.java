@@ -35,12 +35,10 @@ public class Train {
 	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, int batchSize) {
 		int totalLoss = 0;
 		int index = 0;
-		int batchNum = 0;
 		while(index < trainingExamples.size()) {
 
 			TLongDoubleHashMap features = new TLongDoubleHashMap();
 			parameters.resetDropout(dropout);
-			batchNum++;
 			
 			for(int b = 0; b < batchSize && index < trainingExamples.size(); b++, index++) {
 				SpannedWords sw = trainingExamples.get(index);
@@ -53,7 +51,7 @@ public class Train {
 				decoder.setCostAugmenting(costAugmenting, sw);
 				decoder.setSecondOrder(doSecondOrder);
 				List<Span> predicted;
-				if(batchNum == 1)
+				if(parameters.getStoredFeatures().size() == 0)
 					predicted = new ArrayList<>();
 				else
 					predicted = decoder.decode(words, parameters);
@@ -110,6 +108,7 @@ public class Train {
 					
 					if(goldScore > predictedScore + augmentingScore) {
 						System.out.println("Warning: Gold score greater than predicted score, but decoder didn't find it");
+						System.out.println("Gold score: " + goldScore + " predicted: " + predictedScore + " " + augmentingScore);
 					}
 				}
 			}
