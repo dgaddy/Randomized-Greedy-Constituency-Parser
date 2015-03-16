@@ -12,6 +12,8 @@ import org.junit.Test;
 
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
+import constituencyParser.features.SpanProperties;
+import constituencyParser.features.SpanProperties.WordPropertyType;
 
 
 public class UnitTests {
@@ -108,18 +110,20 @@ public class UnitTests {
 
 		List<Long> features =  Features.getAllFeatures(example.getSpans(), example.getWords(), false, words, labels, rules);
 		List<Long> targetFeatures = Arrays.asList(
-				Features.getRuleFeature(Rule.getRule("S", "S-BAR", ".", labels), rules),
-				Features.getRuleFeature(Rule.getRule("S-BAR", "NP", "VP", labels), rules),
-				Features.getRuleFeature(Rule.getRule("NP", "NNP", "NNP", labels), rules),
-				Features.getRuleFeature(Rule.getRule("VP", "VBZ", "NP", labels), rules),
-				Features.getRuleFeature(Rule.getRule("NP", "NNP", labels), rules));
+				Features.getRuleFeature(rules.getRuleCode(Rule.getRule("S", "S-BAR", ".", labels))),
+				Features.getRuleFeature(rules.getRuleCode(Rule.getRule("S-BAR", "NP", "VP", labels))),
+				Features.getRuleFeature(rules.getRuleCode(Rule.getRule("NP", "NNP", "NNP", labels))),
+				Features.getRuleFeature(rules.getRuleCode(Rule.getRule("VP", "VBZ", "NP", labels))),
+				Features.getRuleFeature(rules.getRuleCode(Rule.getRule("NP", "NNP", labels))));
 		for(long feature : targetFeatures)
 			assertTrue(features.contains(feature));
 		
 		// second order
 		features =  Features.getAllFeatures(example.getSpans(), example.getWords(), true, words, labels, rules);
 		targetFeatures = Arrays.asList(
-				Features.getSecondOrderRuleFeature(labels.getId("NP"), labels.getId("S-BAR"), labels.getId("S")));
+				Features.getSecondOrderRuleFeature(rules.getRuleCode(Rule.getRule("S-BAR", "NP", "VP", labels)), labels.getId("S")),
+				Features.getSecondOrderRuleFeature(rules.getRuleCode(Rule.getRule("NP", "NNP", labels)), labels.getId("VP")),
+				Features.getSecondOrderSpanPropertyByRuleFeature(SpanProperties.getWordPropertyCode(words.getWord("plays"), WordPropertyType.BEFORE), rules.getRuleCode(Rule.getRule("NP", "NNP", labels)), labels.getId("VP")));
 		for(long feature : targetFeatures)
 			assertTrue(features.contains(feature));
 	}

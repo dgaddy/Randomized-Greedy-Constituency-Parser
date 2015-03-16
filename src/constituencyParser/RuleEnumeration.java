@@ -152,6 +152,19 @@ public class RuleEnumeration implements Serializable {
 		return getRuleCode(labelId, Type.TERMINAL);
 	}
 	
+	public long getRuleCode(Rule rule) {
+		switch(rule.getType()) {
+		case BINARY:
+			return RuleEnumeration.getRuleCode(getBinaryId(rule), Type.BINARY);
+		case UNARY:
+			return RuleEnumeration.getRuleCode(getUnaryId(rule), Type.UNARY);
+		case TERMINAL:
+			return RuleEnumeration.getTerminalRuleCode(rule.getLabel());
+		default:
+			throw new RuntimeException("Bad rule type");
+		}
+	}
+	
 	/**
 	 * The inverse of getRuleCode
 	 * @param code

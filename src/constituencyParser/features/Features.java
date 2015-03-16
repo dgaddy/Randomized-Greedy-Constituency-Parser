@@ -26,6 +26,7 @@ public class Features {
 		SECOND_ORDER_RULE,
 		CO_PAR,
 		CO_LEN_PAR,
+		SECOND_ORDER_PROPERTY_BY_RULE,
 	}
 	
 	public static long getCodeBase(FeatureType type) {
@@ -68,8 +69,12 @@ public class Features {
 	 * @param parentLabel
 	 * @return
 	 */
-	public static long getSecondOrderRuleFeature(long childLabel, long label, long parentLabel) {
-		return getCodeBase(FeatureType.SECOND_ORDER_RULE) + (childLabel << 32L) + (label << 16L) + parentLabel;
+	public static long getSecondOrderRuleFeature(long ruleCode, long parentLabel) {
+		return getCodeBase(FeatureType.SECOND_ORDER_RULE) + (parentLabel << 20L) + ruleCode;
+	}
+	
+	public static long getSecondOrderSpanPropertyByRuleFeature(long spanPropertyCode, long ruleCode, long parentLabel) {
+		return getCodeBase(FeatureType.SECOND_ORDER_PROPERTY_BY_RULE) + (ruleCode << 41L) + (parentLabel << 32) + spanPropertyCode;
 	}
 	
 	public static boolean isSecondOrderFeature(long code) {
@@ -180,52 +185,60 @@ public class Features {
 		return codes;
 	}
 	
-	/**
-	 * A helper method for getRuleFeature above that handles getting the ruleCode, so you can just pass a Rule
-	 * @param rule
-	 * @param rules
-	 * @return
-	 */
-	public static long getRuleFeature(Rule rule, RuleEnumeration rules) {
-		if(rule.getType() == Type.UNARY) {
-			int id = rules.getUnaryId(rule);
-			return getRuleFeature(RuleEnumeration.getRuleCode(id, Type.UNARY));
+	public static List<Long> getSecondOrderSpanPropertyByRuleFeatures(List<Word> words, Span span, long parentLabel, RuleEnumeration rules, WordEnumeration wordEnum) {
+		List<Long> codes = new ArrayList<>();
+		if(span.getRule().getType() == Type.UNARY) {
+			long ruleCode = RuleEnumeration.getRuleCode(rules.getUnaryId(span.getRule()), Type.UNARY);
+			TLongList propertyCodes = SpanProperties.getUnarySpanProperties(words, span.getStart(), span.getEnd());
+			for(int i = 0; i < propertyCodes.size(); i++) {
+				codes.add(getSecondOrderSpanPropertyByRuleFeature(propertyCodes.get(i), ruleCode, parentLabel));
+			}
 		}
-		else if(rule.getType() == Type.BINARY) {
-			int id = rules.getBinaryId(rule);
-			return getRuleFeature(RuleEnumeration.getRuleCode(id, Type.BINARY));
+		else if(span.getRule().getType() == Type.BINARY) {
+			long ruleCode = RuleEnumeration.getRuleCode(rules.getBinaryId(span.getRule()), Type.BINARY);
+			TLongList propertyCodes = SpanProperties.getBinarySpanProperties(words, span.getStart(), span.getEnd(), span.getSplit());
+			for(int i = 0; i < propertyCodes.size(); i++) {
+				codes.add(getSecondOrderSpanPropertyByRuleFeature(propertyCodes.get(i), ruleCode, parentLabel));
+			}
 		}
 		else {
-			return getRuleFeature(RuleEnumeration.getTerminalRuleCode(rule.getLabel()));
+			long ruleCode = RuleEnumeration.getRuleCode(span.getRule().getLabel(), Type.TERMINAL);
+			TLongList propertyCodes = SpanProperties.getTerminalSpanProperties(words, span.getStart(), wordEnum);
+			for(int i = 0; i < propertyCodes.size(); i++) {
+				codes.add(getSecondOrderSpanPropertyByRuleFeature(propertyCodes.get(i), ruleCode, parentLabel));
+			}
 		}
+		return codes;
 	}
 	
-	public static List<Long> getAllFeatures(List<Span> spans, List<Word> words, boolean doSecondOrder, WordEnumeration wordEnum, LabelEnumeration labels, RuleEnumeration rules) {
+	public static List<Long> getAllHigherOrderFeatures(List<Word> words, List<Span> spans, RuleEnumeration rules, WordEnumeration wordEnum) {
 		List<Long> features = new ArrayList<>();
 		int[] parents = SpanUtilities.getParents(spans);
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
-			features.addAll(Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum));
-			features.add(Features.getRuleFeature(s.getRule(), rules));
-			features.addAll(Features.getSpanPropertyByLabelFeatures(words, s));
-			
-			if(doSecondOrder) {
-				if(parents[j] != -1) {
-					Rule rule = s.getRule();
-					Rule parentRule = spans.get(parents[j]).getRule();
-
-					if(rule.getType() == Rule.Type.UNARY) {
-						long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-						features.add(code);
-					}
-					else if(rule.getType() == Rule.Type.BINARY) {
-						long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-						features.add(code);
-						code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getLabel(), parentRule.getLabel());
-						features.add(code);
-					}
-				}
+			if(parents[j] != -1) {
+				Rule rule = s.getRule();
+				Rule parentRule = spans.get(parents[j]).getRule();
+	
+				features.add(Features.getSecondOrderRuleFeature(rules.getRuleCode(rule), parentRule.getLabel()));
+				
+				features.addAll(Features.getSecondOrderSpanPropertyByRuleFeatures(words, s, parentRule.getLabel(), rules, wordEnum));
 			}
+		}
+		return features;
+	}
+	
+	public static List<Long> getAllFeatures(List<Span> spans, List<Word> words, boolean doSecondOrder, WordEnumeration wordEnum, LabelEnumeration labels, RuleEnumeration rules) {
+		List<Long> features = new ArrayList<>();
+		for(int j = 0; j < spans.size(); j++) {
+			Span s = spans.get(j);
+			features.addAll(Features.getSpanPropertyByRuleFeatures(words, s, rules, wordEnum));
+			features.add(Features.getRuleFeature(rules.getRuleCode(s.getRule())));
+			features.addAll(Features.getSpanPropertyByLabelFeatures(words, s));
+		}
+		
+		if(doSecondOrder) {
+			features.addAll(Features.getAllHigherOrderFeatures(words, spans, rules, wordEnum));
 		}
 		return features;
 	}

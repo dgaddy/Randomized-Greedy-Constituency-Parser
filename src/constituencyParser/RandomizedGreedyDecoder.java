@@ -346,25 +346,11 @@ public class RandomizedGreedyDecoder implements Decoder {
 			if(costAugmenting && !(goldLabels[s.getStart()][s.getEnd()] == s.getRule().getLabel() || goldUnaryLabels[s.getStart()][s.getEnd()] == s.getRule().getLabel())) {
 				score += 1;
 			}
-			
-			// second order
-			if(doSecondOrder && parents[j] != -1) {
-				double spanScore2 = 0;
-				
-				Rule parentRule = spans.get(parents[j]).getRule();
-
-				if(rule.getType() == Rule.Type.UNARY) {
-					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-					spanScore2 += params.getScore(code);
-				}
-				else if(rule.getType() == Rule.Type.BINARY) {
-					long code = Features.getSecondOrderRuleFeature(rule.getLeft(), rule.getLabel(), parentRule.getLabel());
-					spanScore2 += params.getScore(code);
-					code = Features.getSecondOrderRuleFeature(rule.getRight(), rule.getLabel(), parentRule.getLabel());
-					spanScore2 += params.getScore(code);
-				}
-				
-				score += spanScore2;
+		}
+		
+		if(doSecondOrder) {
+			for(long feature : Features.getAllHigherOrderFeatures(words, spans, rules, wordEnum)) {
+				score += params.getScore(feature);
 			}
 		}
 		
