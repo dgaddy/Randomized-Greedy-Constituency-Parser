@@ -16,11 +16,6 @@ import constituencyParser.features.FeatureParameters;
 
 public class RunTraining {
 	public static void main(String[] args) throws Exception {
-		if(args.length < 6) {
-			System.out.println("Arguments are [data folder] [output folder] [number cores] [number iterations] [t/f second order] [t/f cost augmentation] [optional: percent of data] [optional: model to start with]");
-			return;
-		}
-		
 		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:");
 		OptionSet options = parser.parse(args);
 		

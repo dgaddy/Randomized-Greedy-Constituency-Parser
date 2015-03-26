@@ -21,12 +21,6 @@ import constituencyParser.features.Features;
  */
 public class Test {
 	public static void main(String[] args) throws Exception {
-		if(args.length < 4) {
-			System.out.println("requires 4 arguments: the model file name, the data directory, t/f second order, number of threads");
-			System.out.println("optional argument: number of iterations for randomized greedy restart");
-			return;
-		}
-
 		OptionParser parser = new OptionParser("m:d:s:t:i:");
 		OptionSet options = parser.parse(args);
 		
