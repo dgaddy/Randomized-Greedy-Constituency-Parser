@@ -349,7 +349,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		}
 		
 		if(doSecondOrder) {
-			for(long feature : Features.getAllHigherOrderFeatures(words, spans, rules, wordEnum)) {
+			for(long feature : Features.getAllHigherOrderFeatures(words, spans, parents, rules, wordEnum)) {
 				score += params.getScore(feature);
 			}
 		}

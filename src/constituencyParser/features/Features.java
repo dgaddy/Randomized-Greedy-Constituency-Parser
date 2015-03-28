@@ -211,9 +211,8 @@ public class Features {
 		return codes;
 	}
 	
-	public static List<Long> getAllHigherOrderFeatures(List<Word> words, List<Span> spans, RuleEnumeration rules, WordEnumeration wordEnum) {
+	public static List<Long> getAllHigherOrderFeatures(List<Word> words, List<Span> spans, int[] parents, RuleEnumeration rules, WordEnumeration wordEnum) {
 		List<Long> features = new ArrayList<>();
-		int[] parents = SpanUtilities.getParents(spans);
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
 			if(parents[j] != -1) {
@@ -238,7 +237,8 @@ public class Features {
 		}
 		
 		if(doSecondOrder) {
-			features.addAll(Features.getAllHigherOrderFeatures(words, spans, rules, wordEnum));
+			int[] parents = SpanUtilities.getParents(spans);
+			features.addAll(Features.getAllHigherOrderFeatures(words, spans, parents, rules, wordEnum));
 		}
 		return features;
 	}
