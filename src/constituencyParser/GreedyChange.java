@@ -232,14 +232,14 @@ public class GreedyChange {
 	 * @param topLevel
 	 * @return
 	 */
-	public List<ParentedSpans> makeGreedyLabelChanges(List<Span> spans, int indexStart, int indexEnd, boolean topLevel) {
+	public List<ParentedSpans> makeGreedyLabelChanges(List<Span> spans, int indexStart, int indexEnd, boolean topLevel, Pruning pruning) {
 		List<ParentedSpans> result = new ArrayList<>();
 		
 		ConstituencyNode root = getTree(spans);
 		
 		ConstituencyNode toUpdate = root.getNode(indexStart, indexEnd);
 		
-		iterateLabels(root, toUpdate, result, topLevel);
+		iterateLabels(root, toUpdate, result, topLevel, pruning);
 		
 		return result;
 	}
@@ -252,7 +252,7 @@ public class GreedyChange {
 	 * @param spanToUpdateEnd
 	 * @return
 	 */
-	public List<ParentedSpans> makeGreedyChanges(List<Span> spans, int spanToUpdateStart, int spanToUpdateEnd) {
+	public List<ParentedSpans> makeGreedyChanges(List<Span> spans, int spanToUpdateStart, int spanToUpdateEnd, Pruning pruning) {
 		List<ParentedSpans> result = new ArrayList<>();
 		
 		ConstituencyNode root = getTree(spans);
@@ -292,7 +292,7 @@ public class GreedyChange {
 			
 			newRoot.updateSpanLocations();
 			
-			iterateLabels(newRoot, parent, result, false);
+			iterateLabels(newRoot, parent, result, false, pruning);
 		}
 		
 		return result;
@@ -305,7 +305,7 @@ public class GreedyChange {
 	 * @param resultAccumulator
 	 * @param topLevel
 	 */
-	void iterateLabels(ConstituencyNode root, ConstituencyNode toIterate, List<ParentedSpans> resultAccumulator, boolean topLevel) {
+	void iterateLabels(ConstituencyNode root, ConstituencyNode toIterate, List<ParentedSpans> resultAccumulator, boolean topLevel, Pruning pruning) {
 		Set<Integer> topLevelLabels = labels.getTopLevelLabelIds();
 		
 		// iterate with no unary labels
@@ -329,6 +329,9 @@ public class GreedyChange {
 		}
 		for(int i = 0; i < labels.getNumberOfLabels(); i++) {
 			if(topLevel && !topLevelLabels.contains(i))
+				continue;
+			
+			if(pruning.isPruned(spanToIterate.getStart(), spanToIterate.getEnd(), i))
 				continue;
 			
 			Span newToIterate = spanToIterate.changeLabel(i);
@@ -368,6 +371,9 @@ public class GreedyChange {
 		for(int i = 0; i < rules.getNumberOfUnaryRules(); i++) {
 			Rule rule = rules.getUnaryRule(i);
 			if(topLevel && !topLevelLabels.contains(rule.getLabel()))
+				continue;
+			
+			if(pruning.isPruned(spanToIterate.getStart(), spanToIterate.getEnd(), rule.getLabel()) || pruning.isPruned(spanToIterate.getStart(), spanToIterate.getEnd(), rule.getLeft()))
 				continue;
 
 			Span newToIterate = spanToIterate.changeLabel(rule.getLeft());

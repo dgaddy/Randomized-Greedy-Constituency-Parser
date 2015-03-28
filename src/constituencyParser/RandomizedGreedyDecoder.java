@@ -32,6 +32,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	GreedyChange greedyChange;
 	
 	FirstOrderFeatureHolder firstOrderFeatures;
+	Pruning pruning;
 	
 	ConcurrentHashMap<Span, Double> firstOrderSpanScoreCache;
 	Set<Set<Span>> alreadySeenSpans;
@@ -132,7 +133,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		
 		sampler.setCostAugmenting(costAugmenting, goldLabels);
 		
-		sampler.calculateProbabilities(words);
+		pruning = sampler.calculateProbabilities(words);
 		
 		//System.out.println("calculated probabilities");
 		
@@ -148,10 +149,12 @@ public class RandomizedGreedyDecoder implements Decoder {
 				List<Span> result = completionService.take().get();
 				bestOptions.add(new ParentedSpans(result, SpanUtilities.getParents(result)));
 			}
-			catch(ExecutionException|InterruptedException e) {
+			catch(ExecutionException e) {
 				System.out.println("Exception in decoder worker thread");
+				e.getCause().printStackTrace();
 				e.printStackTrace();
 			}
+			catch(InterruptedException e) {}
 		}
 		
 		MaxResult result = getMax(bestOptions, words, params);
@@ -204,7 +207,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 						
 						// terminal labels
 						for(int i = 0; i < words.size(); i++) {
-							List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, i, i+1, false);
+							List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, i, i+1, false, pruning);
 							
 							spans = getMax(options, words, params).spans;
 						}
@@ -220,7 +223,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 									}
 								}
 								if(exists) {
-									List<ParentedSpans> update = greedyChange.makeGreedyChanges(spans, start, start + length);
+									List<ParentedSpans> update = greedyChange.makeGreedyChanges(spans, start, start + length, pruning);
 									
 									// occasionally check that parents are correct
 									if(update.size() > 0 && Math.random() < .005) {
@@ -235,7 +238,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 						}
 						
 						// iterate top level again with constraint to top level label in training set
-						List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, 0, words.size(), true);
+						List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, 0, words.size(), true, pruning);
 						if(options.size() == 0) {
 							break; // no valid option that uses top level labels
 						}
