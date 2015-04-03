@@ -220,8 +220,6 @@ public class Features {
 				Rule parentRule = spans.get(parents[j]).getRule();
 	
 				features.add(Features.getSecondOrderRuleFeature(rules.getRuleCode(rule), parentRule.getLabel()));
-				
-				features.addAll(Features.getSecondOrderSpanPropertyByRuleFeatures(words, s, parentRule.getLabel(), rules, wordEnum));
 			}
 		}
 		return features;
