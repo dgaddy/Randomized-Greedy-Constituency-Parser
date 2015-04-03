@@ -34,7 +34,6 @@ public class RandomizedGreedyDecoder implements Decoder {
 	FirstOrderFeatureHolder firstOrderFeatures;
 	Pruning pruning;
 	
-	ConcurrentHashMap<Span, Double> firstOrderSpanScoreCache;
 	Set<Set<Span>> alreadySeenSpans;
 	
 	DecoderTask[] decoderTasks;
@@ -127,8 +126,6 @@ public class RandomizedGreedyDecoder implements Decoder {
 		this.params = params;
 		numberIterationsStarted = 0;
 		
-		firstOrderSpanScoreCache = new ConcurrentHashMap<Span, Double>(30000, .5f); // usually holds less than 15000 items
-		
 		firstOrderFeatures.fillScoreArrays(words, params);
 		
 		sampler.setCostAugmenting(costAugmenting, goldLabels);
@@ -159,6 +156,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		
 		MaxResult result = getMax(bestOptions, words, params);
 		lastScore = result.score;
+		
 		return result.spans;
 	}
 	
@@ -322,29 +320,23 @@ public class RandomizedGreedyDecoder implements Decoder {
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
 			Rule rule = s.getRule();
-			if(firstOrderSpanScoreCache.containsKey(s)) {
-				score += firstOrderSpanScoreCache.get(s);
+			double spanScore = 0;
+			if(rule.getType() == Type.BINARY) {
+				int ruleId = rules.getBinaryId(rule);
+				if(ruleId == -1)
+					return Double.NEGATIVE_INFINITY;
+				spanScore = firstOrderFeatures.scoreBinary(s.getStart(), s.getEnd(), s.getSplit(), ruleId);
 			}
-			else {
-				double spanScore = 0;
-				if(rule.getType() == Type.BINARY) {
-					int ruleId = rules.getBinaryId(rule);
-					if(ruleId == -1)
-						return Double.NEGATIVE_INFINITY;
-					spanScore = firstOrderFeatures.scoreBinary(s.getStart(), s.getEnd(), s.getSplit(), ruleId);
-				}
-				else if(rule.getType() == Type.UNARY) {
-					int ruleId = rules.getUnaryId(rule);
-					if(ruleId == -1)
-						return Double.NEGATIVE_INFINITY;
-					spanScore = firstOrderFeatures.scoreUnary(s.getStart(), s.getEnd(), ruleId);
-				}
-				else {// terminal
-					spanScore = firstOrderFeatures.scoreTerminal(s.getStart(), rule.getLabel());
-				}
-				firstOrderSpanScoreCache.put(s, spanScore);
-				score += spanScore;
+			else if(rule.getType() == Type.UNARY) {
+				int ruleId = rules.getUnaryId(rule);
+				if(ruleId == -1)
+					return Double.NEGATIVE_INFINITY;
+				spanScore = firstOrderFeatures.scoreUnary(s.getStart(), s.getEnd(), ruleId);
 			}
+			else {// terminal
+				spanScore = firstOrderFeatures.scoreTerminal(s.getStart(), rule.getLabel());
+			}
+			score += spanScore;
 			
 			if(costAugmenting && !(goldLabels[s.getStart()][s.getEnd()] == s.getRule().getLabel() || goldUnaryLabels[s.getStart()][s.getEnd()] == s.getRule().getLabel())) {
 				score += 1;
