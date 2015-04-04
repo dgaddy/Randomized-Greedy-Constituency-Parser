@@ -27,6 +27,7 @@ public class FeatureParameters implements Serializable {
 	TDoubleArrayList featureValues = new TDoubleArrayList();
 	TDoubleArrayList gradientsSquared = new TDoubleArrayList();
 	transient TIntArrayList dropout; // 1 if should drop, 0 if should keep
+	boolean dontMakeNewFeatures = false;
 	
 	public FeatureParameters(double learningRate, double regularization) {
 		featureIndices = new TLongIntHashMap(500, 0.2f, 0, -1);
@@ -99,6 +100,9 @@ public class FeatureParameters implements Serializable {
 					return true;
 				
 				int index = getOrMakeIndex(key);
+				if(index == -1)
+					return true;
+				
 				if(index == updates.size()) {
 					updates.add(0);
 				}
@@ -127,6 +131,9 @@ public class FeatureParameters implements Serializable {
 	private int getOrMakeIndex(long key) {
 		int index;
 		if(!featureIndices.containsKey(key)) {
+			if(dontMakeNewFeatures)
+				return -1;
+			
 			index = featureValues.size();
 			featureValues.add(0);
 			gradientsSquared.add(0);
@@ -135,6 +142,16 @@ public class FeatureParameters implements Serializable {
 		else
 			index = featureIndices.get(key);
 		return index;
+	}
+	
+	public void ensureContainsFeatures(List<Long> features) {
+		for(long l : features) {
+			getOrMakeIndex(l);
+		}
+	}
+	
+	public void stopAddingFeatures() {
+		dontMakeNewFeatures = true;
 	}
 	
 	/**

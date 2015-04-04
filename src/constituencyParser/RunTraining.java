@@ -8,15 +8,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-
 import constituencyParser.features.FeatureParameters;
+import constituencyParser.features.Features;
 
 
 public class RunTraining {
 	public static void main(String[] args) throws Exception {
-		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:z");
+		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:zn");
 		OptionSet options = parser.parse(args);
 		
 		String dataFolder = "";
@@ -32,6 +33,7 @@ public class RunTraining {
 		double regularization = 0;
 		double dropout = .5;
 		boolean randGreedy = true;
+		boolean noNegativeFeatures = false;
 		
 		if(options.has("t")) {
 			dataFolder = (String)options.valueOf("t");
@@ -74,6 +76,9 @@ public class RunTraining {
 			secondOrder = false;
 			costAugmenting = false;
 		}
+		if(options.has("n")) {
+			noNegativeFeatures = true;
+		}
 		
 		System.out.println("Running training with " + cores + " cores for " + iterations + " iterations.");
 		System.out.println("Data directory: " + dataFolder);
@@ -83,10 +88,10 @@ public class RunTraining {
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization, randGreedy);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization, randGreedy, noNegativeFeatures);
 	}
 	
-	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization, boolean useRandGreedy) throws IOException, ClassNotFoundException {
+	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization, boolean useRandGreedy, boolean noNegativeFeatures) throws IOException, ClassNotFoundException {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
@@ -103,6 +108,14 @@ public class RunTraining {
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles(dataFolder, 2,22, words, labels, rules, true); // use only between 2 and 21 for training
 		if(percentOfData < 1) {
 			examples = new ArrayList<>(examples.subList(0, (int)(examples.size() * percentOfData)));
+		}
+		
+		if(noNegativeFeatures) {
+			for(SpannedWords ex : examples) {
+				List<Long> features = Features.getAllFeatures(ex.getSpans(), ex.getWords(), secondOrder, words, labels, rules);
+				params.ensureContainsFeatures(features);
+			}
+			params.stopAddingFeatures();
 		}
 		
 		Decoder decoder;
