@@ -16,7 +16,7 @@ import constituencyParser.features.FeatureParameters;
 
 public class RunTraining {
 	public static void main(String[] args) throws Exception {
-		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:");
+		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:z");
 		OptionSet options = parser.parse(args);
 		
 		String dataFolder = "";
@@ -31,6 +31,7 @@ public class RunTraining {
 		int batchSize = 1;
 		double regularization = 0;
 		double dropout = .5;
+		boolean randGreedy = true;
 		
 		if(options.has("t")) {
 			dataFolder = (String)options.valueOf("t");
@@ -68,6 +69,11 @@ public class RunTraining {
 		if(options.has("d")) {
 			dropout = Double.parseDouble((String)options.valueOf("d"));
 		}
+		if(options.has("z")) {
+			randGreedy = false;
+			secondOrder = false;
+			costAugmenting = false;
+		}
 		
 		System.out.println("Running training with " + cores + " cores for " + iterations + " iterations.");
 		System.out.println("Data directory: " + dataFolder);
@@ -77,10 +83,10 @@ public class RunTraining {
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization, randGreedy);
 	}
 	
-	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization) throws IOException, ClassNotFoundException {
+	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization, boolean useRandGreedy) throws IOException, ClassNotFoundException {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
@@ -99,7 +105,12 @@ public class RunTraining {
 			examples = new ArrayList<>(examples.subList(0, (int)(examples.size() * percentOfData)));
 		}
 		
-		RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules, cores);
+		Decoder decoder;
+		if(useRandGreedy)
+			decoder = new RandomizedGreedyDecoder(words, labels, rules, cores);
+		else
+			decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
+		
 		Train pa = new Train(words, labels, rules, decoder, params);
 		
 		for(int i = 0; i < iterations; i++) {
