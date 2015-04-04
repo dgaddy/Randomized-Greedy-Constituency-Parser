@@ -5,15 +5,15 @@ import gnu.trove.map.hash.TLongDoubleHashMap;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 
 import org.junit.Test;
 
+import constituencyParser.GreedyChange.ParentedSpans;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
-import constituencyParser.features.SpanProperties;
-import constituencyParser.features.SpanProperties.WordPropertyType;
 
 
 public class UnitTests {
@@ -122,8 +122,7 @@ public class UnitTests {
 		features =  Features.getAllFeatures(example.getSpans(), example.getWords(), true, words, labels, rules);
 		targetFeatures = Arrays.asList(
 				Features.getSecondOrderRuleFeature(rules.getRuleCode(Rule.getRule("S-BAR", "NP", "VP", labels)), labels.getId("S")),
-				Features.getSecondOrderRuleFeature(rules.getRuleCode(Rule.getRule("NP", "NNP", labels)), labels.getId("VP")),
-				Features.getSecondOrderSpanPropertyByRuleFeature(SpanProperties.getWordPropertyCode(words.getWord("plays"), WordPropertyType.BEFORE), rules.getRuleCode(Rule.getRule("NP", "NNP", labels)), labels.getId("VP")));
+				Features.getSecondOrderRuleFeature(rules.getRuleCode(Rule.getRule("NP", "NNP", labels)), labels.getId("VP")));
 		for(long feature : targetFeatures)
 			assertTrue(features.contains(feature));
 	}
@@ -172,5 +171,106 @@ public class UnitTests {
 		}
 		assertTrue(dropoutSumPositive < sumPositive);
 		assertTrue(dropoutSumNegative > sumNegative);
+	}
+	
+	@Test
+	public void testGreedyChange() throws IOException {
+		// load section 2 from file
+		// assumes data is in "../WSJ data"
+		WordEnumeration words = new WordEnumeration();
+		LabelEnumeration labels = new LabelEnumeration();
+		RuleEnumeration rules = new RuleEnumeration();
+		List<SpannedWords> examples = PennTreebankReader.loadFromFiles("../WSJ data/", 2, 22, words, labels, rules, true);
+		
+		SpannedWords example = examples.get(1); // ( (S (NP-SBJ (NNP Ms.) (NNP Haag)) (VP (VBZ plays) (NP (NNP Elianti) ))	(. .) ))
+		
+		GreedyChange gc = new GreedyChange(labels, rules);
+		Pruning noPrune = new Pruning(example.getWords().size(), labels.getNumberOfLabels());
+		List<ParentedSpans> changes = gc.makeGreedyLabelChanges(example.getSpans(), 0, 1, false, noPrune);
+		int expected = 0;
+		int np = labels.getId("NP");
+		int nnp = labels.getId("NNP");
+		for(int label = 0; label < labels.getNumberOfLabels(); label++) {
+			if(rules.isExistingRule(new Rule(np, label, nnp)))
+				expected++;
+		}
+		for(int un = 0; un < rules.getNumberOfUnaryRules(); un++) {
+			Rule unary = rules.getUnaryRule(un);
+			if(rules.isExistingRule(new Rule(np, unary.getLabel(), nnp)))
+				expected++;
+		}
+		assertEquals(expected, changes.size());
+		
+		changes = gc.makeGreedyChanges(example.getSpans(), 2, 3, noPrune);
+		assertTrue(existsStructure(changes, new int[] {2,4, 0,2, 0,4, 0,5})); // original structure
+		assertTrue(existsStructure(changes, new int[] {1,3, 0,3, 0,4, 0,5})); // connect to left NNP
+		assertTrue(existsStructure(changes, new int[] {0,2, 0,3, 0,4, 0,5})); // connect to left NP
+		
+		// make sure all changes give back at least itself
+		for(SpannedWords ex : examples) {
+			List<Word> w = ex.getWords();
+			List<Span> spans = ex.getSpans();
+			noPrune = new Pruning(ex.getWords().size(), labels.getNumberOfLabels());
+			
+			// terminal labels
+			for(int i = 0; i < w.size(); i++) {
+				List<ParentedSpans> options = gc.makeGreedyLabelChanges(spans, i, i+1, false, noPrune);
+				
+				assertTrue(hasSpans(options, spans));
+			}
+			
+			// other spans
+			for(int length = 1; length < w.size() + 1; length++) {
+				for(int start = 0; start < w.size() - length + 1; start++) {
+					boolean exists = false; // if there is actually a span with this start and length
+					for(int i = 0; i < spans.size(); i++) {
+						Span s = spans.get(i);
+						if(s.getStart() == start && s.getEnd() == start + length) {
+							exists = true;
+						}
+					}
+					if(exists) {
+						List<ParentedSpans> update = gc.makeGreedyChanges(spans, start, start + length, noPrune);
+						
+						assertTrue(hasSpans(update, spans));
+					}
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Checks if one of the options has structure described by spans
+	 * @param options
+	 * @param spans pairs of start, end indices where there should be a span
+	 */
+	private boolean existsStructure(List<ParentedSpans> options, int[] spans) {
+		for(ParentedSpans option : options) {
+			boolean matches = true;
+			for(int i = 0; i < spans.length; i+=2) {
+				boolean hasSpan = false;
+				for(Span s : option.spans) {
+					if(s.getStart() == spans[i] && s.getEnd() == spans[i+1]) {
+						hasSpan = true;
+						break;
+					}
+				}
+				if(!hasSpan) {
+					matches = false;
+					break;
+				}
+			}
+			if(matches)
+				return true;
+		}
+		return false;
+	}
+	
+	private boolean hasSpans(List<ParentedSpans> options, List<Span> spans) {
+		for(ParentedSpans option : options) {
+			if((new HashSet<Span>(option.spans)).equals(new HashSet<Span>(spans)))
+				return true;
+		}
+		return false;
 	}
 }
