@@ -53,18 +53,22 @@ public class Test {
 		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 
-		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, 1, numberOfThreads);
+		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, 1, numberOfThreads, true);
 	}
 
-	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads) throws IOException {
-		RandomizedGreedyDecoder randGreedyDecoder = new RandomizedGreedyDecoder(words, labels, rules, threads);
-		//randGreedyDecoder.samplerDoCounts(PennTreebankReader.loadFromFiles(dataFolder, 2, 22, words, labels, rules)); for non-discriminitive
-
+	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, boolean useRandGreedy) throws IOException {
+		Decoder decoder;
+		if(useRandGreedy) {
+			RandomizedGreedyDecoder rg = new RandomizedGreedyDecoder(words, labels, rules, threads);
+			rg.setNumberSampleIterations(randomizedGreedyIterations);
+			decoder = rg;
+		}
+		else
+			decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
+		
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 23, 24, words, labels, rules, false);
 		int number = (int)(gold.size() * fractionOfData);
 		gold = gold.subList(0, number);
-
-		randGreedyDecoder.setNumberSampleIterations(randomizedGreedyIterations);
 		
 		parameters.resetDropout(0);
 
@@ -74,9 +78,9 @@ public class Test {
 		
 		PennTreebankWriter writer = new PennTreebankWriter("output.tst", words, labels, false);
 		for(SpannedWords example : gold) {
-			randGreedyDecoder.setSecondOrder(secondOrder);
+			decoder.setSecondOrder(secondOrder);
 
-			List<Span> result = randGreedyDecoder.decode(example.getWords(), parameters);
+			List<Span> result = decoder.decode(example.getWords(), parameters);
 			writer.writeTree(new SpannedWords(result, example.getWords()));
 
 			for(Span span : result) {
@@ -92,8 +96,8 @@ public class Test {
 				goldScore += parameters.getScore(code);
 			}
 			
-			if(goldScore > randGreedyDecoder.getLastScore() + 1e-5) {
-				System.out.println("Gold score higher than predicted, but was not found. " + goldScore + " " + randGreedyDecoder.getLastScore());
+			if(goldScore > decoder.getLastScore() + 1e-5) {
+				System.out.println("Gold score higher than predicted, but was not found. " + goldScore + " " + decoder.getLastScore());
 			}
 
 			numberGold += example.getSpans().size();
