@@ -64,7 +64,7 @@ public class Test {
 			decoder = rg;
 		}
 		else
-			decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
+			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 23, 24, words, labels, rules, false);
 		int number = (int)(gold.size() * fractionOfData);
@@ -233,7 +233,7 @@ public class Test {
 
 		System.out.println(rules.getNumberOfUnaryRules());
 
-		DiscriminitiveCKYDecoder decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
+		DiscriminativeCKYDecoder decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 
 		List<Span> result = decoder.decode(words.getWords(Arrays.asList("I", "go", "to", "the", "supermarket", ".")), parameters);
 
@@ -259,7 +259,7 @@ public class Test {
 
 		while(loss > 0) {
 			// run passive aggressive on the first example
-			DiscriminitiveCKYDecoder decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
+			DiscriminativeCKYDecoder decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 			Train pa = new Train(words, labels, rules, decoder, params);
 			pa.train(examples.subList(0, 1), .05, false, false, 1);
 

@@ -7,10 +7,10 @@ import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.FirstOrderFeatureHolder;
 
 /**
- * A discriminitive CKY decoder based on Less Grammar, More Features, David Hall, Greg Durrett and Dan
+ * A discriminative CKY decoder based on Less Grammar, More Features, David Hall, Greg Durrett and Dan
 Klein, ACL 14 (http://www.cs.berkeley.edu/ dlwh/papers/spanparser.pdf)
  */
-public class DiscriminitiveCKYDecoder implements Decoder {
+public class DiscriminativeCKYDecoder implements Decoder {
 	private static final double PRUNE_THRESHOLD = 10;
 	
 	WordEnumeration wordEnum;
@@ -24,7 +24,7 @@ public class DiscriminitiveCKYDecoder implements Decoder {
 	
 	List<Span> usedSpans;
 	
-	public DiscriminitiveCKYDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
+	public DiscriminativeCKYDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;

@@ -122,7 +122,7 @@ public class RunTraining {
 		if(useRandGreedy)
 			decoder = new RandomizedGreedyDecoder(words, labels, rules, cores);
 		else
-			decoder = new DiscriminitiveCKYDecoder(words, labels, rules);
+			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
 		Train pa = new Train(words, labels, rules, decoder, params);
 		

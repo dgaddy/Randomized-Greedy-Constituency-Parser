@@ -23,7 +23,7 @@ import constituencyParser.features.FirstOrderFeatureHolder;
  * Samples parse trees then makes greedy updates on them
  */
 public class RandomizedGreedyDecoder implements Decoder {
-	DiscriminitiveCKYSampler sampler;
+	DiscriminativeCKYSampler sampler;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
@@ -54,7 +54,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		this.rules = rules;
 		
 		firstOrderFeatures = new FirstOrderFeatureHolder(words, labels, rules);
-		sampler = new DiscriminitiveCKYSampler(words, labels, rules, firstOrderFeatures);
+		sampler = new DiscriminativeCKYSampler(words, labels, rules, firstOrderFeatures);
 		
 		this.greedyChange = new GreedyChange(labels, rules);
 		
@@ -67,7 +67,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	}
 	
 	/**
-	 * For when using CKYSampler instead of DiscriminitiveCKYDecoder
+	 * For when using CKYSampler instead of DiscriminativeCKYDecoder
 	 * @param trainingData
 	 */
 	public void samplerDoCounts(List<SpannedWords> trainingData) {

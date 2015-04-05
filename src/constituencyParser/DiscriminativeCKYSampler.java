@@ -8,9 +8,9 @@ import constituencyParser.Rule.Type;
 import constituencyParser.features.FirstOrderFeatureHolder;
 
 /**
- * A sampler of parse trees based on DiscriminitiveCKYDecoder
+ * A sampler of parse trees based on DiscriminativeCKYDecoder
  */
-public class DiscriminitiveCKYSampler {
+public class DiscriminativeCKYSampler {
 	private static final double PRUNE_THRESHOLD = 10;
 	
 	WordEnumeration wordEnum;
@@ -29,7 +29,7 @@ public class DiscriminitiveCKYSampler {
 	boolean costAugmenting = false;
 	int[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
 	
-	public DiscriminitiveCKYSampler(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FirstOrderFeatureHolder features) {
+	public DiscriminativeCKYSampler(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FirstOrderFeatureHolder features) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
