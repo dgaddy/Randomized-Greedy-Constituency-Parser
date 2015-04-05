@@ -147,4 +147,12 @@ public class SpanUtilities {
 		}
 		return result;
 	}
+	
+	public static boolean usesOnlyExistingRules(List<Span> spans, RuleEnumeration rules) {
+		for(Span s : spans) {
+			if(!rules.isExistingRule(s.getRule()))
+				return false;
+		}
+		return true;
+	}
 }

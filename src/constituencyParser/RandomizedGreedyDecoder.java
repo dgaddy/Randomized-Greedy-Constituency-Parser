@@ -181,8 +181,11 @@ public class RandomizedGreedyDecoder implements Decoder {
 					}
 				}
 				//System.out.println("new iteration");
-				
 				List<Span> spans = sampler.sample();
+				if(pruning.containsPruned(spans))
+					throw new RuntimeException();
+				if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
+					throw new RuntimeException();
 				
 				if(spans.size() > 0) { // sometimes sampler fails to find valid sample and returns empty list
 					SpanUtilities.checkCorrectness(spans);
@@ -208,6 +211,11 @@ public class RandomizedGreedyDecoder implements Decoder {
 							List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, i, i+1, false, pruning);
 							
 							spans = getMax(options, words, params).spans;
+							
+							if(pruning.containsPruned(spans))
+								throw new RuntimeException();
+							if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
+								throw new RuntimeException();
 						}
 						
 						// other spans
@@ -231,6 +239,11 @@ public class RandomizedGreedyDecoder implements Decoder {
 									}
 									
 									spans = getMax(update, words, params).spans;
+									
+									if(pruning.containsPruned(spans))
+										throw new RuntimeException();
+									if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
+										throw new RuntimeException();
 								}
 							}
 						}
@@ -241,6 +254,11 @@ public class RandomizedGreedyDecoder implements Decoder {
 							break; // no valid option that uses top level labels
 						}
 						spans = getMax(options, words, params).spans;
+						
+						if(pruning.containsPruned(spans))
+							throw new RuntimeException();
+						if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
+							throw new RuntimeException();
 					}
 				}
 				double score = score(words, spans, params);
@@ -292,6 +310,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 	private MaxResult getMax(List<ParentedSpans> options, List<Word> words, FeatureParameters params) {
 		double bestScore = Double.NEGATIVE_INFINITY;
 		List<Span> best = null;
+		if(options.size() == 0)
+			throw new RuntimeException("No options given to max");
 		for(ParentedSpans option : options) {
 			double score = score(words, option.spans, option.parents, params);
 			if(score >= bestScore) {
@@ -320,6 +340,9 @@ public class RandomizedGreedyDecoder implements Decoder {
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
 			Rule rule = s.getRule();
+			if(pruning.isPruned(s.getStart(), s.getEnd(), rule.getLabel()))
+				return Double.NEGATIVE_INFINITY;
+			
 			double spanScore = 0;
 			if(rule.getType() == Type.BINARY) {
 				int ruleId = rules.getBinaryId(rule);

@@ -1,5 +1,7 @@
 package constituencyParser;
 
+import java.util.List;
+
 public class Pruning {
 	boolean[][][] prune;
 	
@@ -26,5 +28,13 @@ public class Pruning {
 			}
 		}
 		return count;
+	}
+	
+	public boolean containsPruned(List<Span> spans) {
+		for(Span s : spans) {
+			if(isPruned(s.getStart(), s.getEnd(), s.getRule().getLabel()))
+				return true;
+		}
+		return false;
 	}
 }

@@ -215,6 +215,9 @@ public class DiscriminitiveCKYSampler {
 		List<Double> logProbabilities = new ArrayList<>();
 		List<Integer> labelsToSample = new ArrayList<>();
 		for(Integer topLabel : labels.getTopLevelLabelIds()) {
+			if(prune.isPruned(0, wordsSize, topLabel))
+				continue;
+			
 			double score = insideLogProbabilitiesAfterUnaries[0][wordsSize][topLabel];
 			if(score == Double.NEGATIVE_INFINITY)
 				continue;
@@ -245,7 +248,11 @@ public class DiscriminitiveCKYSampler {
 			
 			for(int r = 0; r < numUnaryRules; r++) {
 				Rule rule = rules.getUnaryRule(r);
+				
 				if(rule.getLabel() == label) {
+					if(prune.isPruned(start, end, rule.getLeft()))
+						continue;
+					
 					double prob = unaryProbability(start, end, r, rule);
 					if(prob == Double.NEGATIVE_INFINITY)
 						continue;
@@ -259,10 +266,8 @@ public class DiscriminitiveCKYSampler {
 		
 		if(end - start == 1) { // terminals
 			double prob = insideLogProbabilitiesBeforeUnaries[start][end][label];
-			if(prob != Double.NEGATIVE_INFINITY) {
-				logProbabilities.add(prob);
-				spans.add(new Span(start, label));
-			}
+			logProbabilities.add(prob);
+			spans.add(new Span(start, label));
 		}
 		else {
 			// binary
@@ -272,6 +277,9 @@ public class DiscriminitiveCKYSampler {
 					Rule rule = rules.getBinaryRule(r);
 					
 					if(rule.getLabel() == label) {
+						if(prune.isPruned(start, start+split, rule.getLeft()) || prune.isPruned(start+split, end, rule.getRight()))
+							continue;
+						
 						double prob = binaryProbability(start, end, start+split, r, rule);
 						if(prob == Double.NEGATIVE_INFINITY)
 							continue;
