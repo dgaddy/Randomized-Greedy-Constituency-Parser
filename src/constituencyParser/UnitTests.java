@@ -95,6 +95,10 @@ public class UnitTests {
 		assertTrue(id != -1);
 		assertEquals(r, rules.getBinaryRule(id));
 		assertTrue(rules.getBinaryId(Rule.getRule("NN", "DT", "NN", labels)) == -1);
+		
+		// test labels
+		assertTrue(labels.getId("NP") >= 0);
+		assertEquals(labels.getId("S-BAR"), labels.getExtendLabel(labels.getId("S")));
 	}
 	
 	@Test

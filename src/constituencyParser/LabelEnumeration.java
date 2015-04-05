@@ -12,6 +12,7 @@ public class LabelEnumeration implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	List<String> idToLabel = new ArrayList<>();
+	List<Integer> idToExtendLabel = new ArrayList<>(); // extend label meaning the -BAR version when we binarize
 	HashMap<String, Integer> labelToId = new HashMap<>();
 	
 	HashSet<Integer> topLevelLabels = new HashSet<>();
@@ -34,8 +35,20 @@ public class LabelEnumeration implements Serializable {
 		if(labelToId.containsKey(label))
 			return;
 		
-		labelToId.put(label, idToLabel.size());
+		int num = idToLabel.size();
+		labelToId.put(label, num);
 		idToLabel.add(label);
+		idToExtendLabel.add(-1);
+		if(label.endsWith("-BAR")) {
+			String base = label.substring(0, label.length()-4);
+			if(labelToId.containsKey(base))
+				idToExtendLabel.set(labelToId.get(base), num);
+		}
+		else {
+			String extended = label + "-BAR";
+			if(labelToId.containsKey(extended))
+				idToExtendLabel.set(num, labelToId.get(extended));
+		}
 	}
 	
 	public void addAllLabels(List<String> labels) {
@@ -72,5 +85,13 @@ public class LabelEnumeration implements Serializable {
 	
 	public int getNumberOfLabels() {
 		return idToLabel.size();
+	}
+	
+	/**
+	 * Gets the label that is this label + "-BAR" from binarization
+	 * @return
+	 */
+	public int getExtendLabel(int i) {
+		return idToExtendLabel.get(i);
 	}
 }
