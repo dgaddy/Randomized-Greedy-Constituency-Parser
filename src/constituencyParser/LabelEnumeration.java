@@ -2,6 +2,7 @@ package constituencyParser;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,8 +18,11 @@ public class LabelEnumeration implements Serializable {
 	
 	HashSet<Integer> topLevelLabels = new HashSet<>();
 	
+	String[] punctuation = new String[] {"''", ":", "#", ",", ".", "``", "-LRB-", "-", "-RRB-"};
+	String[] conjunctions = new String[] {"CC", "CONJP"};
+	
 	public LabelEnumeration() {
-		
+		Arrays.sort(punctuation);
 	}
 	
 	public LabelEnumeration(LabelEnumeration other) {
@@ -93,5 +97,18 @@ public class LabelEnumeration implements Serializable {
 	 */
 	public int getExtendLabel(int i) {
 		return idToExtendLabel.get(i);
+	}
+	
+	public boolean isPunctuation(int i) {
+		String label = idToLabel.get(i);
+		return (Arrays.binarySearch(punctuation, label) >= 0);
+	}
+	
+	public boolean isConjunction(int i) {
+		String label = idToLabel.get(i);
+		for(String c : conjunctions)
+			if(c.equals(label))
+				return true;
+		return false;
 	}
 }

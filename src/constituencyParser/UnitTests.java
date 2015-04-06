@@ -14,6 +14,7 @@ import org.junit.Test;
 import constituencyParser.GreedyChange.ParentedSpans;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
+import constituencyParser.features.GlobalFeatures;
 
 
 public class UnitTests {
@@ -111,7 +112,7 @@ public class UnitTests {
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles("../WSJ data/", 2, 3, words, labels, rules, true);
 		
 		SpannedWords example = examples.get(1); // ( (S (NP-SBJ (NNP Ms.) (NNP Haag)) (VP (VBZ plays) (NP (NNP Elianti) ))	(. .) ))
-
+		
 		List<Long> features =  Features.getAllFeatures(example.getSpans(), example.getWords(), false, words, labels, rules);
 		List<Long> targetFeatures = Arrays.asList(
 				Features.getRuleFeature(rules.getRuleCode(Rule.getRule("S", "S-BAR", ".", labels))),
@@ -123,12 +124,36 @@ public class UnitTests {
 			assertTrue(features.contains(feature));
 		
 		// second order
-		features =  Features.getAllFeatures(example.getSpans(), example.getWords(), true, words, labels, rules);
+		features = Features.getAllFeatures(example.getSpans(), example.getWords(), true, words, labels, rules);
 		targetFeatures = Arrays.asList(
 				Features.getSecondOrderRuleFeature(rules.getRuleCode(Rule.getRule("S-BAR", "NP", "VP", labels)), labels.getId("S")),
 				Features.getSecondOrderRuleFeature(rules.getRuleCode(Rule.getRule("NP", "NNP", labels)), labels.getId("VP")));
 		for(long feature : targetFeatures)
 			assertTrue(features.contains(feature));
+		
+		// coPar
+		TreeNode node = new TreeNode("NP", new TreeNode("NP", new TreeNode("NN", new TreeNode("item1"))), new TreeNode(",", new TreeNode(",")),
+				new TreeNode("NP", new TreeNode("NN", new TreeNode("item2"))), new TreeNode("CC", new TreeNode("and")),
+				new TreeNode("NP", new TreeNode("NN", new TreeNode("item")), new TreeNode("NN", new TreeNode("three"))));
+		example = node.makeBinary().getSpans(words, labels);
+		SpanUtilities.connectChildren(example.getSpans());
+		features = Features.getAllFeatures(example.getSpans(), example.getWords(), true, words, labels, rules);
+		int countL1 = 0;
+		int countL2 = 0;
+		int countL2Neg = 0;
+		for(long feature : features) {
+			if(feature == GlobalFeatures.coPar(1, 1))
+				countL1++;
+			if(feature == GlobalFeatures.coPar(2, 1))
+				countL2++;
+			if(feature == GlobalFeatures.coPar(2, 0))
+				countL2Neg++;
+			
+			assertFalse(feature == GlobalFeatures.coPar(3, 1));
+		}
+		assertEquals(2, countL1);
+		assertEquals(1, countL2);
+		assertEquals(1, countL2Neg);
 	}
 	
 	@Test
@@ -211,7 +236,7 @@ public class UnitTests {
 		assertTrue(existsStructure(changes, new int[] {0,2, 0,3, 0,4, 0,5})); // connect to left NP
 		
 		// make sure all changes give back at least itself
-		for(SpannedWords ex : examples) {
+		for(SpannedWords ex : examples.subList(0, 200)) {
 			List<Word> w = ex.getWords();
 			List<Span> spans = ex.getSpans();
 			noPrune = new Pruning(ex.getWords().size(), labels.getNumberOfLabels());

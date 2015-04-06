@@ -182,6 +182,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 				}
 				//System.out.println("new iteration");
 				List<Span> spans = sampler.sample();
+				SpanUtilities.connectChildren(spans);
 				if(pruning.containsPruned(spans))
 					throw new RuntimeException();
 				if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
@@ -367,7 +368,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		}
 		
 		if(doSecondOrder) {
-			for(long feature : Features.getAllHigherOrderFeatures(words, spans, parents, rules, wordEnum)) {
+			for(long feature : Features.getAllHigherOrderFeatures(words, spans, parents, rules, wordEnum, labels)) {
 				score += params.getScore(feature);
 			}
 		}

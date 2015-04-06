@@ -176,12 +176,15 @@ public class Span {
 			newRule = new Rule(label);
 			break;
 		case BINARY:
-				newRule = new Rule(label, this.rule.getLeft(), this.rule.getRight());
+			newRule = new Rule(label, this.rule.getLeft(), this.rule.getRight());
 			break;
 		default:
 			throw new RuntimeException();
 		}
-		return new Span(start, end, split, newRule);
+		Span result =  new Span(start, end, split, newRule);
+		result.setLeft(left);
+		result.setRight(right);
+		return result;
 	}
 	
 	public Span changeChildLabel(boolean left, int label) {
@@ -202,7 +205,10 @@ public class Span {
 		default:
 			throw new RuntimeException();
 		}
-		return new Span(start, end, split, newRule);
+		Span result =  new Span(start, end, split, newRule);
+		result.setLeft(this.left);
+		result.setRight(this.right);
+		return result;
 	}
 	
 	public String toString() {

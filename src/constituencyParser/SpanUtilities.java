@@ -148,6 +148,24 @@ public class SpanUtilities {
 		return result;
 	}
 	
+	public static void connectChildren(List<Span> spans) {
+		connectChildren(spans, getParents(spans));
+	}
+	
+	public static void connectChildren(List<Span> spans, int[] parents) {
+		for(int i = 0; i < spans.size(); i++) {
+			Span span = spans.get(i);
+			int p = parents[i];
+			if(p != -1) {
+				Span parent = spans.get(p);
+				if(parent.getRule().getType() == Type.BINARY && parent.getStart() != span.getStart())
+					parent.setRight(span);
+				else
+					parent.setLeft(span);
+			}
+		}
+	}
+	
 	public static boolean usesOnlyExistingRules(List<Span> spans, RuleEnumeration rules) {
 		for(Span s : spans) {
 			if(!rules.isExistingRule(s.getRule()))

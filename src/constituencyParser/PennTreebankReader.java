@@ -223,7 +223,9 @@ public class PennTreebankReader implements Closeable {
 		}
 		
 		for(TreeNode tree : trees) {
-			loaded.add(tree.getSpans(words, labels));
+			SpannedWords sw = tree.getSpans(words, labels);
+			SpanUtilities.connectChildren(sw.getSpans());
+			loaded.add(sw);
 		}
 		
 		if(training)
