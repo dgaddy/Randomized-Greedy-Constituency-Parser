@@ -178,42 +178,18 @@ public class GreedyChange {
 		
 		private void getSpans(List<Span> result, List<Integer> parents, int parentIndex) {
 			if(unaryLabel != -1) {
-				Span s = new Span(start, end, unaryLabel, label);
 				parents.add(parentIndex);
-				if(parentIndex != -1) {
-					Span p = result.get(parentIndex);
-					if(p.getStart() == s.getStart())
-						p.setLeft(s);
-					else
-						p.setRight(s);
-				}
 				parentIndex = result.size(); // set the unary index to the parent index for the terminal and binary rules below
-				result.add(s);
+				result.add(new Span(start, end, unaryLabel, label));
 			}
 			
 			if(terminal) {
-				Span s = new Span(index, label);
-				if(parentIndex != -1) {
-					Span p = result.get(parentIndex);
-					if(p.getStart() == s.getStart())
-						p.setLeft(s);
-					else
-						p.setRight(s);
-				}
-				result.add(s);
+				result.add(new Span(index, label));
 				parents.add(parentIndex);
 			}
 			else {
 				int index = result.size();
-				Span s = new Span(start, end, left.end, label, left.unaryLabel != -1 ? left.unaryLabel : left.label, right.unaryLabel != -1 ? right.unaryLabel : right.label);
-				if(parentIndex != -1) {
-					Span p = result.get(parentIndex);
-					if(p.getStart() == s.getStart())
-						p.setLeft(s);
-					else
-						p.setRight(s);
-				}
-				result.add(s);
+				result.add(new Span(start, end, left.end, label, left.unaryLabel != -1 ? left.unaryLabel : left.label, right.unaryLabel != -1 ? right.unaryLabel : right.label));
 				parents.add(parentIndex);
 				
 				left.getSpans(result, parents, index);
@@ -370,6 +346,7 @@ public class GreedyChange {
 				newSpans.set(parentIndex, newParent);
 			}
 			
+			SpanUtilities.connectChildren(newSpans, spans.parents);
 			resultAccumulator.add(new ParentedSpans(newSpans, spans.parents));
 		}
 		
@@ -414,6 +391,7 @@ public class GreedyChange {
 				newSpans.set(parentIndex, newParent);
 			}
 			
+			SpanUtilities.connectChildren(newSpans, spans.parents);
 			resultAccumulator.add(new ParentedSpans(newSpans, spans.parents));
 		}
 	}

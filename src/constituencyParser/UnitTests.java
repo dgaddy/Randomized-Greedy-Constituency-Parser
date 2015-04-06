@@ -12,6 +12,7 @@ import java.util.Random;
 import org.junit.Test;
 
 import constituencyParser.GreedyChange.ParentedSpans;
+import constituencyParser.Rule.Type;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 import constituencyParser.features.GlobalFeatures;
@@ -246,6 +247,7 @@ public class UnitTests {
 				List<ParentedSpans> options = gc.makeGreedyLabelChanges(spans, i, i+1, false, noPrune);
 				
 				assertTrue(hasSpans(options, spans));
+				checkNonNegativeLabels(options);
 			}
 			
 			// other spans
@@ -262,6 +264,7 @@ public class UnitTests {
 						List<ParentedSpans> update = gc.makeGreedyChanges(spans, start, start + length, noPrune);
 						
 						assertTrue(hasSpans(update, spans));
+						checkNonNegativeLabels(update);
 					}
 				}
 			}
@@ -301,5 +304,19 @@ public class UnitTests {
 				return true;
 		}
 		return false;
+	}
+	
+	private void checkNonNegativeLabels(List<ParentedSpans> options) {
+		for(ParentedSpans ps : options) {
+			for(Span s : ps.spans) {
+				assertTrue(s.getRule().getLabel() >= 0);
+				if(s.getRule().getType() == Type.TERMINAL)
+					continue;
+				assertTrue(s.getRule().getLeft() >= 0);
+				if(s.getRule().getType() == Type.UNARY)
+					continue;
+				assertTrue(s.getRule().getRight() >= 0);
+			}
+		}
 	}
 }
