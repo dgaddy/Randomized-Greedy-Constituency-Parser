@@ -13,6 +13,7 @@ import java.util.concurrent.Future;
 
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
+import constituencyParser.TreeNode.Bracket;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 
@@ -21,7 +22,7 @@ import constituencyParser.features.Features;
  */
 public class Test {
 	public static void main(String[] args) throws Exception {
-		OptionParser parser = new OptionParser("m:d:s:t:i:");
+		OptionParser parser = new OptionParser("m:d:s:t:i:w:z");
 		OptionSet options = parser.parse(args);
 		
 		String modelFile = "";
@@ -29,6 +30,8 @@ public class Test {
 		boolean secondOrder = true;
 		int numberOfThreads = 1;
 		int greedyIterations = 100;
+		int section = 0;
+		boolean useRandGreedy = true;
 		
 		if(options.has("m")) {
 			modelFile = (String)options.valueOf("m");
@@ -45,6 +48,13 @@ public class Test {
 		if(options.has("i")) {
 			greedyIterations = Integer.parseInt((String)options.valueOf("i"));
 		}
+		if(options.has("w")) {
+			section = Integer.parseInt((String)options.valueOf("w"));
+		}
+		if(options.has("z")) {
+			useRandGreedy = false;
+			secondOrder = false;
+		}
 
 		SaveObject savedModel = SaveObject.loadSaveObject(modelFile);
 
@@ -53,10 +63,10 @@ public class Test {
 		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 
-		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, 1, numberOfThreads, true);
+		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, 1, numberOfThreads, useRandGreedy, section);
 	}
 
-	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, boolean useRandGreedy) throws IOException {
+	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, boolean useRandGreedy, int section) throws IOException {
 		Decoder decoder;
 		if(useRandGreedy) {
 			RandomizedGreedyDecoder rg = new RandomizedGreedyDecoder(words, labels, rules, threads);
@@ -66,7 +76,7 @@ public class Test {
 		else
 			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
-		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, 23, 24, words, labels, rules, false);
+		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, section, section + 1, words, labels, rules, false);
 		int number = (int)(gold.size() * fractionOfData);
 		gold = gold.subList(0, number);
 		
@@ -82,11 +92,15 @@ public class Test {
 
 			List<Span> result = decoder.decode(example.getWords(), parameters);
 			writer.writeTree(new SpannedWords(result, example.getWords()));
-
-			for(Span span : result) {
-				for(Span goldSpan : example.getSpans()) {
-					if(span.getStart() == goldSpan.getStart() && span.getEnd() == goldSpan.getEnd() && span.getRule().getLabel() == goldSpan.getRule().getLabel())
+			
+			List<Bracket> goldBrackets = TreeNode.makeTreeFromSpans(example.getSpans(), example.getWords(), words, labels).unbinarize().getAllBrackets();
+			List<Bracket> resultBrackets = TreeNode.makeTreeFromSpans(result, example.getWords(), words, labels).unbinarize().getAllBrackets();
+			
+			for(Bracket b : resultBrackets) {
+				for(Bracket g : goldBrackets) {
+					if(b.equals(g)) {
 						numberCorrect++;
+					}
 				}
 			}
 			
@@ -100,8 +114,8 @@ public class Test {
 				System.out.println("Gold score higher than predicted, but was not found. " + goldScore + " " + decoder.getLastScore());
 			}
 
-			numberGold += example.getSpans().size();
-			numberOutput += result.size();
+			numberGold += goldBrackets.size();
+			numberOutput += resultBrackets.size();
 		}
 		writer.close();
 		double precision = numberCorrect / (double)numberOutput;

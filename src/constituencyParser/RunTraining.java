@@ -130,7 +130,7 @@ public class RunTraining {
 			pa.train(examples, dropout, secondOrder, costAugmenting, batchSize);
 			params = pa.getParameters();
 			
-			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .1, cores, useRandGreedy);
+			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .1, cores, useRandGreedy, 0);
 			
 			SaveObject so = new SaveObject(words, labels, rules, params);
 			so.save(outputFolder + "/modelIteration"+i);
@@ -258,7 +258,7 @@ public class RunTraining {
 			
 			shared = FeatureParameters.average(finalParams);
 			
-			Test.test(words, labels, rules, shared, dataFolder, secondOrder, 100, .1, 1, true);
+			Test.test(words, labels, rules, shared, dataFolder, secondOrder, 100, .1, 1, true, 0);
 			
 			SaveObject so = new SaveObject(words, labels, rules, shared);
 			so.save(outputFolder + "/modelIteration"+i);

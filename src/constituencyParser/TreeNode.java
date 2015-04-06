@@ -126,6 +126,64 @@ public class TreeNode {
 		}
 	}
 	
+	public static class Bracket {
+		int start;
+		int end;
+		String label;
+		boolean unary;
+		
+		public Bracket(int s, int e, String l, boolean u) {
+			start = s;
+			end = e;
+			label = l;
+			unary = u;
+		}
+		
+		@Override
+		public boolean equals(Object other) {
+			if(other instanceof Bracket) {
+				Bracket ob = (Bracket)other;
+				return ob.start == start && ob.end == end && ob.label.equals(label) && ob.unary == unary;
+			}
+			return false;
+		}
+		
+		@Override
+		public int hashCode() {
+			return start + end + label.hashCode();
+		}
+		
+		@Override
+		public String toString() {
+			return start + " " + end + " " + label;
+		}
+	}
+	
+	public List<Bracket> getAllBrackets() {
+		List<Bracket> result = new ArrayList<>();
+		getAllBrackets(result, 0);
+		return result;
+	}
+	
+	private int getAllBrackets(List<Bracket> result, int start) {
+		if(isWord)
+			return start + 1;
+		else {
+			boolean punctuation = Arrays.asList("''", ":", "#", ",", ".", "``", "-LRB-", "-", "-RRB-").contains(label);
+			if(punctuation)
+				return start;
+			
+			int i = start;
+			for(TreeNode child : children) {
+				i = child.getAllBrackets(result, i);
+			}
+			
+			if(!(children.size() == 1 && children.get(0).isWord))
+				result.add(new Bracket(start, i, label, children.size() == 1));
+			return i;
+		}
+	}
+	
 	public SpannedWords getSpans(WordEnumeration words, LabelEnumeration labels) {
 		if(isWord)
 			return new SpannedWords(words.getWord(word));
