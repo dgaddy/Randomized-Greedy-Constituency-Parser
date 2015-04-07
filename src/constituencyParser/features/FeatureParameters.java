@@ -18,7 +18,7 @@ import constituencyParser.WordEnumeration;
 
 public class FeatureParameters implements Serializable {
 	private static final long serialVersionUID = 2L;
-	private static final double DELTA = 1e-4;
+	private static final double DELTA = 1e-5;
 	
 	TLongIntHashMap featureIndices;
 	
@@ -120,9 +120,10 @@ public class FeatureParameters implements Serializable {
 			double newGradSquared = gradientsSquared.getQuick(i) + adjustment*adjustment;
 			gradientsSquared.setQuick(i, newGradSquared);
 			
-			double s = Math.sqrt(newGradSquared);
+			double s = Math.sqrt(newGradSquared + DELTA);
 			double oldVal = featureValues.getQuick(i);
-			double newVal = (s * oldVal - learningRate * adjustment) / (learningRate * regularization + DELTA + s);
+			//double newVal = (s * oldVal - learningRate * adjustment) / (learningRate * regularization + DELTA + s);
+			double newVal = oldVal * (1.0 - regularization) - learningRate * adjustment / s;
 			
 			featureValues.setQuick(i, newVal);
 		}

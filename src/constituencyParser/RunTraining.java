@@ -30,8 +30,8 @@ public class RunTraining {
 		double percentOfData = 1;
 		double learningRate = 1;
 		int batchSize = 1;
-		double regularization = 0;
-		double dropout = .5;
+		double regularization = 0.01;
+		double dropout = 0.0;
 		boolean randGreedy = true;
 		boolean noNegativeFeatures = false;
 		
@@ -83,6 +83,16 @@ public class RunTraining {
 		System.out.println("Running training with " + cores + " cores for " + iterations + " iterations.");
 		System.out.println("Data directory: " + dataFolder);
 		System.out.println("Output directory: " + outputFolder);
+		System.out.println("Cores: " + cores);
+		System.out.println("Iteration: " + iterations);
+		System.out.println("secondOrder: " + secondOrder);
+		System.out.println("costAugmenting: " + costAugmenting);
+		System.out.println("learningRate: " + learningRate);
+		System.out.println("batchSize: " + batchSize);
+		System.out.println("regularization: " + regularization);
+		System.out.println("dropout: " + dropout);
+		System.out.println("noNegativeFeatures: " + noNegativeFeatures);
+		System.out.println("randGreedy: " + randGreedy);
 		if(startModel != null)
 			System.out.println("starting from " + startModel);
 		if(percentOfData < 1)
@@ -105,18 +115,26 @@ public class RunTraining {
 			params = start.getParameters();
 		}
 		
+		System.out.println("load data... ");
+		
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles(dataFolder, 2,22, words, labels, rules, true); // use only between 2 and 21 for training
 		if(percentOfData < 1) {
 			examples = new ArrayList<>(examples.subList(0, (int)(examples.size() * percentOfData)));
 		}
 		
+		System.out.println("build alphabet...");
 		if(noNegativeFeatures) {
+			int cnt = 0;
 			for(SpannedWords ex : examples) {
+				cnt++;
+				if (cnt % 1000 == 0)
+					System.out.print("  " + cnt);
 				List<Long> features = Features.getAllFeatures(ex.getSpans(), ex.getWords(), secondOrder, words, labels, rules);
 				params.ensureContainsFeatures(features);
 			}
 			params.stopAddingFeatures();
 		}
+		System.out.println(" Done.");
 		
 		Decoder decoder;
 		if(useRandGreedy)
@@ -127,10 +145,11 @@ public class RunTraining {
 		Train pa = new Train(words, labels, rules, decoder, params);
 		
 		for(int i = 0; i < iterations; i++) {
+			System.out.println("Iteration " + i + ":");
 			pa.train(examples, dropout, secondOrder, costAugmenting, batchSize);
 			params = pa.getParameters();
 			
-			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .1, cores, useRandGreedy, 0);
+			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .3, cores, useRandGreedy, 0);
 			
 			SaveObject so = new SaveObject(words, labels, rules, params);
 			so.save(outputFolder + "/modelIteration"+i);

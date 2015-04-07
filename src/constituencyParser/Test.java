@@ -87,7 +87,12 @@ public class Test {
 		int numberOutput = 0;
 		
 		PennTreebankWriter writer = new PennTreebankWriter("output.tst", words, labels, false);
+		int cnt = 0;
 		for(SpannedWords example : gold) {
+			cnt++;
+			if (cnt % 10 == 0)
+				System.out.print("  " + cnt);
+			
 			decoder.setSecondOrder(secondOrder);
 
 			List<Span> result = decoder.decode(example.getWords(), parameters);
@@ -117,6 +122,7 @@ public class Test {
 			numberGold += goldBrackets.size();
 			numberOutput += resultBrackets.size();
 		}
+		System.out.println();
 		writer.close();
 		double precision = numberCorrect / (double)numberOutput;
 		double recall = numberCorrect / (double)numberGold;

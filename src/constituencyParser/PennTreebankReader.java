@@ -189,6 +189,7 @@ public class PennTreebankReader implements Closeable {
 		
 		HashMap<String, Integer> wordCounts = new HashMap<>();
 		for(int i = firstFile; i < lastFile; i++) {
+			System.out.print(" " + i);
 			String fileName = String.format(formatString, i);
 			PennTreebankReader reader = new PennTreebankReader(fileName);
 			TreeNode tree;
@@ -212,6 +213,7 @@ public class PennTreebankReader implements Closeable {
 			
 			reader.close();
 		}
+		System.out.println(" Done.");
 		if(training)
 			words.addTrainingWords(wordCounts);
 		

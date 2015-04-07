@@ -11,7 +11,7 @@ import constituencyParser.features.FirstOrderFeatureHolder;
  * A sampler of parse trees based on DiscriminativeCKYDecoder
  */
 public class DiscriminativeCKYSampler {
-	private static final double PRUNE_THRESHOLD = 10;
+	private static final double PRUNE_THRESHOLD = 5;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
