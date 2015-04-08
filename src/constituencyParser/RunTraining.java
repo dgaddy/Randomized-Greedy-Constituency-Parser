@@ -146,13 +146,15 @@ public class RunTraining {
 		
 		for(int i = 0; i < iterations; i++) {
 			System.out.println("Iteration " + i + ":");
-			pa.train(examples, dropout, secondOrder, costAugmenting, batchSize);
+			pa.train(examples, dropout, secondOrder, costAugmenting, batchSize, i);
 			params = pa.getParameters();
 			
+			params.averageParameters((i + 1) * examples.size());
 			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .3, cores, useRandGreedy, 0);
 			
 			SaveObject so = new SaveObject(words, labels, rules, params);
 			so.save(outputFolder + "/modelIteration"+i);
+			params.unaverageParameters();
 		}
 	}
 	
@@ -194,7 +196,7 @@ public class RunTraining {
 			RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules, 1);
 			Train pa = new Train(words, labels, rules, decoder, initialParams);
 			try {
-				pa.train(data, dropout, secondOrder, costAugmenting, 1);
+				pa.train(data, dropout, secondOrder, costAugmenting, 1, 0);
 			}
 			catch(Exception ex) {
 				ex.printStackTrace(); //because otherwise exceptions get caught by the executor and don't give a stack trace

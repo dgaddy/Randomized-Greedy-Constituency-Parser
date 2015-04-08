@@ -91,6 +91,7 @@ public class DiscriminativeCKYDecoder implements Decoder {
 						double leftChildScore = leftScore[rule.getLeft()];
 						double rightChildScore = rightScore[rule.getRight()];
 						if(leftChildScore + PRUNE_THRESHOLD < leftMax || rightChildScore + PRUNE_THRESHOLD < rightMax
+								//|| leftChildScore + rightChildScore + PRUNE_THRESHOLD < scores[start][end][label])
 								|| leftChildScore + rightChildScore + PRUNE_THRESHOLD < max[start][end])
 							continue;
 						
