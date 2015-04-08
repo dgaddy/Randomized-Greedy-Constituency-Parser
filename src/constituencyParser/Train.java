@@ -32,14 +32,16 @@ public class Train {
 		this.parameters = parameters;
 	}
 	
-	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, int batchSize) {
+	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, int batchSize, int iters) {
 		int totalLoss = 0;
 		int index = 0;
-		parameters.resetDropout(dropout);
+		int N = trainingExamples.size();
+		
+		//parameters.resetDropout(dropout);
 		System.out.println(trainingExamples.size());
 		while(index < trainingExamples.size()) {
 
-			TLongDoubleHashMap features = new TLongDoubleHashMap();
+			//TLongDoubleHashMap features = new TLongDoubleHashMap();
 			
 			for(int b = 0; b < batchSize && index < trainingExamples.size(); b++, index++) {
 				if ((index + 1) % 10 == 0)
@@ -71,6 +73,8 @@ public class Train {
 				totalLoss += loss;
 				
 				if(loss > 0) {
+					TLongDoubleHashMap features = new TLongDoubleHashMap();
+					
 					//System.out.println("ccc");
 					List<Span> gold = sw.getSpans();
 					
@@ -122,11 +126,25 @@ public class Train {
 						System.out.println("Warning: Gold score greater than predicted score, but decoder didn't find it");
 						System.out.println("Gold score: " + goldScore + " predicted: " + predictedScore + " " + augmentingScore);
 					}
+					
+					augmentingScore = 0;
+					for(Span s : predicted) {
+						boolean inGold = false;
+						for(Span gs : gold) {
+							if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
+								inGold = true;
+							}
+						}
+						if(!inGold) {
+							augmentingScore++;
+						}
+					}
+					parameters.updateMIRA(features, augmentingScore + predictedScore - goldScore, iters * N + index + 1);
 				}
 				//System.out.println("ddd");
 			}
 			
-			parameters.update(features);
+			//parameters.update(features);
 			//System.out.println("eee");
 		}
 		//checkParameterSanity();
