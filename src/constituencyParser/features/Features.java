@@ -105,10 +105,9 @@ public class Features {
 			return labels.getLabel(label) + " " + SpanProperties.getSpanPropertyCodeString(spanPropertyCode, words);
 		}
 		else if(type == FeatureType.SECOND_ORDER_RULE) {
-			int childLabel = extractBits(code, 52, 32);
-			int label = extractBits(code, 32, 16);
-			int parentLabel = extractBits(code, 16, 0);
-			return labels.getLabel(parentLabel) + " " + labels.getLabel(label) + " " + labels.getLabel(childLabel);
+			int ruleCode = extractBits(code, 20, 0);
+			int parentLabel = extractBits(code, 52, 20);
+			return labels.getLabel(parentLabel) + " " + rules.getRuleFromCode(ruleCode);
 		}
 		else
 			return "type " + type +" is invalid";
