@@ -4,7 +4,6 @@ import gnu.trove.map.hash.TLongDoubleHashMap;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -152,6 +151,7 @@ public class Train {
 		System.out.println("Finished; Average loss: " + (totalLoss / (double)trainingExamples.size()));
 	}
 	
+	@SuppressWarnings("unused")
 	private void checkParameterSanity() {
 		try {
 			FileWriter writer = new FileWriter("second_order_features");
