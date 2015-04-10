@@ -80,14 +80,19 @@ public class Test {
 		int number = (int)(gold.size() * fractionOfData);
 		gold = gold.subList(0, number);
 		
-		parameters.resetDropout(0);
+		//parameters.resetDropout(0);
 
 		int numberCorrect = 0;
 		int numberGold = 0;
 		int numberOutput = 0;
 		
 		PennTreebankWriter writer = new PennTreebankWriter("output.tst", words, labels, false);
+		int cnt = 0;
 		for(SpannedWords example : gold) {
+			cnt++;
+			if (cnt % 10 == 0)
+				System.out.print("  " + cnt);
+			
 			decoder.setSecondOrder(secondOrder);
 
 			List<Span> result = decoder.decode(example.getWords(), parameters);
@@ -117,6 +122,7 @@ public class Test {
 			numberGold += goldBrackets.size();
 			numberOutput += resultBrackets.size();
 		}
+		System.out.println();
 		writer.close();
 		double precision = numberCorrect / (double)numberOutput;
 		double recall = numberCorrect / (double)numberGold;
@@ -275,7 +281,7 @@ public class Test {
 			// run passive aggressive on the first example
 			DiscriminativeCKYDecoder decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 			Train pa = new Train(words, labels, rules, decoder, params);
-			pa.train(examples.subList(0, 1), .05, false, false, 1);
+			pa.train(examples.subList(0, 1), .05, false, false, 1, 0);
 
 			// the first example should now classify correctly
 			//List<Span> result = decoder.decode(examples.get(0).getWords(), params);

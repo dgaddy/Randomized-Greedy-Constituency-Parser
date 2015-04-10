@@ -18,7 +18,7 @@ import constituencyParser.WordEnumeration;
 
 public class FeatureParameters implements Serializable {
 	private static final long serialVersionUID = 2L;
-	private static final double DELTA = 1e-4;
+	private static final double DELTA = 1e-5;
 	
 	TLongIntHashMap featureIndices;
 	
@@ -28,6 +28,9 @@ public class FeatureParameters implements Serializable {
 	TDoubleArrayList gradientsSquared = new TDoubleArrayList();
 	transient TIntArrayList dropout; // 1 if should drop, 0 if should keep
 	boolean dontMakeNewFeatures = false;
+	
+	TDoubleArrayList featureValuesTotal = new TDoubleArrayList();
+	TDoubleArrayList featureValuesBak = new TDoubleArrayList();
 	
 	public FeatureParameters(double learningRate, double regularization) {
 		featureIndices = new TLongIntHashMap(500, 0.2f, 0, -1);
@@ -48,6 +51,7 @@ public class FeatureParameters implements Serializable {
 		});
 		featureValues = new TDoubleArrayList(other.featureValues);
 		gradientsSquared = new TDoubleArrayList(other.gradientsSquared);
+		featureValuesTotal = new TDoubleArrayList(other.featureValuesTotal);
 	}
 	
 	/**
@@ -116,16 +120,90 @@ public class FeatureParameters implements Serializable {
 		});
 		
 		for(int i = 0; i < featureValues.size(); i++) {
-			double adjustment = updates.get(i);
+			double oldVal = featureValues.getQuick(i);
+			double adjustment = updates.get(i) + regularization * oldVal;
 			double newGradSquared = gradientsSquared.getQuick(i) + adjustment*adjustment;
 			gradientsSquared.setQuick(i, newGradSquared);
 			
-			double s = Math.sqrt(newGradSquared);
-			double oldVal = featureValues.getQuick(i);
-			double newVal = (s * oldVal - learningRate * adjustment) / (learningRate * regularization + DELTA + s);
+			double s = Math.sqrt(newGradSquared + DELTA);
+			//double newVal = (s * oldVal - learningRate * adjustment) / (learningRate * regularization + DELTA + s);
+			double newVal = oldVal - learningRate * adjustment / s;
 			
 			featureValues.setQuick(i, newVal);
 		}
+	}
+	
+	public void updateMIRA(TLongDoubleMap featureUpdates, double loss, int upd) {
+		final TIntArrayList idx = new TIntArrayList(featureUpdates.size());
+		final TDoubleArrayList val = new TDoubleArrayList(featureUpdates.size());
+		/*
+		featureUpdates.forEachEntry(new TLongDoubleProcedure() {
+			@Override
+			public boolean execute(long key, double value) {
+				if (Math.abs(value) < 1e-6)
+					return true;
+				
+				int index = getOrMakeIndex(key);
+				if(index == -1)
+					return true;
+				
+				idx.add(index);
+				val.add(value);
+
+				return true;
+			}
+		});*/
+		for (long k : featureUpdates.keys()) {
+			double v = featureUpdates.get(k);
+			if (Math.abs(v) < 1e-6)
+				continue;
+			
+			int index = getOrMakeIndex(k);
+			if (index == -1)
+				continue;
+			
+			idx.add(index);
+			val.add(v);
+		}
+		
+		//System.out.println("loss: " + loss);
+		double norm = 0.0;
+		for (int i = 0, L = val.size(); i < L; ++i) {
+			double v = val.getQuick(i);
+			norm += v * v;
+		}
+		double alpha = loss / norm;
+		alpha = Math.min(0.1, alpha);
+		if (alpha > 0) {
+			//System.out.println("alpha: " + norm + " " + alpha);
+			for (int i = 0, L = val.size(); i < L; ++i) {
+				int index = idx.getQuick(i);
+				double oldVal = featureValues.getQuick(index);
+				double delta = alpha * val.getQuick(i);
+				featureValues.setQuick(index, oldVal - delta);
+				
+				oldVal = featureValuesTotal.getQuick(index);
+				delta = delta * upd;
+				featureValuesTotal.setQuick(index, oldVal - delta);
+			}
+		}
+	}
+	
+	public void averageParameters(int T) 
+	{
+		featureValuesBak = featureValues;
+		int size = featureValues.size();
+		TDoubleArrayList avg = new TDoubleArrayList(size);
+		
+		for (int i = 0; i < size; ++i) {
+			avg.add((featureValues.getQuick(i) * (T+1) - featureValuesTotal.getQuick(i))/T);			
+		}		
+		featureValues = avg;
+	}
+	
+	public void unaverageParameters() 
+	{
+		featureValues = featureValuesBak;
 	}
 	
 	private int getOrMakeIndex(long key) {
@@ -137,6 +215,7 @@ public class FeatureParameters implements Serializable {
 			index = featureValues.size();
 			featureValues.add(0);
 			gradientsSquared.add(0);
+			featureValuesTotal.add(0);
 			featureIndices.put(key, index);
 		}
 		else

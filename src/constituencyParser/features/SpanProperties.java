@@ -97,7 +97,7 @@ public class SpanProperties {
 	 * @return
 	 */
 	public static long getWordPropertyCode(Word word, WordPropertyType type) {
-		return (1L << 28L) + (((long)type.ordinal()) << 24L) + word.getId();
+		return ((1L << 28L) | (((long)type.ordinal()) << 24L)) | word.getId();
 	}
 	
 	/**
@@ -115,15 +115,15 @@ public class SpanProperties {
 		else
 			length = 8;
 		
-		return (2L << 28L) + length;
+		return (2L << 28L) | length;
 	}
 	
 	public static long getPrefixPropertyCode(int prefix) {
-		return (3L << 28L) + (1L << 24L) + prefix;
+		return ((3L << 28L) | (1L << 24L)) | prefix;
 	}
 	
 	public static long getSuffixPropertyCode(int suffix) {
-		return (3L << 28L) + (2L << 24L) + suffix;
+		return ((3L << 28L) | (2L << 24L)) | suffix;
 	}
 	
 	public static String getSpanPropertyCodeString(long code, WordEnumeration words) {

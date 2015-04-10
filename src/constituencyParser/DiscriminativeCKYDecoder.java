@@ -1,6 +1,7 @@
 package constituencyParser;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import constituencyParser.features.FeatureParameters;
@@ -11,7 +12,7 @@ import constituencyParser.features.FirstOrderFeatureHolder;
 Klein, ACL 14 (http://www.cs.berkeley.edu/ dlwh/papers/spanparser.pdf)
  */
 public class DiscriminativeCKYDecoder implements Decoder {
-	private static final double PRUNE_THRESHOLD = 10;
+	private static final double PRUNE_THRESHOLD = 5;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
@@ -35,11 +36,16 @@ public class DiscriminativeCKYDecoder implements Decoder {
 	double lastScore = 0;
 	
 	public List<Span> decode(List<Word> words, FeatureParameters params) {
+		//System.out.println("Check 1");
 		firstOrderFeatures.fillScoreArrays(words, params);
+		//System.out.println("Check 2");
 		
 		int wordsSize = words.size();
 		int labelsSize = labels.getNumberOfLabels();
 		int rulesSize = rules.getNumberOfBinaryRules();
+		
+		//System.out.println(labelsSize + " " + rulesSize);
+		
 		scores = new double[wordsSize][wordsSize+1][labelsSize];
 		for(int i = 0; i < wordsSize; i++)
 			for(int j = 0; j < wordsSize+1; j++)
@@ -54,26 +60,42 @@ public class DiscriminativeCKYDecoder implements Decoder {
 				spans[i][i+1][label] = span;
 			}
 			
-			doUnary(words, i, i+1, params);
+			doUnary(words, i, i+1, Double.POSITIVE_INFINITY, params);
 		}
 		
+		//System.out.println("Check 3");
 		double[][] max = new double[wordsSize][wordsSize+1];
 		for(int length = 2; length < wordsSize + 1; length++) {
 			for(int start = 0; start < wordsSize + 1 - length; start++) {
-				max[start][start+length] = Double.NEGATIVE_INFINITY;
+				int end = start + length;
+				max[start][end] = Double.NEGATIVE_INFINITY;
+				//int cnt = 0;
+				
 				for(int split = 1; split < length; split++) {
-					int end = start + length;
 					int splitLocation = start + split;
 					
+					double leftMax = max[start][splitLocation];
+					double rightMax = max[splitLocation][end];
+					
+					if (leftMax + rightMax + PRUNE_THRESHOLD < max[start][end])
+						continue;
+					
+					double[] leftScore = scores[start][splitLocation];
+					double[] rightScore = scores[splitLocation][end];
+
 					for(int r = 0; r < rulesSize; r++) {
 
 						Rule rule = rules.getBinaryRule(r);
 						int label = rule.getLabel();
 						
-						double leftChildScore = scores[start][splitLocation][rule.getLeft()];
-						double rightChildScore = scores[splitLocation][end][rule.getRight()];
-						if(leftChildScore < max[start][splitLocation] - PRUNE_THRESHOLD || rightChildScore < max[splitLocation][end] - PRUNE_THRESHOLD)
+						double leftChildScore = leftScore[rule.getLeft()];
+						double rightChildScore = rightScore[rule.getRight()];
+						if(leftChildScore + PRUNE_THRESHOLD < leftMax || rightChildScore + PRUNE_THRESHOLD < rightMax
+								//|| leftChildScore + rightChildScore + PRUNE_THRESHOLD < scores[start][end][label])
+								|| leftChildScore + rightChildScore + PRUNE_THRESHOLD < max[start][end])
 							continue;
+						
+						//cnt++;
 						
 						double spanScore = firstOrderFeatures.scoreBinary(start, end, splitLocation, r);
 						
@@ -92,9 +114,12 @@ public class DiscriminativeCKYDecoder implements Decoder {
 					}
 				}
 				
-				doUnary(words, start, start + length, params);
+				//System.out.println((cnt + 0.0) / (length - 1) / rulesSize);
+
+				doUnary(words, start, end, max[start][end], params);
 			}
 		}
+		//System.out.println("Check 4");
 		
 		double bestScore = Double.NEGATIVE_INFINITY;
 		Span bestSpan = null;
@@ -111,6 +136,8 @@ public class DiscriminativeCKYDecoder implements Decoder {
 			getUsedSpans(bestSpan);
 		
 		lastScore = bestScore;
+		//System.out.println("Check 5");
+		//System.out.println(lastScore);
 		
 		return usedSpans;
 	}
@@ -119,13 +146,14 @@ public class DiscriminativeCKYDecoder implements Decoder {
 		return lastScore;
 	}
 	
-	private void doUnary(List<Word> words, int start, int end, FeatureParameters parameters) {
+	private void doUnary(List<Word> words, int start, int end, double thresh, FeatureParameters parameters) {
 		int numUnaryRules = rules.getNumberOfUnaryRules();
 		int numLabels = labels.getNumberOfLabels();
 		
 		double[] unaryScores = new double[numLabels];
-		for(int i = 0; i < numLabels; i++)
-			unaryScores[i] = Double.NEGATIVE_INFINITY;
+		//for(int i = 0; i < numLabels; i++)
+		//	unaryScores[i] = Double.NEGATIVE_INFINITY;
+		Arrays.fill(unaryScores, Double.NEGATIVE_INFINITY);
 		Span[] unarySpans = new Span[numLabels];
 		
 		for(int i = 0; i < numUnaryRules; i++) {
@@ -133,6 +161,11 @@ public class DiscriminativeCKYDecoder implements Decoder {
 			int label = rule.getLabel();
 			
 			double childScore = scores[start][end][rule.getLeft()];
+			
+			if (childScore < scores[start][end][label] - PRUNE_THRESHOLD)
+			//if (childScore + PRUNE_THRESHOLD < thresh)
+				continue;
+			
 			double spanScore = firstOrderFeatures.scoreUnary(start, end, i);
 			double fullScore = childScore + spanScore;
 			if(fullScore > unaryScores[label]) {

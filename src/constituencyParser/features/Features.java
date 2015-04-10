@@ -40,7 +40,7 @@ public class Features {
 	 * @return
 	 */
 	public static long getSpanPropertyByRuleFeature(long spanPropertyCode, long ruleCode) {
-		return getCodeBase(FeatureType.SPAN_PROPERY_BY_RULE) + (ruleCode << 32L) + spanPropertyCode;
+		return (getCodeBase(FeatureType.SPAN_PROPERY_BY_RULE) | (ruleCode << 32L)) | spanPropertyCode;
 	}
 	
 	/**
@@ -49,7 +49,7 @@ public class Features {
 	 * @return
 	 */
 	public static long getRuleFeature(long ruleCode) {
-		return getCodeBase(FeatureType.RULE) + ruleCode;
+		return getCodeBase(FeatureType.RULE) | ruleCode;
 	}
 	
 	/**
@@ -59,7 +59,7 @@ public class Features {
 	 * @return
 	 */
 	public static long getSpanPropertyByLabelFeature(long spanPropertyCode, long label) {
-		return getCodeBase(FeatureType.SPAN_PROPERTY_BY_LABEL) + (label << 32L) + spanPropertyCode;
+		return (getCodeBase(FeatureType.SPAN_PROPERTY_BY_LABEL) | (label << 32L)) | spanPropertyCode;
 	}
 	
 	/**
@@ -70,11 +70,11 @@ public class Features {
 	 * @return
 	 */
 	public static long getSecondOrderRuleFeature(long ruleCode, long parentLabel) {
-		return getCodeBase(FeatureType.SECOND_ORDER_RULE) + (parentLabel << 20L) + ruleCode;
+		return (getCodeBase(FeatureType.SECOND_ORDER_RULE) | (parentLabel << 20L)) | ruleCode;
 	}
 	
 	public static long getSecondOrderSpanPropertyByRuleFeature(long spanPropertyCode, long ruleCode, long parentLabel) {
-		return getCodeBase(FeatureType.SECOND_ORDER_PROPERTY_BY_RULE) + (ruleCode << 41L) + (parentLabel << 32) + spanPropertyCode;
+		return ((getCodeBase(FeatureType.SECOND_ORDER_PROPERTY_BY_RULE) | (ruleCode << 41L)) | (parentLabel << 32)) | spanPropertyCode;
 	}
 	
 	public static boolean isSecondOrderFeature(long code) {
