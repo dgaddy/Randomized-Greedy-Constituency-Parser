@@ -4,6 +4,7 @@ import gnu.trove.map.hash.TLongDoubleHashMap;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -31,16 +32,21 @@ public class Train {
 		this.parameters = parameters;
 	}
 	
-	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, int batchSize, int iters) {
+	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, int batchSize, int iters, boolean mira) {
 		int totalLoss = 0;
+		int updateNumber = 0;
 		int index = 0;
 		int N = trainingExamples.size();
 		
 		//parameters.resetDropout(dropout);
-		System.out.println(trainingExamples.size());
+		System.out.println("Number of training examples: " + trainingExamples.size());
 		while(index < trainingExamples.size()) {
 
-			//TLongDoubleHashMap features = new TLongDoubleHashMap();
+			TLongDoubleHashMap features = new TLongDoubleHashMap();
+			parameters.resetDropout(dropout);
+			
+			double batchPredictedScore = 0;
+			double batchGoldScore = 0;
 			
 			for(int b = 0; b < batchSize && index < trainingExamples.size(); b++, index++) {
 				if ((index + 1) % 10 == 0)
@@ -56,25 +62,18 @@ public class Train {
 				decoder.setCostAugmenting(costAugmenting, sw);
 				decoder.setSecondOrder(doSecondOrder);
 				List<Span> predicted;
-				//System.out.println("aaa");
-				//int tmp = parameters.getStoredFeatures().size(); 
-				//if(tmp == 0) {
-				//	System.out.println("???");
-				//	predicted = new ArrayList<>();
-				//}
-				//else {
-				//	System.out.println(tmp);
+				 
+				if(parameters.getStoredFeatures().size() == 0) {
+					predicted = new ArrayList<>(); // don't run decoder if no features, since it won't be doing anything useful anyway, and runs a lot slower
+				}
+				else {
 					predicted = decoder.decode(words, parameters);
-				//}
-				
-				//System.out.println("bbb");
+				}
+			
 				int loss = computeLoss(predicted, sw.getSpans()); 
 				totalLoss += loss;
 				
 				if(loss > 0) {
-					TLongDoubleHashMap features = new TLongDoubleHashMap();
-					
-					//System.out.println("ccc");
 					List<Span> gold = sw.getSpans();
 					
 					// positive
@@ -125,26 +124,16 @@ public class Train {
 						System.out.println("Warning: Gold score greater than predicted score, but decoder didn't find it");
 						System.out.println("Gold score: " + goldScore + " predicted: " + predictedScore + " " + augmentingScore);
 					}
-					
-					augmentingScore = 0;
-					for(Span s : predicted) {
-						boolean inGold = false;
-						for(Span gs : gold) {
-							if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
-								inGold = true;
-							}
-						}
-						if(!inGold) {
-							augmentingScore++;
-						}
-					}
-					parameters.updateMIRA(features, augmentingScore + predictedScore - goldScore, iters * N + index + 1);
 				}
-				//System.out.println("ddd");
 			}
 			
-			//parameters.update(features);
-			//System.out.println("eee");
+			updateNumber++;
+			if(mira) {
+				int miraCount = (iters * (N / batchSize + (N%batchSize > 0 ? 1 : 0)) + updateNumber);
+				parameters.updateMIRA(features, batchPredictedScore - batchGoldScore, miraCount);
+			}
+			else
+				parameters.update(features);
 		}
 		//checkParameterSanity();
 		

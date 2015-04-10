@@ -80,7 +80,7 @@ public class Test {
 		int number = (int)(gold.size() * fractionOfData);
 		gold = gold.subList(0, number);
 		
-		//parameters.resetDropout(0);
+		parameters.resetDropout(0); // this makes sure any dropout from training isn't used when we are testing
 
 		int numberCorrect = 0;
 		int numberGold = 0;
@@ -281,7 +281,7 @@ public class Test {
 			// run passive aggressive on the first example
 			DiscriminativeCKYDecoder decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 			Train pa = new Train(words, labels, rules, decoder, params);
-			pa.train(examples.subList(0, 1), .05, false, false, 1, 0);
+			pa.train(examples.subList(0, 1), .05, false, false, 1, 0, false);
 
 			// the first example should now classify correctly
 			//List<Span> result = decoder.decode(examples.get(0).getWords(), params);
