@@ -66,7 +66,7 @@ public class StatisticsCollector {
 		
 		{
 			System.out.println("From data shuffled numberings:");
-			WordEnumeration shuffledWords = new WordEnumeration();
+			WordEnumeration shuffledWords = new WordEnumeration(true);
 			LabelEnumeration shuffledLabels = new LabelEnumeration();
 			RuleEnumeration shuffledRules = new RuleEnumeration();
 			List<SpannedWords> shuffledExamples = PennTreebankReader.loadFromFiles(dataDir, 2, 22, shuffledWords, shuffledLabels, shuffledRules, true, true);

@@ -56,7 +56,7 @@ public class UnitTests {
 	@Test
 	public void testTreeNodeToSpanConversion() {
 		// check span creation
-		WordEnumeration words = new WordEnumeration();
+		WordEnumeration words = new WordEnumeration(true);
 		LabelEnumeration labels = new LabelEnumeration();
 		TreeNode tree = new TreeNode("S", new TreeNode("N", new TreeNode("word")), new TreeNode("VP", new TreeNode("V", new TreeNode("word2")), new TreeNode("N", new TreeNode("word3"))));
 		labels.addAllLabels(tree.getAllLabels()); 
@@ -74,7 +74,7 @@ public class UnitTests {
 		
 		// load section 2 from file
 		// assumes data is in "../WSJ data"
-		WordEnumeration words = new WordEnumeration();
+		WordEnumeration words = new WordEnumeration(true);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
 		PennTreebankReader.loadFromFiles("../WSJ data/", 2, 3, words, labels, rules, true);
@@ -107,7 +107,7 @@ public class UnitTests {
 	public void testFeatures() throws IOException {
 		// load section 2 from file
 		// assumes data is in "../WSJ data"
-		WordEnumeration words = new WordEnumeration();
+		WordEnumeration words = new WordEnumeration(true);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles("../WSJ data/", 2, 3, words, labels, rules, true);
@@ -207,7 +207,7 @@ public class UnitTests {
 	public void testGreedyChange() throws IOException {
 		// load section 2 from file
 		// assumes data is in "../WSJ data"
-		WordEnumeration words = new WordEnumeration();
+		WordEnumeration words = new WordEnumeration(true);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles("../WSJ data/", 2, 22, words, labels, rules, true);

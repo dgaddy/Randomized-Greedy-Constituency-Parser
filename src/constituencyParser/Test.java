@@ -275,7 +275,7 @@ public class Test {
 	}
 
 	public static void testPassiveAggressive() throws Exception {
-		WordEnumeration words = new WordEnumeration();
+		WordEnumeration words = new WordEnumeration(true);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles("../WSJ data/", 2, 3, words, labels, rules, false);
@@ -298,7 +298,7 @@ public class Test {
 
 	public static void testCKY() throws IOException {
 		String dataFolder = "../WSJ data/";
-		WordEnumeration words = new WordEnumeration();
+		WordEnumeration words = new WordEnumeration(true);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
 		CKYDecoder decoder = new CKYDecoder(words, labels, rules);

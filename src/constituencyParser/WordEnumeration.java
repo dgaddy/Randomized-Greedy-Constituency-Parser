@@ -11,6 +11,8 @@ import java.util.Map.Entry;
 public class WordEnumeration implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
+	boolean useSuffixes;
+	
 	HashMap<String, Integer> trainingSuffixCounts;
 	
 	List<String> idToWord = new ArrayList<>();
@@ -22,11 +24,14 @@ public class WordEnumeration implements Serializable {
 	List<String> idToSuffix = new ArrayList<>();
 	HashMap<String, Integer> suffixToId = new HashMap<>();
 	
-	public WordEnumeration() {
+	public WordEnumeration(boolean useSuffixes) {
+		this.useSuffixes = useSuffixes;
+		
 		getOrAddWordId("-UNK-");
 	}
 	
 	public WordEnumeration(WordEnumeration other) {
+		this.useSuffixes = other.useSuffixes;
 		trainingSuffixCounts = new HashMap<>(other.trainingSuffixCounts);
 		
 		this.idToWord = new ArrayList<>(other.idToWord);
@@ -50,19 +55,25 @@ public class WordEnumeration implements Serializable {
 		else {
 			trainingSuffixCounts = new HashMap<String, Integer>();
 			
-			for(Entry<String, Integer> entry : wordCounts.entrySet()) {
-				for(String suffix : getAllSuffixes(entry.getKey())) {
-					Integer currentCount = trainingSuffixCounts.get(suffix);
-					if(currentCount == null)
-						trainingSuffixCounts.put(suffix, entry.getValue());
-					else
-						trainingSuffixCounts.put(suffix, currentCount+entry.getValue());
+			if(useSuffixes) {
+				for(Entry<String, Integer> entry : wordCounts.entrySet()) {
+					for(String suffix : getAllSuffixes(entry.getKey())) {
+						Integer currentCount = trainingSuffixCounts.get(suffix);
+						if(currentCount == null)
+							trainingSuffixCounts.put(suffix, entry.getValue());
+						else
+							trainingSuffixCounts.put(suffix, currentCount+entry.getValue());
+					}
 				}
-			}
-			
-			for(Entry<String, Integer> entry : wordCounts.entrySet()) {
-				if(entry.getValue() >= 100) {
-					getOrAddWordId(entry.getKey()); // this should be the only place we add full words; the only other things that can get added are suffixes and UNK
+				
+				for(Entry<String, Integer> entry : wordCounts.entrySet()) {
+					if(entry.getValue() >= 100) {
+						getOrAddWordId(entry.getKey()); // this should be the only place we add full words; the only other things that can get added are suffixes and UNK
+					}
+				}
+			} else {
+				for(Entry<String, Integer> entry : wordCounts.entrySet()) {
+					getOrAddWordId(entry.getKey());
 				}
 			}
 		}
@@ -74,7 +85,7 @@ public class WordEnumeration implements Serializable {
 			id = getOrAddWordId("-NUM-");
 		else if(wordToId.containsKey(word))
 			id = wordToId.get(word);
-		else {
+		else if(useSuffixes){
 			for(String suffix : getAllSuffixes(word)) { // getAllSuffixes starts with largest (including full word)
 				Integer count = trainingSuffixCounts.get(suffix);
 				if(count != null && count >= 100) {

@@ -17,7 +17,7 @@ import constituencyParser.features.Features;
 
 public class RunTraining {
 	public static void main(String[] args) throws Exception {
-		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:znq");
+		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:znqu:");
 		OptionSet options = parser.parse(args);
 		
 		String dataFolder = "";
@@ -35,6 +35,7 @@ public class RunTraining {
 		boolean randGreedy = true;
 		boolean noNegativeFeatures = false;
 		boolean mira = false;
+		boolean useSuffixes = true;
 		
 		if(options.has("t")) {
 			dataFolder = (String)options.valueOf("t");
@@ -82,6 +83,9 @@ public class RunTraining {
 		if(options.has("q")) {
 			mira = true;
 		}
+		if(options.has("u")) {
+			useSuffixes = "t".equals(options.valueOf("u"));
+		}
 		
 		System.out.println("Running training with " + cores + " cores for " + iterations + " iterations.");
 		System.out.println("Data directory: " + dataFolder);
@@ -97,16 +101,17 @@ public class RunTraining {
 		System.out.println("noNegativeFeatures: " + noNegativeFeatures);
 		System.out.println("randGreedy: " + randGreedy);
 		System.out.println("mira: " + mira);
+		System.out.println("use suffixes: " + useSuffixes);
 		if(startModel != null)
 			System.out.println("starting from " + startModel);
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization, randGreedy, noNegativeFeatures, mira);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization, randGreedy, noNegativeFeatures, mira, useSuffixes);
 	}
 	
-	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization, boolean useRandGreedy, boolean noNegativeFeatures, boolean mira) throws IOException, ClassNotFoundException {
-		WordEnumeration words = new WordEnumeration();
+	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization, boolean useRandGreedy, boolean noNegativeFeatures, boolean mira, boolean useSuffixes) throws IOException, ClassNotFoundException {
+		WordEnumeration words = new WordEnumeration(useSuffixes);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
 		FeatureParameters params = new FeatureParameters(learningRate, regularization);
@@ -238,7 +243,7 @@ public class RunTraining {
 	 * @throws ClassNotFoundException
 	 */
 	public static void trainParallel(String dataFolder, String outputFolder, int numberThreads, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting) throws IOException, InterruptedException, ExecutionException, ClassNotFoundException {
-		WordEnumeration words = new WordEnumeration();
+		WordEnumeration words = new WordEnumeration(true);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
 		FeatureParameters shared = new FeatureParameters(1, 0);
