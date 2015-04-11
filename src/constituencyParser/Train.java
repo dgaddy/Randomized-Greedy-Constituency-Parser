@@ -141,7 +141,7 @@ public class Train {
 		//checkParameterSanity();
 		
 		decoder.setCostAugmenting(false, null);
-		decoder.setSecondOrder(false);
+		parameters.resetDropout(0);
 		System.out.println("Finished; Average loss: " + (totalLoss / (double)trainingExamples.size()));
 	}
 	

@@ -12,6 +12,7 @@ public class WordEnumeration implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	boolean useSuffixes;
+	int rareWordCutoff;
 	
 	HashMap<String, Integer> trainingSuffixCounts;
 	
@@ -24,14 +25,16 @@ public class WordEnumeration implements Serializable {
 	List<String> idToSuffix = new ArrayList<>();
 	HashMap<String, Integer> suffixToId = new HashMap<>();
 	
-	public WordEnumeration(boolean useSuffixes) {
+	public WordEnumeration(boolean useSuffixes, int rareWordCutoff) {
 		this.useSuffixes = useSuffixes;
+		this.rareWordCutoff = rareWordCutoff;
 		
 		getOrAddWordId("-UNK-");
 	}
 	
 	public WordEnumeration(WordEnumeration other) {
 		this.useSuffixes = other.useSuffixes;
+		this.rareWordCutoff = other.rareWordCutoff;
 		trainingSuffixCounts = new HashMap<>(other.trainingSuffixCounts);
 		
 		this.idToWord = new ArrayList<>(other.idToWord);
@@ -66,14 +69,11 @@ public class WordEnumeration implements Serializable {
 					}
 				}
 				
-				for(Entry<String, Integer> entry : wordCounts.entrySet()) {
-					if(entry.getValue() >= 100) {
-						getOrAddWordId(entry.getKey()); // this should be the only place we add full words; the only other things that can get added are suffixes and UNK
-					}
-				}
-			} else {
-				for(Entry<String, Integer> entry : wordCounts.entrySet()) {
-					getOrAddWordId(entry.getKey());
+				
+			}
+			for(Entry<String, Integer> entry : wordCounts.entrySet()) {
+				if(entry.getValue() >= rareWordCutoff) {
+					getOrAddWordId(entry.getKey()); // this should be the only place we add full words; the only other things that can get added are suffixes and UNK
 				}
 			}
 		}

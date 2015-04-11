@@ -99,12 +99,19 @@ public class Test {
 			if (cnt % 10 == 0)
 				System.out.print("  " + cnt);
 			
+
+			List<Bracket> goldBrackets = TreeNode.makeTreeFromSpans(example.getSpans(), example.getWords(), words, labels).unbinarize().getAllBrackets();
+			
 			decoder.setSecondOrder(secondOrder);
 
 			List<Span> result = decoder.decode(example.getWords(), parameters);
+			if(result.size() == 0) {
+				numberGold += goldBrackets.size();
+				continue;
+			}
+			
 			writer.writeTree(new SpannedWords(result, example.getWords()));
 			
-			List<Bracket> goldBrackets = TreeNode.makeTreeFromSpans(example.getSpans(), example.getWords(), words, labels).unbinarize().getAllBrackets();
 			List<Bracket> resultBrackets = TreeNode.makeTreeFromSpans(result, example.getWords(), words, labels).unbinarize().getAllBrackets();
 			
 			for(Bracket b : resultBrackets) {
@@ -275,7 +282,7 @@ public class Test {
 	}
 
 	public static void testPassiveAggressive() throws Exception {
-		WordEnumeration words = new WordEnumeration(true);
+		WordEnumeration words = new WordEnumeration(true, 100);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
 		List<SpannedWords> examples = PennTreebankReader.loadFromFiles("../WSJ data/", 2, 3, words, labels, rules, false);
@@ -298,7 +305,7 @@ public class Test {
 
 	public static void testCKY() throws IOException {
 		String dataFolder = "../WSJ data/";
-		WordEnumeration words = new WordEnumeration(true);
+		WordEnumeration words = new WordEnumeration(true, 100);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
 		CKYDecoder decoder = new CKYDecoder(words, labels, rules);
