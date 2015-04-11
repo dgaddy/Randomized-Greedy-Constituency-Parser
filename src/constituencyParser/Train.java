@@ -85,6 +85,9 @@ public class Train {
 						goldFeatureCounts.adjustOrPutValue(code, 1.0, 1.0);
 					}
 					
+					batchGoldScore += goldScore;
+					batchPredictedScore += decoder.getLastScore();
+					
 					// negative
 					List<Long> predictedFeatures = Features.getAllFeatures(predicted, words, doSecondOrder, wordEnum, labels, rules);
 					double predictedScore = 0;
