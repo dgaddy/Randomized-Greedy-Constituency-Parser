@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import constituencyParser.Rule.Type;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.FirstOrderFeatureHolder;
 
@@ -12,7 +13,7 @@ import constituencyParser.features.FirstOrderFeatureHolder;
 Klein, ACL 14 (http://www.cs.berkeley.edu/ dlwh/papers/spanparser.pdf)
  */
 public class DiscriminativeCKYDecoder implements Decoder {
-	private static final double PRUNE_THRESHOLD = 5;
+	private static final double PRUNE_THRESHOLD = 10;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
@@ -24,6 +25,10 @@ public class DiscriminativeCKYDecoder implements Decoder {
 	Span[][][] spans;
 	
 	List<Span> usedSpans;
+	
+	boolean costAugmenting;
+	int[][] goldLabels;
+	int[][] goldUnaryLabels;
 	
 	public DiscriminativeCKYDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
 		this.wordEnum = words;
@@ -56,7 +61,10 @@ public class DiscriminativeCKYDecoder implements Decoder {
 		for(int i = 0; i < wordsSize; i++) {
 			for(int label = 0; label < labelsSize; label++) {
 				Span span = new Span(i, label);
-				scores[i][i+1][label] = firstOrderFeatures.scoreTerminal(i, label);
+				double score = firstOrderFeatures.scoreTerminal(i, label);
+				if(costAugmenting && label != goldLabels[i][i+1])
+					score += 1;
+				scores[i][i+1][label] = score;
 				spans[i][i+1][label] = span;
 			}
 			
@@ -98,6 +106,9 @@ public class DiscriminativeCKYDecoder implements Decoder {
 						//cnt++;
 						
 						double spanScore = firstOrderFeatures.scoreBinary(start, end, splitLocation, r);
+						
+						if(costAugmenting && label != goldLabels[start][end])
+							spanScore += 1;
 						
 						double fullScore = spanScore + leftChildScore + rightChildScore;
 						if(fullScore > scores[start][end][label]) {
@@ -167,6 +178,9 @@ public class DiscriminativeCKYDecoder implements Decoder {
 				continue;
 			
 			double spanScore = firstOrderFeatures.scoreUnary(start, end, i);
+			if(costAugmenting && label != goldUnaryLabels[start][end])
+				spanScore += 1;
+			
 			double fullScore = childScore + spanScore;
 			if(fullScore > unaryScores[label]) {
 				Span span = new Span(start, end, rule);
@@ -197,8 +211,25 @@ public class DiscriminativeCKYDecoder implements Decoder {
 
 	@Override
 	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold) {
-		if(costAugmenting)
-			throw new UnsupportedOperationException();
+		this.costAugmenting = costAugmenting;
+		if(!costAugmenting)
+			return;
+		int size = gold.getWords().size();
+		goldLabels = new int[size][size+1];
+		goldUnaryLabels = new int[size][size+1];
+		for(int i = 0; i < size; i++) {
+			for(int j = 0; j < size+1; j++) {
+				goldLabels[i][j] = -1;
+				goldUnaryLabels[i][j] = -1;
+			}
+		}
+		
+		for(Span s : gold.getSpans()) {
+			if(s.getRule().getType() == Type.UNARY)
+				goldUnaryLabels[s.getStart()][s.getEnd()] = s.getRule().getLabel();
+			else
+				goldLabels[s.getStart()][s.getEnd()] = s.getRule().getLabel();
+		}
 	}
 
 	@Override

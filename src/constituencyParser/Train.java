@@ -103,7 +103,7 @@ public class Train {
 						for(Span s : predicted) {
 							boolean inGold = false;
 							for(Span gs : gold) {
-								if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
+								if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd() && gs.getRule().getType() == s.getRule().getType()) {
 									inGold = true;
 								}
 							}
@@ -113,7 +113,7 @@ public class Train {
 						}
 					}
 					
-					if(Math.abs(predictedScore + augmentingScore - decoder.getLastScore()) > 1e-4) {
+					if(Math.abs(predictedScore + augmentingScore - decoder.getLastScore()) > 1e-4 && !Double.isInfinite(decoder.getLastScore())) {
 						SpanUtilities.printSpans(predicted, sw.getWords().size(), labels);
 						SaveObject so = new SaveObject(wordEnum, labels, rules, parameters);
 						try {
@@ -140,6 +140,8 @@ public class Train {
 		}
 		//checkParameterSanity();
 		
+		decoder.setCostAugmenting(false, null);
+		decoder.setSecondOrder(false);
 		System.out.println("Finished; Average loss: " + (totalLoss / (double)trainingExamples.size()));
 	}
 	

@@ -75,7 +75,6 @@ public class RunTraining {
 		if(options.has("z")) {
 			randGreedy = false;
 			secondOrder = false;
-			costAugmenting = false;
 		}
 		if(options.has("n")) {
 			noNegativeFeatures = true;

@@ -11,7 +11,7 @@ import constituencyParser.features.FirstOrderFeatureHolder;
  * A sampler of parse trees based on DiscriminativeCKYDecoder
  */
 public class DiscriminativeCKYSampler {
-	private static final double PRUNE_THRESHOLD = 5;
+	private static final double PRUNE_THRESHOLD = 10;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
@@ -28,6 +28,7 @@ public class DiscriminativeCKYSampler {
 	
 	boolean costAugmenting = false;
 	int[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
+	int[][] goldUnaryLabels;
 	
 	public DiscriminativeCKYSampler(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FirstOrderFeatureHolder features) {
 		this.wordEnum = words;
@@ -42,9 +43,10 @@ public class DiscriminativeCKYSampler {
 	 * @param costAugmenting
 	 * @param gold gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
 	 */
-	public void setCostAugmenting(boolean costAugmenting, int[][] gold) {
+	public void setCostAugmenting(boolean costAugmenting, int[][] gold, int[][] goldUnaryLabels) {
 		this.costAugmenting = costAugmenting;
 		this.goldLabels = gold;
+		this.goldUnaryLabels = goldUnaryLabels;
 	}
 	
 	public Pruning calculateProbabilities(List<Word> words) {
@@ -150,7 +152,7 @@ public class DiscriminativeCKYSampler {
 	private double unaryProbability(int start, int end, int ruleNumber, Rule rule) {
 		double childProb = insideLogProbabilitiesBeforeUnaries[start][end][rule.getLeft()];
 		double spanScore = firstOrderFeatures.scoreUnary(start, end, ruleNumber);
-		if(costAugmenting && goldLabels[start][end] != rule.getLabel()) {
+		if(costAugmenting && goldUnaryLabels[start][end] != rule.getLabel()) {
 			spanScore += 1;
 		}
 		
@@ -338,6 +340,7 @@ public class DiscriminativeCKYSampler {
 			System.out.println("Warning: rounding error");
 			sampleIndex = logProbabilities.size() - 1;
 		}
+		
 		return sampleIndex;
 	}
 }

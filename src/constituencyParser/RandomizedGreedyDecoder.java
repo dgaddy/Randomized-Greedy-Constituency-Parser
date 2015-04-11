@@ -86,6 +86,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 */
 	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold) {
 		this.costAugmenting = costAugmenting;
+		if(!costAugmenting)
+			return;
 		int size = gold.getWords().size();
 		goldLabels = new int[size][size+1];
 		goldUnaryLabels = new int[size][size+1];
@@ -128,7 +130,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		
 		firstOrderFeatures.fillScoreArrays(words, params);
 		
-		sampler.setCostAugmenting(costAugmenting, goldLabels);
+		sampler.setCostAugmenting(costAugmenting, goldLabels, goldUnaryLabels);
 		
 		pruning = sampler.calculateProbabilities(words);
 		
@@ -362,7 +364,9 @@ public class RandomizedGreedyDecoder implements Decoder {
 			}
 			score += spanScore;
 			
-			if(costAugmenting && !(goldLabels[s.getStart()][s.getEnd()] == s.getRule().getLabel() || goldUnaryLabels[s.getStart()][s.getEnd()] == s.getRule().getLabel())) {
+			if(costAugmenting &&
+					!((rule.getType() != Type.UNARY && goldLabels[s.getStart()][s.getEnd()] == s.getRule().getLabel())
+					|| (rule.getType() == Type.UNARY && goldUnaryLabels[s.getStart()][s.getEnd()] == s.getRule().getLabel()))) {
 				score += 1;
 			}
 		}
