@@ -22,7 +22,7 @@ import constituencyParser.features.Features;
  */
 public class Test {
 	public static void main(String[] args) throws Exception {
-		OptionParser parser = new OptionParser("m:d:s:t:i:w:z");
+		OptionParser parser = new OptionParser("m:d:s:t:i:w:zp:");
 		OptionSet options = parser.parse(args);
 		
 		String modelFile = "";
@@ -32,6 +32,7 @@ public class Test {
 		int greedyIterations = 100;
 		int section = 0;
 		boolean useRandGreedy = true;
+		double percentOfData = 1;
 		
 		if(options.has("m")) {
 			modelFile = (String)options.valueOf("m");
@@ -55,6 +56,11 @@ public class Test {
 			useRandGreedy = false;
 			secondOrder = false;
 		}
+		if(options.has("p")) {
+			percentOfData = Double.parseDouble((String)options.valueOf("p"));
+			if(percentOfData > 1 || percentOfData < 0)
+				throw new RuntimeException("Percent of data should be between 0 and 1");
+		}
 
 		SaveObject savedModel = SaveObject.loadSaveObject(modelFile);
 
@@ -63,7 +69,7 @@ public class Test {
 		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 
-		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, 1, numberOfThreads, useRandGreedy, section);
+		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, percentOfData, numberOfThreads, useRandGreedy, section);
 	}
 
 	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, boolean useRandGreedy, int section) throws IOException {
