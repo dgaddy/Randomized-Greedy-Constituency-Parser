@@ -226,14 +226,18 @@ public class PennTreebankReader implements Closeable {
 		
 		for(TreeNode tree : trees) {
 			SpannedWords sw = tree.getSpans(words, labels);
-			SpanUtilities.connectChildren(sw.getSpans());
-			loaded.add(sw);
+			if (sw.getWords().size() <= 40) {
+				SpanUtilities.connectChildren(sw.getSpans());
+				loaded.add(sw);
+			}
 		}
 		
 		if(training)
 			rules.addAllRules(loaded);
 		else
 			rules.countMissingRules(loaded);
+		
+		labels.buildBarLabelToLabel();
 		
 		return loaded;
 	}

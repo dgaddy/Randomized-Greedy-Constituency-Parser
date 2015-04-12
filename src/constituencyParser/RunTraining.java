@@ -17,7 +17,7 @@ import constituencyParser.features.Features;
 
 public class RunTraining {
 	public static void main(String[] args) throws Exception {
-		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:zn");
+		OptionParser parser = new OptionParser("cost:t:o:c:i:s:a:p:m:l:b:r:d:zn");
 		OptionSet options = parser.parse(args);
 		
 		String dataFolder = "";
@@ -34,7 +34,11 @@ public class RunTraining {
 		double dropout = 0.0;
 		boolean randGreedy = true;
 		boolean noNegativeFeatures = false;
+		double cost = 0.5;
 		
+		if(options.has("cost")) {
+			cost = Double.parseDouble((String)options.valueOf("cost"));
+		}
 		if(options.has("t")) {
 			dataFolder = (String)options.valueOf("t");
 		}
@@ -93,15 +97,17 @@ public class RunTraining {
 		System.out.println("dropout: " + dropout);
 		System.out.println("noNegativeFeatures: " + noNegativeFeatures);
 		System.out.println("randGreedy: " + randGreedy);
+		System.out.println("cost: " + cost);
 		if(startModel != null)
 			System.out.println("starting from " + startModel);
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization, randGreedy, noNegativeFeatures);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, cost, learningRate, batchSize, regularization, randGreedy, noNegativeFeatures);
 	}
 	
-	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization, boolean useRandGreedy, boolean noNegativeFeatures) throws IOException, ClassNotFoundException {
+	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double cost,
+			double learningRate, int batchSize, double regularization, boolean useRandGreedy, boolean noNegativeFeatures) throws IOException, ClassNotFoundException {
 		WordEnumeration words = new WordEnumeration();
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
@@ -121,6 +127,10 @@ public class RunTraining {
 		if(percentOfData < 1) {
 			examples = new ArrayList<>(examples.subList(0, (int)(examples.size() * percentOfData)));
 		}
+		
+		//rules.printUnaryRuls(labels);
+		//labels.printTopLevelLabels();
+		//System.exit(0);
 		
 		System.out.println("build alphabet...");
 		if(noNegativeFeatures) {
@@ -142,11 +152,14 @@ public class RunTraining {
 		else
 			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
+		DiscriminativeCKYDecoder CKYDecoder = new DiscriminativeCKYDecoder(words, labels, rules);
+		
 		Train pa = new Train(words, labels, rules, decoder, params);
+		pa.CKYDecoder = CKYDecoder;
 		
 		for(int i = 0; i < iterations; i++) {
 			System.out.println("Iteration " + i + ":");
-			pa.train(examples, dropout, secondOrder, costAugmenting, batchSize, i);
+			pa.train(examples, dropout, secondOrder, costAugmenting, cost, batchSize, i);
 			params = pa.getParameters();
 			
 			params.averageParameters((i + 1) * examples.size());
@@ -196,7 +209,7 @@ public class RunTraining {
 			RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules, 1);
 			Train pa = new Train(words, labels, rules, decoder, initialParams);
 			try {
-				pa.train(data, dropout, secondOrder, costAugmenting, 1, 0);
+				pa.train(data, dropout, secondOrder, costAugmenting, 1.0, 1, 0);
 			}
 			catch(Exception ex) {
 				ex.printStackTrace(); //because otherwise exceptions get caught by the executor and don't give a stack trace

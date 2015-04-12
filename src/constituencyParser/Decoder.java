@@ -14,7 +14,7 @@ public interface Decoder {
 	 */
 	public List<Span> decode(List<Word> words, FeatureParameters params);
 	
-	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold);
+	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold, double cost);
 	public void setSecondOrder(boolean secondOrder);
 	public double getLastScore();
 }

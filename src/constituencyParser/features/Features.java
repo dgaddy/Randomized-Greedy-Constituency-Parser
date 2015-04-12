@@ -52,6 +52,10 @@ public class Features {
 		return getCodeBase(FeatureType.RULE) | ruleCode;
 	}
 	
+	public static long getTopRuleFeature(long ruleCode) {
+		return (getCodeBase(FeatureType.RULE) | (1 <<  32L)) | ruleCode;
+	}
+	
 	/**
 	 * Like spanPropertyByRule but only with the label
 	 * @param spanPropertyCode
@@ -235,8 +239,14 @@ public class Features {
 			features.addAll(Features.getSpanPropertyByLabelFeatures(words, s));
 		}
 		
+		int[] parents = SpanUtilities.getParents(spans);
+		//for (int j = 0; j < parents.length; ++j)
+		//	if (parents[j] == -1) {
+		//		features.add(Features.getTopRuleFeature(rules.getRuleCode(spans.get(j).getRule())));
+		//	}
+		
 		if(doSecondOrder) {
-			int[] parents = SpanUtilities.getParents(spans);
+			//int[] parents = SpanUtilities.getParents(spans);
 			features.addAll(Features.getAllHigherOrderFeatures(words, spans, parents, rules, wordEnum, labels));
 		}
 		return features;

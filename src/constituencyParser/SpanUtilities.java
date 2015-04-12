@@ -4,10 +4,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Scanner;
 
 import constituencyParser.Rule.Type;
 
 public class SpanUtilities {
+	public static void print (List<Span> spans, LabelEnumeration labels) {
+		for (int z = 0; z < spans.size(); ++z)
+			System.out.print(spans.get(z).toString(labels) + ", ");
+		System.out.println();
+	}
 	/**
 	 * Prints spans for a sentence in a way that is relatively easier to read
 	 * @param spans
@@ -115,6 +121,7 @@ public class SpanUtilities {
 	 */
 	public static int[] getParents(List<Span> spans) {
 		int[] result = new int[spans.size()];
+		int noParentCnt = 0;
 		for(int i = 0; i < result.length; i++) {
 			Span s = spans.get(i);
 			result[i] = -1;
@@ -143,6 +150,16 @@ public class SpanUtilities {
 						result[i] = j;
 					}
 				}
+			}
+			
+			if (result[i] == -1)
+				noParentCnt++;
+			
+		}
+		//Assert(noParentCnt == 1);
+		if (noParentCnt != 1) {
+			for (int i = 0; i < spans.size(); ++i) {
+				System.out.println(spans.get(i).toString() + " " + result[i]);
 			}
 		}
 		return result;
@@ -173,4 +190,79 @@ public class SpanUtilities {
 		}
 		return true;
 	}
+	
+	public static void Assert(boolean assertion) 
+	{
+		if (!assertion) {
+			(new Exception()).printStackTrace();
+			System.exit(1);
+		}
+	}
+	
+	
+	public static void debugSpan(List<Span> spans, LabelEnumeration labels,
+			RandomizedGreedyDecoder decoder) {
+		try {
+			Scanner scanner = new Scanner(System.in);
+			while (true) {
+				String cmd = scanner.nextLine();
+				if (cmd.isEmpty() || cmd.equals("quit")) {
+					break;
+				}
+				Span span = null;
+				if (cmd.charAt(0) == 'a' || cmd.charAt(0) == 'r') {
+					System.out.println("Rule:");
+					String[] data = scanner.nextLine().split("\\s+");
+					if (data.length == 3) {
+						System.out.println("start, end, split:");
+						int start = scanner.nextInt();
+						int end = scanner.nextInt();
+						int split = scanner.nextInt();
+						scanner.nextLine();
+						span = new Span(start, end, split, labels.getId(data[0]), labels.getId(data[1]), labels.getId(data[2]));
+					}
+					else if (data.length == 2) {
+						System.out.println("start, end:");
+						int start = scanner.nextInt();
+						int end = scanner.nextInt();
+						scanner.nextLine();
+						span = new Span(start, end, labels.getId(data[0]), labels.getId(data[1]));
+					}
+					else if (data.length == 1) {
+						System.out.println("position:");
+						int position = scanner.nextInt();
+						scanner.nextLine();
+						span = new Span(position, labels.getId(data[0]));
+					}
+				}
+
+				if (cmd.charAt(0) == 'r') {
+					System.out.println("remove: " + span.toString(labels));
+					if (spans.contains(span)) {
+						System.out.println("found and removed!");
+						spans.remove(span);
+					}
+					else {
+						System.out.println("not found!");
+					}
+				}
+				if (cmd.charAt(0) == 'a') {
+					System.out.println("add: " + span.toString(labels));
+					spans.add(span);
+				}
+				else if (cmd.charAt(0) == 'p') {
+					SpanUtilities.print(spans, labels);
+				}
+				else if (cmd.charAt(0) == 's') {
+					double score = decoder.score(decoder.words, spans, decoder.params);
+					System.out.println("score:" + score);
+				}
+			}
+			
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
 }

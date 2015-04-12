@@ -15,15 +15,21 @@ public class RuleEnumeration implements Serializable {
 	
 	private List<Rule> binaryRules = new ArrayList<>();
 	int[][][] binaryIds;
+	int[][][] binaryCnt;
 	
 	private List<Rule> unaryRules = new ArrayList<>();
 	int[][] unaryIds;
+	int[][] unaryCnt;
 	
-	static final int NUMBER_LABELS = 150;
+	static final int NUMBER_LABELS = 100;
 	
 	public RuleEnumeration() {
 		 binaryIds = new int[NUMBER_LABELS][NUMBER_LABELS][NUMBER_LABELS];
 		 unaryIds = new int[NUMBER_LABELS][NUMBER_LABELS];
+		 
+		 binaryCnt = new int[NUMBER_LABELS][NUMBER_LABELS][NUMBER_LABELS];
+		 unaryCnt = new int[NUMBER_LABELS][NUMBER_LABELS];
+		 
 		 for(int i = 0; i < NUMBER_LABELS; i++)
 			 for(int j = 0; j < NUMBER_LABELS; j++)
 				 for(int k = 0; k < NUMBER_LABELS; k++)
@@ -48,12 +54,23 @@ public class RuleEnumeration implements Serializable {
 				 unaryIds[i][j] = other.unaryIds[i][j];
 	}
 	
+	public void printUnaryRuls(LabelEnumeration labels) {
+		for (int i = 0; i < unaryRules.size(); ++i) {
+			Rule rule = unaryRules.get(i);
+			System.out.println(rule.toString(labels) + " " + unaryCnt[rule.getLabel()][rule.getLeft()]);
+		}
+	}
+	
 	private void addBinaryRule(Rule rule) {
 		int label = rule.getLabel(), left = rule.getLeft(), right = rule.getRight();
 		if(binaryIds[label][left][right] == -1) {
 			int id = binaryRules.size();
 			binaryRules.add(rule);
 			binaryIds[label][left][right] = id;
+			binaryCnt[label][left][right] = 1;
+		}
+		else {
+			binaryCnt[label][left][right]++;
 		}
 	}
 	
@@ -63,6 +80,10 @@ public class RuleEnumeration implements Serializable {
 			int id = unaryRules.size();
 			unaryRules.add(rule);
 			unaryIds[label][left] = id;
+			unaryCnt[label][left] = 1;
+		}
+		else {
+			unaryCnt[label][left]++;
 		}
 	}
 	
@@ -136,6 +157,14 @@ public class RuleEnumeration implements Serializable {
 			return getUnaryId(rule) != -1;
 		else // all terminals are existing
 			return true;
+	}
+	
+	public boolean isExistingUnaryRule(int label, int left) {
+		return unaryIds[label][left] != -1;
+	}
+	
+	public boolean isExistingBinaryRule(int label, int left, int right) {
+		return binaryIds[label][left][right] != -1;
 	}
 	
 	/**

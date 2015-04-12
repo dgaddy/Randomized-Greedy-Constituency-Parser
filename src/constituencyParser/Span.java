@@ -19,6 +19,13 @@ public class Span {
 	private Span left;
 	private Span right;
 	
+	public Span(Span other) {
+		start = other.start;
+		end = other.end;
+		rule = other.rule;
+		split = other.split;
+	}
+	
 	/**
 	 * Makes a terminal span
 	 * @param position
@@ -212,7 +219,11 @@ public class Span {
 	}
 	
 	public String toString() {
-		return "Span: " + rule + " " + start + " " + end;
+		return "Span: " + rule + " " + start + " " + end + (rule.getType() == Type.BINARY ? " " + split : "");
+	}
+	
+	public String toString(LabelEnumeration labels) {
+		return "Span: " + rule.toString(labels) + " " + start + " " + end + (rule.getType() == Type.BINARY ? " " + split : "");
 	}
 	
 	public boolean equals(Object other) {

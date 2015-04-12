@@ -231,7 +231,7 @@ public class UnitTests {
 		}
 		assertEquals(expected, changes.size());
 		
-		changes = gc.makeGreedyChanges(example.getSpans(), 2, 3, noPrune);
+		changes = gc.makeGreedyChanges(example.getSpans(), 2, 3, example.getWords().size(), noPrune);
 		assertTrue(existsStructure(changes, new int[] {2,4, 0,2, 0,4, 0,5})); // original structure
 		assertTrue(existsStructure(changes, new int[] {1,3, 0,3, 0,4, 0,5})); // connect to left NNP
 		assertTrue(existsStructure(changes, new int[] {0,2, 0,3, 0,4, 0,5})); // connect to left NP
@@ -261,7 +261,7 @@ public class UnitTests {
 						}
 					}
 					if(exists) {
-						List<ParentedSpans> update = gc.makeGreedyChanges(spans, start, start + length, noPrune);
+						List<ParentedSpans> update = gc.makeGreedyChanges(spans, start, start + length, w.size(), noPrune);
 						
 						assertTrue(hasSpans(update, spans));
 						checkNonNegativeLabels(update);

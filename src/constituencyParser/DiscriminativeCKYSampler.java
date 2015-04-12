@@ -1,6 +1,9 @@
 package constituencyParser;
 
+import gnu.trove.list.array.TIntArrayList;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -11,7 +14,7 @@ import constituencyParser.features.FirstOrderFeatureHolder;
  * A sampler of parse trees based on DiscriminativeCKYDecoder
  */
 public class DiscriminativeCKYSampler {
-	private static final double PRUNE_THRESHOLD = 5;
+	private static final double PRUNE_THRESHOLD = 10;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
@@ -27,7 +30,11 @@ public class DiscriminativeCKYSampler {
 	Pruning prune;
 	
 	boolean costAugmenting = false;
+	double cost = 1.0;
 	int[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
+	int[][] goldUnaryLabels;
+	
+	public double totalMarginal = Double.NEGATIVE_INFINITY;
 	
 	public DiscriminativeCKYSampler(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FirstOrderFeatureHolder features) {
 		this.wordEnum = words;
@@ -42,9 +49,11 @@ public class DiscriminativeCKYSampler {
 	 * @param costAugmenting
 	 * @param gold gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
 	 */
-	public void setCostAugmenting(boolean costAugmenting, int[][] gold) {
+	public void setCostAugmenting(boolean costAugmenting, double cost, int[][] gold, int[][] goldUnary) {
 		this.costAugmenting = costAugmenting;
+		this.cost = cost;
 		this.goldLabels = gold;
+		this.goldUnaryLabels = goldUnary;
 	}
 	
 	public Pruning calculateProbabilities(List<Word> words) {
@@ -66,7 +75,7 @@ public class DiscriminativeCKYSampler {
 			for(int label = 0; label < labelsSize; label++) {
 				double spanScore = firstOrderFeatures.scoreTerminal(i, label);
 				if(costAugmenting && goldLabels[i][i+1] != label) {
-					spanScore += 1;
+					spanScore += cost;
 				}
 				
 				insideLogProbabilitiesBeforeUnaries[i][i+1][label] = spanScore;
@@ -75,12 +84,24 @@ public class DiscriminativeCKYSampler {
 					maxBeforeUnaries = spanScore;
 			}
 			
+			for(int label = 0; label < labelsSize; label++) {
+				double p = insideLogProbabilitiesBeforeUnaries[i][i+1][label];
+				if (p < maxBeforeUnaries - PRUNE_THRESHOLD) {
+					prune.pruneBeforeUnary(i, i + 1, label);
+				}
+			}
+			
 			doUnaryProbabilities(words, i, i+1);
 			
-			for(int l = 0; l < labelsSize; l++) {
-				double p = insideLogProbabilitiesAfterUnaries[i][i+1][l];
-				if(p < maxBeforeUnaries - PRUNE_THRESHOLD) {
-					prune.prune(i, i+1, l);
+			double maxAfterUnaries = Double.NEGATIVE_INFINITY;
+			for (int label = 0; label < labelsSize; label++) {
+				maxAfterUnaries = Math.max(maxAfterUnaries, insideLogProbabilitiesAfterUnaries[i][i+1][label]);
+			}
+			
+			for (int label = 0; label < labelsSize; label++) {
+				double p = insideLogProbabilitiesAfterUnaries[i][i+1][label];
+				if(p < maxAfterUnaries - PRUNE_THRESHOLD) {
+					prune.pruneAfterUnary(i, i + 1, label);
 				}
 			}
 		}
@@ -99,6 +120,7 @@ public class DiscriminativeCKYSampler {
 						
 						if(probability != Double.NEGATIVE_INFINITY) {
 							double fullProbability = addProbabilitiesLog(insideLogProbabilitiesBeforeUnaries[start][start+length][label], probability);  
+							//double fullProbability = Math.max(insideLogProbabilitiesBeforeUnaries[start][start+length][label], probability);  
 							insideLogProbabilitiesBeforeUnaries[start][start+length][label] = fullProbability;
 							
 							if(fullProbability > maxBeforeUnaries) {
@@ -108,16 +130,43 @@ public class DiscriminativeCKYSampler {
 					}
 				}
 				
+				for(int label = 0; label < labelsSize; label++) {
+					double p = insideLogProbabilitiesBeforeUnaries[start][start+length][label];
+					if (p < maxBeforeUnaries - PRUNE_THRESHOLD) {
+						prune.pruneBeforeUnary(start, start+length, label);
+					}
+				}
+
 				doUnaryProbabilities(words, start, start + length);
+				
+				double maxAfterUnaries = Double.NEGATIVE_INFINITY;
+				for (int label = 0; label < labelsSize; label++) {
+					maxAfterUnaries = Math.max(maxAfterUnaries, insideLogProbabilitiesAfterUnaries[start][start+length][label]);
+				}
 				
 				for(int l = 0; l < labelsSize; l++) {
 					double p = insideLogProbabilitiesAfterUnaries[start][start+length][l];
-					if(p < maxBeforeUnaries - PRUNE_THRESHOLD) {
-						prune.prune(start, start+length, l);
+					if(p < maxAfterUnaries - PRUNE_THRESHOLD) {
+						prune.pruneAfterUnary(start, start+length, l);
+						//if (goldLabels[start][start + length] == l) {
+						//	System.out.println("prune gold 2");
+						//}
+						//if (goldUnaryLabels[start][start + length] == l) {
+						//	System.out.println("prune gold 4");
+						//}
 					}
 				}
 			}
 		}
+		
+		//System.out.println("Top prob:");
+		//for (int i = 0; i < labelsSize; ++i) {
+		//	System.out.println(labels.getLabel(i) + ": " + insideLogProbabilitiesAfterUnaries[0][wordsSize][i] + " " + insideLogProbabilitiesBeforeUnaries[0][wordsSize][i]);			
+		//}
+		//System.exit(0);
+		
+		computeTopMarginal();
+		
 		return prune;
 	}
 	
@@ -148,10 +197,13 @@ public class DiscriminativeCKYSampler {
 	}
 	
 	private double unaryProbability(int start, int end, int ruleNumber, Rule rule) {
+		if (prune.isPrunedBeforeUnary(start, end, rule.getLeft())) 
+			return Double.NEGATIVE_INFINITY;
+		
 		double childProb = insideLogProbabilitiesBeforeUnaries[start][end][rule.getLeft()];
 		double spanScore = firstOrderFeatures.scoreUnary(start, end, ruleNumber);
-		if(costAugmenting && goldLabels[start][end] != rule.getLabel()) {
-			spanScore += 1;
+		if(costAugmenting && goldUnaryLabels[start][end] != rule.getLabel()) {
+			spanScore += cost;
 		}
 		
 		double probability = spanScore + childProb;
@@ -169,7 +221,7 @@ public class DiscriminativeCKYSampler {
 	 * @return
 	 */
 	private double binaryProbability(int start, int end, int split, int ruleNumber, Rule rule) {
-		if(prune.isPruned(start, split, rule.getLeft()) || prune.isPruned(split, end, rule.getRight()))
+		if(prune.isPrunedAfterUnary(start, split, rule.getLeft()) || prune.isPrunedAfterUnary(split, end, rule.getRight()))
 			return Double.NEGATIVE_INFINITY;
 
 		double leftChildProb = insideLogProbabilitiesAfterUnaries[start][split][rule.getLeft()];
@@ -177,7 +229,7 @@ public class DiscriminativeCKYSampler {
 		
 		double spanScore = firstOrderFeatures.scoreBinary(start, end, split, ruleNumber);
 		if(costAugmenting && goldLabels[start][end] != rule.getLabel()) {
-			spanScore += 1;
+			spanScore += cost;
 		}
 		
 		double probability = spanScore + leftChildProb + rightChildProb;
@@ -190,7 +242,10 @@ public class DiscriminativeCKYSampler {
 		double[] probs = insideLogProbabilitiesAfterUnaries[start][end];
 		double[] oldProbs = insideLogProbabilitiesBeforeUnaries[start][end];
 		for(int i = 0; i < probs.length; i++) {
-			probs[i] = oldProbs[i];
+			if (!prune.isPrunedBeforeUnary(start, end, i))
+				probs[i] = oldProbs[i];
+			else
+				probs[i] = Double.NEGATIVE_INFINITY;
 		}
 		
 		for(int i = 0; i < numUnaryRules; i++) {
@@ -198,8 +253,9 @@ public class DiscriminativeCKYSampler {
 			
 			double probability = unaryProbability(start, end, i, rule);
 			
-			double fullProb = addProbabilitiesLog(probability, insideLogProbabilitiesAfterUnaries[start][end][rule.getLabel()]);
-			insideLogProbabilitiesAfterUnaries[start][end][rule.getLabel()] = fullProb;
+			double fullProb = addProbabilitiesLog(probability, probs[rule.getLabel()]);
+			//double fullProb = Math.max(probability, probs[rule.getLabel()]);
+			probs[rule.getLabel()] = fullProb;
 		}
 	}
 	
@@ -215,7 +271,7 @@ public class DiscriminativeCKYSampler {
 		List<Double> logProbabilities = new ArrayList<>();
 		List<Integer> labelsToSample = new ArrayList<>();
 		for(Integer topLabel : labels.getTopLevelLabelIds()) {
-			if(prune.isPruned(0, wordsSize, topLabel))
+			if(prune.isPrunedAfterUnary(0, wordsSize, topLabel))
 				continue;
 			
 			double score = insideLogProbabilitiesAfterUnaries[0][wordsSize][topLabel];
@@ -224,6 +280,8 @@ public class DiscriminativeCKYSampler {
 			
 			logProbabilities.add(score);
 			labelsToSample.add(topLabel);
+			
+			//System.out.println(labels.getLabel(topLabel) + " " + score);
 		}
 		
 		if(logProbabilities.size() == 0) {
@@ -250,8 +308,8 @@ public class DiscriminativeCKYSampler {
 				Rule rule = rules.getUnaryRule(r);
 				
 				if(rule.getLabel() == label) {
-					if(prune.isPruned(start, end, rule.getLeft()))
-						continue;
+					//if(prune.isPrunedBeforeUnary(start, end, rule.getLeft()))
+					//	continue;
 					
 					double prob = unaryProbability(start, end, r, rule);
 					if(prob == Double.NEGATIVE_INFINITY)
@@ -265,47 +323,149 @@ public class DiscriminativeCKYSampler {
 		}
 		
 		if(end - start == 1) { // terminals
-			double prob = insideLogProbabilitiesBeforeUnaries[start][end][label];
-			logProbabilities.add(prob);
-			spans.add(new Span(start, label));
+			if (!prune.isPrunedBeforeUnary(start, end, label)) {
+				double prob = insideLogProbabilitiesBeforeUnaries[start][end][label];
+				logProbabilities.add(prob);
+				spans.add(new Span(start, label));
+			}
 		}
 		else {
 			// binary
-			int numBinRules = rules.getNumberOfBinaryRules();
-			for(int split = 1; split < end-start; split++) {
-				for(int r = 0; r < numBinRules; r++) {
-					Rule rule = rules.getBinaryRule(r);
-					
-					if(rule.getLabel() == label) {
-						if(prune.isPruned(start, start+split, rule.getLeft()) || prune.isPruned(start+split, end, rule.getRight()))
-							continue;
+			if (!allowUnaries) {
+				int numBinRules = rules.getNumberOfBinaryRules();
+				for(int split = 1; split < end-start; split++) {
+					for(int r = 0; r < numBinRules; r++) {
+						Rule rule = rules.getBinaryRule(r);
 						
-						double prob = binaryProbability(start, end, start+split, r, rule);
-						if(prob == Double.NEGATIVE_INFINITY)
-							continue;
-						
-						logProbabilities.add(prob);
-						Span span = new Span(start, end, start+split, rule);
-						spans.add(span);
+						if(rule.getLabel() == label) {
+							//if(prune.isPrunedAfterUnary(start, start+split, rule.getLeft()) || prune.isPrunedAfterUnary(start+split, end, rule.getRight()))
+							//	continue;
+							
+							double prob = binaryProbability(start, end, start+split, r, rule);
+							if(prob == Double.NEGATIVE_INFINITY)
+								continue;
+							
+							logProbabilities.add(prob);
+							Span span = new Span(start, end, start+split, rule);
+							spans.add(span);
+						}
 					}
+				}
+			}
+			else {
+				if (!prune.isPrunedBeforeUnary(start, end, label)) {
+					double prob = insideLogProbabilitiesBeforeUnaries[start][end][label];
+					logProbabilities.add(prob);
+					spans.add(null);
 				}
 			}
 		}
 		
+		//if (allowUnaries)
+		//	checkLogProbability(insideLogProbabilitiesAfterUnaries[start][end][label], logProbabilities);
+		//else
+		//	checkLogProbability(insideLogProbabilitiesBeforeUnaries[start][end][label], logProbabilities);
+		
 		int sampleIndex = sample(logProbabilities);
 		Span span = spans.get(sampleIndex);
-		resultAccumulator.add(span);
-		if(span.getRule().getType() == Type.UNARY) {
+		if(span != null && span.getRule().getType() == Type.UNARY) {
+			resultAccumulator.add(span);
 			sample(start, end, span.getRule().getLeft(), false, resultAccumulator);
 		}
-		else if(end - start == 1)
+		else if(end - start == 1) {
+			SpanUtilities.Assert(span != null);
+			resultAccumulator.add(span);
 			return;
+		}
 		else {
-			sample(start, span.getSplit(), span.getRule().getLeft(), true, resultAccumulator);
-			sample(span.getSplit(), end, span.getRule().getRight(), true, resultAccumulator);
+			if (!allowUnaries) { 
+				SpanUtilities.Assert(span != null && span.getRule().getType() == Type.BINARY);
+				resultAccumulator.add(span);
+				sample(start, span.getSplit(), span.getRule().getLeft(), true, resultAccumulator);
+				sample(span.getSplit(), end, span.getRule().getRight(), true, resultAccumulator);
+			}
+			else {
+				SpanUtilities.Assert(span == null);
+				sample(start, end, label, false, resultAccumulator);
+			}
 		}
 	}
 	
+	public void checkLogProbability(double score, List<Double> logProbabilities) {
+		double maxLogP = Collections.max(logProbabilities);
+		double sumExp = 0;
+		for(double logP : logProbabilities) {
+			sumExp += Math.exp(logP - maxLogP);
+		}
+		double logSumProbabilities = maxLogP + Math.log(sumExp);
+		SpanUtilities.Assert(Math.abs(logSumProbabilities - score) < 1e-6);
+	}
+	
+	public List<Double> scale(List<Double> logProbabilities, double scale) {
+		List<Double> ret = new ArrayList<Double>();
+		for (int i = 0; i < logProbabilities.size(); ++i)
+			ret.add(logProbabilities.get(i) * scale);
+		return ret;
+	}
+	
+	public void computeTopMarginal() {
+		List<Double> p = new ArrayList<Double>();
+		for(Integer topLabel : labels.getTopLevelLabelIds()) {
+			if(prune.isPrunedAfterUnary(0, wordsSize, topLabel))
+				continue;
+			
+			double score = insideLogProbabilitiesAfterUnaries[0][wordsSize][topLabel];
+			if(score == Double.NEGATIVE_INFINITY)
+				continue;
+			
+			p.add(score);
+		}
+		
+		double maxLogP = Collections.max(p);
+		double sumExp = 0;
+		for(double logP : p) {
+			sumExp += Math.exp(logP - maxLogP);
+		}
+		totalMarginal = maxLogP + Math.log(sumExp);
+	}
+	
+	private double getNthLargestValue(List<Double> logProbabilities, int n) {
+		if (logProbabilities.size() < n)
+			return Collections.min(logProbabilities);
+		
+		double[] v = new double[logProbabilities.size()];
+		int len = v.length;
+		for (int i = 0; i < len; ++i)
+			v[i] = logProbabilities.get(i);
+		Arrays.sort(v);
+		return v[len - n];
+	}
+	
+	private List<Double> getNthLargestValue(List<Double> logProbabilities, double thresh, int n, TIntArrayList index) {
+		List<Double> ret = new ArrayList<Double>();
+		if (logProbabilities.size() > n) {
+			double[] v = new double[logProbabilities.size()];
+			int len = v.length;
+			for (int i = 0; i < len; ++i)
+				v[i] = logProbabilities.get(i);
+			Arrays.sort(v);
+			for (int i = len - 1; i >= len - n; --i) {
+				if (v[i] < thresh)
+					break;
+				else
+					ret.add(v[i]);
+			}
+		}
+		else {
+			int len = logProbabilities.size();
+			for (int i = 0; i < len; ++i) {
+				double v = logProbabilities.get(i);
+				if (v >= thresh)
+					ret.add(v);
+			}
+		}
+		return ret;
+	}
 	/**
 	 * Samples a set of things based on log probabilities
 	 * @param cumulativeValues
@@ -313,7 +473,35 @@ public class DiscriminativeCKYSampler {
 	 * @return the index of the sampled item
 	 */
 	private int sample(List<Double> logProbabilities) {
+		//logProbabilities = scale(logProbabilities, 30);
+		/*
 		double maxLogP = Collections.max(logProbabilities);
+		int sampleIndex = -1;
+		for (int i = 0; i < logProbabilities.size(); ++i)
+			if (Math.abs(logProbabilities.get(i) - maxLogP) < 1e-6) {
+				sampleIndex = i;
+				break;
+			}
+			*/
+		
+		double maxLogP = Collections.max(logProbabilities);
+		/*
+		double minThresh = getNthLargestValue(logProbabilities, 3);
+		minThresh = Math.max(minThresh, maxLogP - 5) - 1e-6;
+		
+		List<Double> tmp = new ArrayList<Double>();
+		TIntArrayList index = new TIntArrayList();
+		int cnt = 0;
+		for(double logP : logProbabilities) {
+			if (logP > minThresh) {
+				tmp.add(logP);
+				index.add(cnt);
+			}
+			cnt++;
+		}
+		logProbabilities = tmp;
+		*/
+		
 		double sumExp = 0;
 		for(double logP : logProbabilities) {
 			sumExp += Math.exp(logP - maxLogP);
@@ -338,6 +526,11 @@ public class DiscriminativeCKYSampler {
 			System.out.println("Warning: rounding error");
 			sampleIndex = logProbabilities.size() - 1;
 		}
+		SpanUtilities.Assert(Math.abs(cumulativeProbabilities.get(logProbabilities.size() - 1) - 1.0) < 1e-6);
+		SpanUtilities.Assert(sample < cumulativeProbabilities.get(sampleIndex) + 1e-6 &&
+				(sampleIndex == 0 || sample > cumulativeProbabilities.get(sampleIndex - 1) - 1e-6));
+				
 		return sampleIndex;
+		//return index.get(sampleIndex);
 	}
 }

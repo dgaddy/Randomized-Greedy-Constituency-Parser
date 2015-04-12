@@ -2,24 +2,38 @@ package constituencyParser;
 
 import java.util.List;
 
+import constituencyParser.Rule.Type;
+
 public class Pruning {
-	boolean[][][] prune;
+	// different pruning for after unary and before unary
+	boolean[][][] pruneBeforeUnary;
+	boolean[][][] pruneAfterUnary;
 	
 	public Pruning(int numWords, int numLabels) {
-		prune = new boolean[numWords][numWords+1][numLabels];
+		pruneBeforeUnary = new boolean[numWords][numWords+1][numLabels];
+		pruneAfterUnary = new boolean[numWords][numWords+1][numLabels];
 	}
 	
-	public void prune(int start, int end, int label) {
-		prune[start][end][label] = true;
+	public void pruneBeforeUnary(int start, int end, int label) {
+		pruneBeforeUnary[start][end][label] = true;
 	}
 	
-	public boolean isPruned(int start, int end, int label) {
-		return prune[start][end][label];
+	public void pruneAfterUnary(int start, int end, int label) {
+		pruneAfterUnary[start][end][label] = true;
+	}
+	
+	public boolean isPrunedBeforeUnary(int start, int end, int label) {
+		//return false;
+		return pruneBeforeUnary[start][end][label];
+	}
+	
+	public boolean isPrunedAfterUnary(int start, int end, int label) {
+		return pruneAfterUnary[start][end][label];
 	}
 	
 	public int countPruned() {
 		int count = 0;
-		for(boolean[][] a : prune) {
+		for(boolean[][] a : pruneBeforeUnary) {
 			for(boolean[] b : a) {
 				for(boolean p : b) {
 					if(p)
@@ -32,8 +46,14 @@ public class Pruning {
 	
 	public boolean containsPruned(List<Span> spans) {
 		for(Span s : spans) {
-			if(isPruned(s.getStart(), s.getEnd(), s.getRule().getLabel()))
-				return true;
+			if (s.getRule().getType() == Type.UNARY) {
+				if (isPrunedAfterUnary(s.getStart(), s.getEnd(), s.getRule().getLabel()))
+					return true;
+			}
+			else  {
+				if(isPrunedBeforeUnary(s.getStart(), s.getEnd(), s.getRule().getLabel()))
+					return true;
+			}
 		}
 		return false;
 	}

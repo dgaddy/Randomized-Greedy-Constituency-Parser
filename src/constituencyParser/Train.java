@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
+import constituencyParser.Rule.Type;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
 
@@ -15,6 +16,8 @@ import constituencyParser.features.Features;
  * Trains a parser using Adagrad
  */
 public class Train {
+	public DiscriminativeCKYDecoder CKYDecoder;
+
 	Decoder decoder;
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
@@ -32,7 +35,7 @@ public class Train {
 		this.parameters = parameters;
 	}
 	
-	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, int batchSize, int iters) {
+	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, double cost, int batchSize, int iters) {
 		int totalLoss = 0;
 		int index = 0;
 		int N = trainingExamples.size();
@@ -54,7 +57,14 @@ public class Train {
 				
 				List<Word> words = sw.getWords();
 				
-				decoder.setCostAugmenting(costAugmenting, sw);
+				// CKY
+				CKYDecoder.setCostAugmenting(costAugmenting, sw, cost);
+				List<Span> CKYPredicted = CKYDecoder.decode(words, parameters);
+				((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
+				//double CKYPredictedScore = CKYDecoder.getLastScore();
+				//System.out.println(" cky: " + CKYPredictedScore);
+
+				decoder.setCostAugmenting(costAugmenting, sw, cost);
 				decoder.setSecondOrder(doSecondOrder);
 				List<Span> predicted;
 				//System.out.println("aaa");
@@ -67,7 +77,7 @@ public class Train {
 				//	System.out.println(tmp);
 					predicted = decoder.decode(words, parameters);
 				//}
-				
+					
 				//System.out.println("bbb");
 				int loss = computeLoss(predicted, sw.getSpans()); 
 				totalLoss += loss;
@@ -97,22 +107,27 @@ public class Train {
 					}
 					
 					// used to double check scoring
+					/*
 					int augmentingScore = 0;
-					if(costAugmenting) {
-						for(Span s : predicted) {
-							boolean inGold = false;
+					for(Span s : predicted) {
+						boolean inGold = false;
+						if (s.getRule().getType() == Type.UNARY) {
 							for(Span gs : gold) {
-								if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
+								if (gs.getRule().getType() == Type.UNARY
+										&& gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
 									inGold = true;
 								}
 							}
-							if(!inGold) {
-								augmentingScore++;
-							}
+
+						}
+						if(!inGold) {
+							augmentingScore += cost;
 						}
 					}
+					*/
+					double augmentingScore = computeCostAugment(words.size(), gold, predicted, cost);
 					
-					if(Math.abs(predictedScore + augmentingScore - decoder.getLastScore()) > 1e-4) {
+					if(Math.abs(predictedScore + (costAugmenting ? augmentingScore : 0.0) - decoder.getLastScore()) > 1e-4) {
 						SpanUtilities.printSpans(predicted, sw.getWords().size(), labels);
 						SaveObject so = new SaveObject(wordEnum, labels, rules, parameters);
 						try {
@@ -122,24 +137,22 @@ public class Train {
 						throw new RuntimeException("" + index + " Decoder score and freshly calculated score don't match: " + (predictedScore + augmentingScore) + " " + decoder.getLastScore());
 					}
 					
-					if(goldScore > predictedScore + augmentingScore) {
+					if(goldScore > predictedScore + (costAugmenting ? augmentingScore : 0.0)) {
 						System.out.println("Warning: Gold score greater than predicted score, but decoder didn't find it");
 						System.out.println("Gold score: " + goldScore + " predicted: " + predictedScore + " " + augmentingScore);
+						//SpanUtilities.printSpans(gold, sw.getWords().size(), labels);
+						//SpanUtilities.printSpans(predicted, sw.getWords().size(), labels);
+						//try { System.in.read(); } catch (Exception e) {}
 					}
 					
-					augmentingScore = 0;
-					for(Span s : predicted) {
-						boolean inGold = false;
-						for(Span gs : gold) {
-							if(gs.getRule().getLabel() == s.getRule().getLabel() && gs.getStart() == s.getStart() && gs.getEnd() == s.getEnd()) {
-								inGold = true;
-							}
-						}
-						if(!inGold) {
-							augmentingScore++;
-						}
-					}
-					parameters.updateMIRA(features, augmentingScore + predictedScore - goldScore, iters * N + index + 1);
+					//System.out.println("gold: " + goldScore + " greed: " + decoder.getLastScore() + " cky: " + CKYPredictedScore);
+					//SpanUtilities.print(predicted, labels);
+					//SpanUtilities.print(CKYPredicted, labels);
+					//try { System.in.read(); } catch (Exception e) {e.printStackTrace();}
+					//SpanUtilities.debugSpan(predicted, labels, (RandomizedGreedyDecoder)decoder);
+					
+					if (augmentingScore + predictedScore - goldScore > 0)
+						parameters.updateMIRA(features, augmentingScore + predictedScore - goldScore, iters * N + index + 1);
 				}
 				//System.out.println("ddd");
 			}
@@ -150,6 +163,37 @@ public class Train {
 		//checkParameterSanity();
 		
 		System.out.println("Finished; Average loss: " + (totalLoss / (double)trainingExamples.size()));
+	}
+	
+	public double computeCostAugment(int size, List<Span> gold, List<Span> pred, double cost) {
+		int[][] goldLabels = new int[size][size+1];
+		int[][] goldUnaryLabels = new int[size][size+1];
+		for(int i = 0; i < size; i++) {
+			for(int j = 0; j < size+1; j++) {
+				goldLabels[i][j] = -1;
+				goldUnaryLabels[i][j] = -1;
+			}
+		}
+
+		for (Span s : gold) {
+			if(s.getRule().getType() == Type.UNARY)
+				goldUnaryLabels[s.getStart()][s.getEnd()] = s.getRule().getLabel();
+			else
+				goldLabels[s.getStart()][s.getEnd()] = s.getRule().getLabel();
+		}
+
+		double ret = 0.0;
+		for (Span s : pred) {
+			if (s.getRule().getType() == Type.UNARY) {
+				if (s.getRule().getLabel() != goldUnaryLabels[s.getStart()][s.getEnd()])
+					ret += cost;
+			}
+			else {
+				if (s.getRule().getLabel() != goldLabels[s.getStart()][s.getEnd()])
+					ret += cost;
+			}
+		}
+		return ret;
 	}
 	
 	private void checkParameterSanity() {

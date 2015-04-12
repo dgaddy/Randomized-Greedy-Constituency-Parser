@@ -77,20 +77,20 @@ public class Rule implements Serializable {
 	
 	public String toString(LabelEnumeration labels) {
 		if(type == Type.TERMINAL)
-			return "{" + labels.getLabel(label) + "}";
+			return "{" + labels.getLabel(label) + " T}";
 		else if(type == Type.UNARY)
-			return "{" + labels.getLabel(label) + "->" + labels.getLabel(left) + "}";
+			return "{" + labels.getLabel(label) + "->" + labels.getLabel(left) + " U}";
 		else
-			return "{" + labels.getLabel(label) + "->" + labels.getLabel(left) + " " + labels.getLabel(right) + "}";
+			return "{" + labels.getLabel(label) + "->" + labels.getLabel(left) + " " + labels.getLabel(right) + " B}";
 	}
 	
 	public String toString() {
 		if(type == Type.TERMINAL)
-			return "{" + label + "}";
+			return "{" + label + " T}";
 		else if(type == Type.UNARY)
-			return "{" + label + "->" + left + "}";
+			return "{" + label + "->" + left + " U}";
 		else
-			return "{" + label + "->" + left + " " + right + "}";
+			return "{" + label + "->" + left + " " + right + " B}";
 	}
 	
 	public static Rule getRule(String label, LabelEnumeration labelEnum) {

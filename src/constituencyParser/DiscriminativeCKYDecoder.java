@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import constituencyParser.Rule.Type;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.FirstOrderFeatureHolder;
 
@@ -25,6 +26,11 @@ public class DiscriminativeCKYDecoder implements Decoder {
 	
 	List<Span> usedSpans;
 	
+	boolean costAugmenting = false;
+	int[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
+	int[][] goldUnaryLabels;
+	double cost = 1.0;
+
 	public DiscriminativeCKYDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
 		this.wordEnum = words;
 		this.labels = labels;
@@ -57,6 +63,8 @@ public class DiscriminativeCKYDecoder implements Decoder {
 			for(int label = 0; label < labelsSize; label++) {
 				Span span = new Span(i, label);
 				scores[i][i+1][label] = firstOrderFeatures.scoreTerminal(i, label);
+				if (costAugmenting && goldLabels[i][i + 1] != label)
+					scores[i][i + 1][label] += cost;
 				spans[i][i+1][label] = span;
 			}
 			
@@ -98,6 +106,8 @@ public class DiscriminativeCKYDecoder implements Decoder {
 						//cnt++;
 						
 						double spanScore = firstOrderFeatures.scoreBinary(start, end, splitLocation, r);
+						if (costAugmenting && goldLabels[start][end] != rule.getLabel())
+							spanScore += cost;
 						
 						double fullScore = spanScore + leftChildScore + rightChildScore;
 						if(fullScore > scores[start][end][label]) {
@@ -167,6 +177,8 @@ public class DiscriminativeCKYDecoder implements Decoder {
 				continue;
 			
 			double spanScore = firstOrderFeatures.scoreUnary(start, end, i);
+			if (costAugmenting && goldUnaryLabels[start][end] != rule.getLabel())
+				spanScore += cost;
 			double fullScore = childScore + spanScore;
 			if(fullScore > unaryScores[label]) {
 				Span span = new Span(start, end, rule);
@@ -196,9 +208,27 @@ public class DiscriminativeCKYDecoder implements Decoder {
 	}
 
 	@Override
-	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold) {
-		if(costAugmenting)
-			throw new UnsupportedOperationException();
+	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold, double cost) {
+		//if(costAugmenting)
+		//	throw new UnsupportedOperationException();
+		this.costAugmenting = costAugmenting;
+		this.cost = cost;
+		int size = gold.getWords().size();
+		goldLabels = new int[size][size+1];
+		goldUnaryLabels = new int[size][size+1];
+		for(int i = 0; i < size; i++) {
+			for(int j = 0; j < size+1; j++) {
+				goldLabels[i][j] = -1;
+				goldUnaryLabels[i][j] = -1;
+			}
+		}
+		
+		for(Span s : gold.getSpans()) {
+			if(s.getRule().getType() == Type.UNARY)
+				goldUnaryLabels[s.getStart()][s.getEnd()] = s.getRule().getLabel();
+			else
+				goldLabels[s.getStart()][s.getEnd()] = s.getRule().getLabel();
+		}
 	}
 
 	@Override

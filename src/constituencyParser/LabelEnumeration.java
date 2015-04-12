@@ -21,6 +21,8 @@ public class LabelEnumeration implements Serializable {
 	String[] punctuation = new String[] {"''", ":", "#", ",", ".", "``", "-LRB-", "-", "-RRB-"};
 	String[] conjunctions = new String[] {"CC", "CONJP"};
 	
+	int[] barLabelToLabel;
+	
 	public LabelEnumeration() {
 		Arrays.sort(punctuation);
 	}
@@ -80,11 +82,11 @@ public class LabelEnumeration implements Serializable {
 	}
 	
 	public String getLabel(int id) {
-		return idToLabel.get(id);
+		return id < 0 ? "UNK" : idToLabel.get(id);
 	}
 	
 	public int getId(String label) {
-		return labelToId.get(label);
+		return labelToId.containsKey(label) ? labelToId.get(label) : -1;
 	}
 	
 	public int getNumberOfLabels() {
@@ -110,5 +112,38 @@ public class LabelEnumeration implements Serializable {
 			if(c.equals(label))
 				return true;
 		return false;
+	}
+	
+	public void printTopLevelLabels() {
+		for (Integer i : topLevelLabels) {
+			System.out.println(getLabel(i));
+		}
+		System.out.println(idToLabel);
+	}
+	
+	public void buildBarLabelToLabel() {
+		int n = getNumberOfLabels();
+		barLabelToLabel = new int[n];
+		for (int i = 0; i < n; ++i) {
+			String label = getLabel(i);
+			if (label.endsWith("-BAR")) {
+				String origLabel = label.substring(0, label.length() - 4);
+				//System.out.println("map " + label + " to " + origLabel);
+				int origId = getId(origLabel);
+				SpanUtilities.Assert(origId >= 0);
+				barLabelToLabel[i] = origId;
+			}
+			else {
+				barLabelToLabel[i] = -1;
+			}
+		}
+	}
+	
+	public boolean isBarLabel(int label) {
+		return barLabelToLabel[label] == -1 ? false : true;
+	}
+	
+	public int getOrigLabel(int label) {
+		return barLabelToLabel[label];
 	}
 }

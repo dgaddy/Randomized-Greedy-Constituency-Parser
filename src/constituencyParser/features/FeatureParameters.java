@@ -173,7 +173,7 @@ public class FeatureParameters implements Serializable {
 			norm += v * v;
 		}
 		double alpha = loss / norm;
-		alpha = Math.min(0.1, alpha);
+		alpha = Math.min(learningRate, alpha);
 		if (alpha > 0) {
 			//System.out.println("alpha: " + norm + " " + alpha);
 			for (int i = 0, L = val.size(); i < L; ++i) {
