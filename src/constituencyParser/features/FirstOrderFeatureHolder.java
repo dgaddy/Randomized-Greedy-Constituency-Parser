@@ -2,7 +2,6 @@ package constituencyParser.features;
 
 import gnu.trove.list.TLongList;
 
-import java.util.Arrays;
 import java.util.List;
 
 import constituencyParser.*;
@@ -29,10 +28,6 @@ public class FirstOrderFeatureHolder {
 	// for terminal rules
 	double[][] terminalScores; // by word number then rule
 	
-	// word
-	List<Word> words;
-	FeatureParameters params;
-	
 	public FirstOrderFeatureHolder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
 		this.wordEnum = words;
 		this.labels = labels;
@@ -44,15 +39,8 @@ public class FirstOrderFeatureHolder {
 		int labelsSize = labels.getNumberOfLabels();
 		int binaryRulesSize = rules.getNumberOfBinaryRules();
 		int unaryRulesSize = rules.getNumberOfUnaryRules();
-		
 		startSpanScores = new double[wordsSize][binaryRulesSize];
-		for (int i = 0; i < wordsSize; ++i)
-			Arrays.fill(startSpanScores[i], Double.NEGATIVE_INFINITY);
-		
 		endSpanScores = new double[wordsSize+1][binaryRulesSize];
-		for (int i = 0; i < wordsSize + 1; ++i)
-			Arrays.fill(endSpanScores[i], Double.NEGATIVE_INFINITY);
-
 		splitSpanScores = new double[wordsSize][binaryRulesSize];
 		lengthSpanScores = new double[wordsSize+1][binaryRulesSize];
 		binaryRuleScores = new double[binaryRulesSize];
@@ -64,9 +52,6 @@ public class FirstOrderFeatureHolder {
 		
 		terminalScores = new double[wordsSize][labelsSize];
 		
-		this.words = words;
-		this.params = params;
-		
 		for(int i = 0; i < wordsSize; i++) {
 			Word word = words.get(i);
 			Word wordBefore = i == 0 ? null : words.get(i-1);
@@ -75,9 +60,26 @@ public class FirstOrderFeatureHolder {
 				int label = rules.getBinaryRule(r).getLabel();
 				long ruleCode = RuleEnumeration.getRuleCode(r, Type.BINARY);
 				
+				// start score
 				double score = 0;
-				long propertyCode = 0;
-
+				long propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.FIRST);
+				score += scoreProperty(propertyCode, ruleCode, label, params);
+				if(wordBefore != null) {
+					propertyCode = SpanProperties.getWordPropertyCode(wordBefore, SpanProperties.WordPropertyType.BEFORE);
+					score += scoreProperty(propertyCode, ruleCode, label, params);
+				}
+				startSpanScores[i][r] = score;
+				
+				// end score
+				score = 0;
+				propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.LAST);
+				score += scoreProperty(propertyCode, ruleCode, label, params);
+				if(wordAfter != null) {
+					propertyCode = SpanProperties.getWordPropertyCode(wordAfter, SpanProperties.WordPropertyType.AFTER);
+					score += scoreProperty(propertyCode, ruleCode, label, params);
+				}
+				endSpanScores[i+1][r] = score;
+				
 				// split score
 				score = 0;
 				if(wordBefore != null) {
@@ -159,68 +161,8 @@ public class FirstOrderFeatureHolder {
 		return terminalScores[position][label];
 	}
 	
-	public double getStartSpanScores(int start, int ruleId) {
-		double tmp = startSpanScores[start][ruleId];
-		if (tmp > Double.NEGATIVE_INFINITY)
-			return tmp;
-		else {
-			// start score
-			int label = rules.getBinaryRule(ruleId).getLabel();
-			long ruleCode = RuleEnumeration.getRuleCode(ruleId, Type.BINARY);
-
-			Word word = words.get(start);
-			Word wordBefore = start == 0 ? null : words.get(start-1);
-
-			double score = 0;
-			long propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.FIRST);
-			score += scoreProperty(propertyCode, ruleCode, label, params);
-			if(wordBefore != null) {
-				propertyCode = SpanProperties.getWordPropertyCode(wordBefore, SpanProperties.WordPropertyType.BEFORE);
-				score += scoreProperty(propertyCode, ruleCode, label, params);
-			}
-			startSpanScores[start][ruleId] = score;
-			return score;
-		}
-	}
-	
-	public double getEndSpanScores(int end, int ruleId) {
-		// end score
-//		score = 0;
-//		propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.LAST);
-//		score += scoreProperty(propertyCode, ruleCode, label, params);
-//		if(wordAfter != null) {
-//			propertyCode = SpanProperties.getWordPropertyCode(wordAfter, SpanProperties.WordPropertyType.AFTER);
-//			score += scoreProperty(propertyCode, ruleCode, label, params);
-//		}
-//		endSpanScores[i+1][r] = score;
-		
-		double tmp = endSpanScores[end][ruleId];
-		if (tmp > Double.NEGATIVE_INFINITY)
-			return tmp;
-		else {
-			// start score
-			int label = rules.getBinaryRule(ruleId).getLabel();
-			long ruleCode = RuleEnumeration.getRuleCode(ruleId, Type.BINARY);
-
-			int wordsSize = words.size();
-			Word word = words.get(end - 1);
-			Word wordAfter = end == wordsSize ? null : words.get(end);
-
-			double score = 0;
-			long propertyCode = SpanProperties.getWordPropertyCode(word, SpanProperties.WordPropertyType.LAST);
-			score += scoreProperty(propertyCode, ruleCode, label, params);
-			if(wordAfter != null) {
-				propertyCode = SpanProperties.getWordPropertyCode(wordAfter, SpanProperties.WordPropertyType.AFTER);
-				score += scoreProperty(propertyCode, ruleCode, label, params);
-			}
-			endSpanScores[end][ruleId] = score;
-			return score;
-		}
-	}
-	
 	public double scoreBinary(int start, int end, int split, int ruleId) {
-		//return startSpanScores[start][ruleId] + endSpanScores[end][ruleId] + splitSpanScores[split][ruleId] + lengthSpanScores[end-start][ruleId] + binaryRuleScores[ruleId];
-		return getStartSpanScores(start, ruleId) + getEndSpanScores(end, ruleId) + splitSpanScores[split][ruleId] + lengthSpanScores[end-start][ruleId] + binaryRuleScores[ruleId];
+		return startSpanScores[start][ruleId] + endSpanScores[end][ruleId] + splitSpanScores[split][ruleId] + lengthSpanScores[end-start][ruleId] + binaryRuleScores[ruleId];
 	}
 	
 	public double scoreUnary(int start, int end, int ruleId) {
