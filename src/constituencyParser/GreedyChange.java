@@ -208,10 +208,10 @@ public class GreedyChange {
 		
 		public String toString() {
 			if(terminal) {
-				return "{" + index + ":" + label + "}";
+				return "{" + index + ":" + unaryLabel + "," + label + "}";
 			}
 			else {
-				return "{" + left.toString() + right.toString() + "}";
+				return "{" + left.toString() + "(" + unaryLabel + "," + label + ")" +right.toString() + "}";
 			}
 		}
 		
@@ -245,6 +245,20 @@ public class GreedyChange {
 		
 		//iterateLabels(root, toUpdate, result, topLevel, pruning);
 		iterateLabelsYuan(root, toUpdate, result, topLevel, pruning);
+		
+		return result;
+	}
+	
+	// use new iterate label function
+	public List<ParentedSpans> makeGreedyLabelChangesYuan(List<Span> spans, int indexStart, int indexEnd, boolean topLevel, Pruning pruning) {
+		List<ParentedSpans> result = new ArrayList<>();
+		
+		ConstituencyNode root = getTree(spans);
+		
+		ConstituencyNode toUpdate = root.getNode(indexStart, indexEnd);
+		
+		//iterateLabels(root, toUpdate, result, topLevel, pruning);
+		iterateLabelsYuan2(root, toUpdate, result, topLevel, pruning);
 		
 		return result;
 	}
@@ -320,6 +334,7 @@ public class GreedyChange {
 			//iterateLabels(newRoot, parent, result, parent == newRoot ? true : false, pruning);
 			//iterateLabels(newRoot, parent, result, false, pruning);
 			iterateLabelsYuan(newRoot, parent, result, false, pruning);
+			//iterateLabelsYuan(newRoot, parent, result, parent == newRoot ? true : false, pruning);
 		}
 		
 		return result;
@@ -498,8 +513,17 @@ public class GreedyChange {
 	
 	void iterateLabelsYuan(ConstituencyNode root, ConstituencyNode toIterate, List<ParentedSpans> resultAccumulator, boolean topLevel, Pruning pruning) {
 		// difference from the old iterate labels: children's unary rules may be removed
-
 		Set<Integer> topLevelLabels = labels.getTopLevelLabelIds();
+//		if (root.unaryLabel >= 0) {
+//			if (!topLevelLabels.contains(root.unaryLabel)) {
+//				System.out.println(root + " " + toIterate + " " + topLevel);
+//			}
+//			SpanUtilities.Assert(topLevelLabels.contains(root.unaryLabel));
+//		}
+//		else if (root.label >= 0) {
+//			SpanUtilities.Assert(topLevelLabels.contains(root.label));
+//		}
+		
 		ConstituencyNode parent = toIterate.parent;
 		boolean isLeft = parent != null && parent.left == toIterate ? true : false;
 		boolean isRight = parent != null && parent.right == toIterate ? true : false;
@@ -546,6 +570,16 @@ public class GreedyChange {
 
 						toIterate.unaryLabel = j;
 						
+						//if (root.unaryLabel >= 0) {
+						//	if (!topLevelLabels.contains(root.unaryLabel)) {
+						//		System.out.println(root + " " + toIterate + " " + topLevel);
+						//	}
+						//	SpanUtilities.Assert(topLevelLabels.contains(root.unaryLabel));
+						//}
+						//else if (root.label >= 0) {
+						//	SpanUtilities.Assert(topLevelLabels.contains(root.label));
+						//}
+						
 						ParentedSpans spans = root.getSpans();
 						SpanUtilities.connectChildren(spans.spans, spans.parents);
 						resultAccumulator.add(spans);
@@ -570,6 +604,129 @@ public class GreedyChange {
 			if (!toIterate.terminal) {
 				toIterate.left.unaryLabel = leftChildUnaryLabel;
 				toIterate.right.unaryLabel = rightChildUnaryLabel;
+			}
+		}
+	}
+	
+	boolean updateNodeLabel(ConstituencyNode node, int label, int oldLabel, int mode) {
+		if (mode == 0) {
+			// add to binary
+			node.unaryLabel = -1;
+			node.label = label;
+			
+			if (!node.terminal && !rules.isExistingBinaryRule(label, node.left.getConnectLabel(), node.right.getConnectLabel()))
+				return false;
+			else
+				return true;
+		}
+		else {
+			// add to unary
+			node.unaryLabel = label;
+			node.label = oldLabel;
+			
+			if (!rules.isExistingUnaryRule(label, oldLabel))
+				return false;
+			
+			SpanUtilities.Assert(node.terminal || rules.isExistingBinaryRule(oldLabel, node.left.getConnectLabel(), node.right.getConnectLabel()));
+			return true;
+		}
+	}
+	
+	// change both parent and children node labels
+	void iterateLabelsYuan2(ConstituencyNode root, ConstituencyNode toIterate, List<ParentedSpans> resultAccumulator, boolean topLevel, Pruning pruning) {
+		Set<Integer> topLevelLabels = labels.getTopLevelLabelIds();
+		
+		ConstituencyNode parent = toIterate.parent;
+		boolean isLeft = parent != null && parent.left == toIterate ? true : false;
+		boolean isRight = parent != null && parent.right == toIterate ? true : false;
+
+		int L = labels.getNumberOfLabels();
+		int binaryRuleNum = rules.getNumberOfBinaryRules();
+		
+		int leftChildUnaryLabel = toIterate.terminal ? -1 : toIterate.left.unaryLabel;
+		int rightChildUnaryLabel = toIterate.terminal ? -1 : toIterate.right.unaryLabel;
+		int leftChildLabel = toIterate.terminal ? -1 : toIterate.left.label;
+		int rightChildLabel = toIterate.terminal ? -1 : toIterate.right.label;
+		
+		// iterate binary rules
+		for(int i = 0; i < binaryRuleNum; ++i) {
+			Rule binaryRule = rules.getBinaryRule(i);
+			
+			if(pruning.isPrunedBeforeUnary(toIterate.start, toIterate.end, binaryRule.getLabel()))
+				continue;
+
+			toIterate.label = binaryRule.getLabel();
+			
+			// iterate child label combinations
+			for (int l = 0; l < (toIterate.terminal ? 1 : 2); ++l) {
+				ConstituencyNode leftChildNode = toIterate.left;
+				if (!toIterate.terminal) {
+					if (!updateNodeLabel(leftChildNode, binaryRule.getLeft(), leftChildLabel, l))
+						continue;
+				}
+				
+				for (int r = 0; r < (toIterate.terminal ? 1 : 2); ++r) {
+					ConstituencyNode rightChildNode = toIterate.right;
+					if (!toIterate.terminal) {
+						if (!updateNodeLabel(rightChildNode, binaryRule.getRight(), rightChildLabel, r))
+							continue;
+					}
+					
+					if (!toIterate.terminal && !rules.isExistingBinaryRule(toIterate.label, leftChildNode.getConnectLabel(), rightChildNode.getConnectLabel()))
+						continue;
+					
+					// iterate unary combinations
+					for (int j = 0; j < L; ++j) {
+						if (!rules.isExistingUnaryRule(j, toIterate.label))
+							continue;
+						
+						if (pruning.isPrunedAfterUnary(toIterate.start, toIterate.end, j))
+							continue;
+						
+						if(topLevel && !topLevelLabels.contains(j))
+							continue;
+						
+						if (parent != null && !rules.isExistingBinaryRule(parent.label, isLeft ? j : parent.left.getConnectLabel(), isRight ? j : parent.right.getConnectLabel()))
+							continue;
+
+						toIterate.unaryLabel = j;
+						
+						//if (root.unaryLabel >= 0) {
+						//	if (!topLevelLabels.contains(root.unaryLabel)) {
+						//		System.out.println(root + " " + toIterate + " " + topLevel);
+						//	}
+						//	SpanUtilities.Assert(topLevelLabels.contains(root.unaryLabel));
+						//}
+						//else if (root.label >= 0) {
+						//	SpanUtilities.Assert(topLevelLabels.contains(root.label));
+						//}
+						
+						ParentedSpans spans = root.getSpans();
+						SpanUtilities.connectChildren(spans.spans, spans.parents);
+						resultAccumulator.add(spans);
+					}
+					
+					toIterate.unaryLabel = -1;
+					
+					// the case without unary
+					if(topLevel && !topLevelLabels.contains(toIterate.label))
+						continue;
+
+					if (parent != null && !rules.isExistingBinaryRule(parent.label, isLeft ? toIterate.label : parent.left.getConnectLabel(), isRight ? toIterate.label : parent.right.getConnectLabel()))
+						continue;
+					
+					ParentedSpans spans = root.getSpans();
+					SpanUtilities.connectChildren(spans.spans, spans.parents);
+					resultAccumulator.add(spans);
+				}
+			}
+
+			// recover
+			if (!toIterate.terminal) {
+				toIterate.left.unaryLabel = leftChildUnaryLabel;
+				toIterate.right.unaryLabel = rightChildUnaryLabel;
+				toIterate.left.label = leftChildLabel;
+				toIterate.right.label = rightChildLabel;
 			}
 		}
 	}

@@ -50,7 +50,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	int[][] goldUnaryLabels;
 	double cost = 1.0;
 	
-	int numberSampleIterations = 30;
+	int numberSampleIterations = 100;
 	
 	public MaxResult finalResult;
 	
@@ -195,7 +195,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		public List<Span> call() {
 			List<Span> best = new ArrayList<Span>();
 			double bestScore = Double.NEGATIVE_INFINITY;
-			boolean useCKY = false;
+			boolean useCKY = true;
 			
 			//double ckyScore = score(words, ckySpan, params);
 			
@@ -203,7 +203,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 				//if (!costAugmenting)
 				//	System.out.println("new iteration: " + id);
 				List<Span> spans = null;
-				if (useCKY) {
+				if (!useCKY) {
 					spans = sampler.sample();
 				}
 				else {
@@ -211,7 +211,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 					spans = new ArrayList<Span>();
 					for (int z = 0; z < ckySpan.size(); ++z)
 						spans.add(new Span(ckySpan.get(z)));
-					useCKY = true;
+					useCKY = false;
 				}
 				SpanUtilities.connectChildren(spans);
 				
@@ -230,6 +230,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 					//if (!costAugmenting)
 					//	System.out.println("1111: " + id);
 					SpanUtilities.checkCorrectness(spans);
+					SpanUtilities.Assert(validTopLabel(spans, words.size()));
 					
 					boolean changed = true;
 					double lastScore = Double.NEGATIVE_INFINITY;
@@ -261,20 +262,20 @@ public class RandomizedGreedyDecoder implements Decoder {
 						lastScore = score;
 						
 						// terminal labels
-						/*
+						
 						for(int i = 0; i < words.size(); i++) {
 							List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, i, i+1, false, pruning);
 							
 							MaxResult max = getMax(options, words, params, 1); 
 							spans = max.spans;
 							
-							if(pruning.containsPruned(spans))
-								throw new RuntimeException();
-							if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
-								throw new RuntimeException();
+							//if(pruning.containsPruned(spans))
+							//	throw new RuntimeException();
+							//if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
+							//	throw new RuntimeException();
 						}
-						*/
 						
+						/*
 						// udpate labels of all spans
 						boolean[][] existSpan = new boolean[words.size()][words.size() + 1];
 						for (int i = 0; i < spans.size(); ++i) {
@@ -283,17 +284,35 @@ public class RandomizedGreedyDecoder implements Decoder {
 						}
 						for(int length = 1; length < words.size() + 1; length++) {
 							for(int start = 0; start < words.size() - length + 1; start++) {
+								// don't iterate over top labels
+								
 								if (!existSpan[start][start + length])
 									continue;
-								List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, start, start + length, length == words.size(), pruning);
-								if(options.size() == 0) {
-									break; // no valid option
+								List<ParentedSpans> options = null;
+								if (length == 1)
+									options = greedyChange.makeGreedyLabelChanges(spans, start, start + length, false, pruning);
+								else
+									options = greedyChange.makeGreedyLabelChangesYuan(spans, start, start + length, length == words.size(), pruning);
+								if (!containsOriginal(options, spans)) {
+									for (int z = 0; z < options.size(); ++z) {
+										SpanUtilities.print(options.get(z).spans, labels);
+										ParentedSpans option = options.get(z);
+										double tmpscore = score(words, option.spans, option.parents, params);
+										System.out.println("score " + tmpscore);
+									}
+									SpanUtilities.print(spans, labels);
+									System.out.println(options.size() + " " + start + " " + (start + length));
 								}
+								SpanUtilities.Assert(containsOriginal(options, spans));
+								//if(options.size() == 0) {
+								//	break; // no valid option
+								//}
 								spans = getMax(options, words, params, 3).spans;
-								
 							}
 						}
 						
+						SpanUtilities.Assert(validTopLabel(spans, words.size()));
+						*/
 						//if(pruning.containsPruned(spans))
 						//	throw new RuntimeException();
 						//if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
@@ -314,8 +333,19 @@ public class RandomizedGreedyDecoder implements Decoder {
 								}
 								if(exists) {
 									List<ParentedSpans> update = greedyChange.makeGreedyChanges(spans, start, start + length, words.size(), pruning);
-									//SpanUtilities.Assert(containsOriginal(update, spans));
-									
+									/*
+									if (!containsOriginal(update, spans)) {
+										SpanUtilities.print(spans, labels);
+										System.out.println(update.size() + " " + start + " " + (start + length));
+										for (int z = 0; z < update.size(); ++z) {
+											SpanUtilities.print(update.get(z).spans, labels);
+											ParentedSpans option = update.get(z);
+											double tmpscore = score(words, option.spans, option.parents, params);
+											System.out.println("score " + tmpscore);
+										}
+									}
+									SpanUtilities.Assert(containsOriginal(update, spans));
+									*/
 									// occasionally check that parents are correct
 									//if(update.size() > 0 && Math.random() < .005) {
 									//	ParentedSpans ps = update.get(0);
@@ -362,6 +392,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 									//	throw new RuntimeException();
 									//if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
 									//	throw new RuntimeException();
+
+									//SpanUtilities.Assert(validTopLabel(spans, words.size()));
 								}
 							}
 						}
@@ -370,13 +402,25 @@ public class RandomizedGreedyDecoder implements Decoder {
 						//	System.out.println("6666: " + id);
 
 						// iterate top level again with constraint to top level label in training set
-						/*
-						List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, 0, words.size(), true, pruning);
+						//List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, 0, words.size(), true, pruning);
+						List<ParentedSpans> options = greedyChange.makeGreedyLabelChangesYuan(spans, 0, words.size(), true, pruning);
 						if(options.size() == 0) {
 							break; // no valid option that uses top level labels
 						}
 						spans = getMax(options, words, params, 3).spans;
-						
+						/*
+						if (!validTopLabel(spans, words.size())) {
+							System.out.println("aaa " + options.size() );
+							for (int z = 0; z < options.size(); ++z) {
+								SpanUtilities.print(options.get(z).spans, labels);
+								ParentedSpans option = options.get(z);
+								double tmpscore = score(words, option.spans, option.parents, params);
+								System.out.println("score " + tmpscore);
+							}
+						}
+						SpanUtilities.Assert(validTopLabel(spans, words.size()));
+						*/
+						/*
 						if(pruning.containsPruned(spans))
 							throw new RuntimeException();
 						if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
@@ -417,6 +461,29 @@ public class RandomizedGreedyDecoder implements Decoder {
 			}
 			
 			return best;
+		}
+		
+		public boolean validTopLabel(List<Span> spans, int size) {
+			int binaryLabel = -1;
+			int unaryLabel = -1;
+			for (int i = 0; i < spans.size(); ++i) {
+				Span span = spans.get(i);
+				if (span.getStart() == 0 && span.getEnd() == size) {
+					if (span.getRule().getType() != Type.UNARY)
+						binaryLabel = span.getRule().getLabel();
+					else 
+						unaryLabel = span.getRule().getLabel();
+				}
+			}
+			//SpanUtilities.print(spans, labels);
+			boolean ret = false;
+			
+			if (unaryLabel != -1)
+				ret = labels.getTopLevelLabelIds().contains(unaryLabel);
+			else
+				ret = labels.getTopLevelLabelIds().contains(binaryLabel);
+			//System.out.println(ret);
+			return ret;
 		}
 		
 		public boolean containsOriginal(List<ParentedSpans> options, List<Span> spans) {

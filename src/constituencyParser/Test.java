@@ -68,6 +68,8 @@ public class Test {
 
 	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, boolean useRandGreedy, int section) throws IOException {
 		Decoder decoder;
+		DiscriminativeCKYDecoder CKYDecoder;
+		
 		if(useRandGreedy) {
 			RandomizedGreedyDecoder rg = new RandomizedGreedyDecoder(words, labels, rules, threads);
 			rg.setNumberSampleIterations(randomizedGreedyIterations);
@@ -75,6 +77,7 @@ public class Test {
 		}
 		else
 			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
+		CKYDecoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, section, section + 1, words, labels, rules, false);
 		int number = (int)(gold.size() * fractionOfData);
@@ -93,6 +96,9 @@ public class Test {
 			if (cnt % 10 == 0)
 				System.out.print("  " + cnt);
 			
+			List<Span> CKYPredicted = CKYDecoder.decode(example.getWords(), parameters);
+			((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
+
 			decoder.setSecondOrder(secondOrder);
 
 			List<Span> result = decoder.decode(example.getWords(), parameters);

@@ -61,7 +61,7 @@ public class Train {
 				CKYDecoder.setCostAugmenting(costAugmenting, sw, cost);
 				List<Span> CKYPredicted = CKYDecoder.decode(words, parameters);
 				((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
-				//double CKYPredictedScore = CKYDecoder.getLastScore();
+				double CKYPredictedScore = CKYDecoder.getLastScore();
 				//System.out.println(" cky: " + CKYPredictedScore);
 
 				decoder.setCostAugmenting(costAugmenting, sw, cost);
