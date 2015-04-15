@@ -32,6 +32,8 @@ public class FeatureParameters implements Serializable {
 	TDoubleArrayList featureValuesTotal = new TDoubleArrayList();
 	TDoubleArrayList featureValuesBak = new TDoubleArrayList();
 	
+	public int updateTimes = 0;
+	
 	public FeatureParameters(double learningRate, double regularization) {
 		featureIndices = new TLongIntHashMap(500, 0.2f, 0, -1);
 		this.learningRate = learningRate;
@@ -80,9 +82,9 @@ public class FeatureParameters implements Serializable {
 		if(index == -1) // default value, so feature isn't in map
 			return 0;
 		else {
-			if(getDropout(index))
-				return 0;
-			else
+			//if(getDropout(index))
+			//	return 0;
+			//else
 				return featureValues.getQuick(index);
 		}
 	}
@@ -110,8 +112,8 @@ public class FeatureParameters implements Serializable {
 				if(index == updates.size()) {
 					updates.add(0);
 				}
-				if(getDropout(index))
-					return true;
+				//if(getDropout(index))
+				//	return true;
 				
 				updates.set(index, value);
 				return true;
@@ -133,7 +135,11 @@ public class FeatureParameters implements Serializable {
 		}
 	}
 	
-	public void updateMIRA(TLongDoubleMap featureUpdates, double loss, int upd) {
+//	public void updateMIRA(TLongDoubleMap featureUpdates, double loss, int upd) {
+	public void updateMIRA(TLongDoubleMap featureUpdates, double loss) {
+		updateTimes++;
+		int upd = updateTimes;
+		
 		final TIntArrayList idx = new TIntArrayList(featureUpdates.size());
 		final TDoubleArrayList val = new TDoubleArrayList(featureUpdates.size());
 		/*
@@ -189,8 +195,10 @@ public class FeatureParameters implements Serializable {
 		}
 	}
 	
-	public void averageParameters(int T) 
+	public void averageParameters() 
 	{
+		int T = updateTimes;
+		
 		featureValuesBak = featureValues;
 		int size = featureValues.size();
 		TDoubleArrayList avg = new TDoubleArrayList(size);
@@ -204,6 +212,10 @@ public class FeatureParameters implements Serializable {
 	public void unaverageParameters() 
 	{
 		featureValues = featureValuesBak;
+	}
+	
+	public void resetUpdateTimes() {
+		updateTimes = 0;
 	}
 	
 	private int getOrMakeIndex(long key) {

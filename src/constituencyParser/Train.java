@@ -15,6 +15,8 @@ import constituencyParser.features.Features;
  * Trains a parser using Adagrad
  */
 public class Train {
+	public DiscriminativeCKYDecoder CKYDecoder;
+	
 	Decoder decoder;
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
@@ -43,7 +45,7 @@ public class Train {
 		while(index < trainingExamples.size()) {
 
 			TLongDoubleHashMap features = new TLongDoubleHashMap();
-			parameters.resetDropout(dropout);
+			//parameters.resetDropout(dropout);
 			
 			double batchPredictedScore = 0;
 			double batchGoldScore = 0;
@@ -59,6 +61,12 @@ public class Train {
 				
 				List<Word> words = sw.getWords();
 				
+				// CKY
+				CKYDecoder.setCostAugmenting(costAugmenting, sw);
+				List<Span> CKYPredicted = CKYDecoder.decode(words, parameters);
+				((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
+				double CKYPredictedScore = CKYDecoder.getLastScore();
+
 				decoder.setCostAugmenting(costAugmenting, sw);
 				decoder.setSecondOrder(doSecondOrder);
 				List<Span> predicted;
@@ -127,13 +135,20 @@ public class Train {
 						System.out.println("Warning: Gold score greater than predicted score, but decoder didn't find it");
 						System.out.println("Gold score: " + goldScore + " predicted: " + predictedScore + " " + augmentingScore);
 					}
+					
+					//System.out.println("gold: " + goldScore + " greed: " + decoder.getLastScore() + " cky: " + CKYPredictedScore);
+					//SpanUtilities.print(predicted, labels);
+					//SpanUtilities.print(CKYPredicted, labels);
+					//try { System.in.read(); } catch (Exception e) {e.printStackTrace();}
+					//SpanUtilities.debugSpan(predicted, labels, (RandomizedGreedyDecoder)decoder);
 				}
 			}
 			
 			updateNumber++;
 			if(mira) {
 				int miraCount = (iters * (N / batchSize + (N%batchSize > 0 ? 1 : 0)) + updateNumber);
-				parameters.updateMIRA(features, batchPredictedScore - batchGoldScore, miraCount);
+				//parameters.updateMIRA(features, batchPredictedScore - batchGoldScore, miraCount);
+				parameters.updateMIRA(features, batchPredictedScore - batchGoldScore);
 			}
 			else
 				parameters.update(features);

@@ -237,4 +237,10 @@ public class DiscriminativeCKYDecoder implements Decoder {
 		if(secondOrder)
 			throw new UnsupportedOperationException();
 	}
+
+	@Override
+	public void shutdown() {
+		// TODO Auto-generated method stub
+		
+	}
 }

@@ -24,6 +24,7 @@ import constituencyParser.features.FirstOrderFeatureHolder;
  */
 public class RandomizedGreedyDecoder implements Decoder {
 	DiscriminativeCKYSampler sampler;
+	public List<Span> ckySpan;
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
@@ -172,6 +173,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		public List<Span> call() {
 			List<Span> best = new ArrayList<Span>();
 			double bestScore = Double.NEGATIVE_INFINITY;
+			boolean useCKY = true;
 			
 			while(true) {
 				synchronized(lockObject) {
@@ -183,7 +185,24 @@ public class RandomizedGreedyDecoder implements Decoder {
 					}
 				}
 				//System.out.println("new iteration");
-				List<Span> spans = sampler.sample();
+				List<Span> spans = null;
+				if (!useCKY) {
+					spans = sampler.sample();
+				}
+				else {
+					// add CKY result as initial tree
+					spans = new ArrayList<Span>();
+					for (int z = 0; z < ckySpan.size(); ++z)
+						spans.add(new Span(ckySpan.get(z)));
+					useCKY = false;
+					
+					SpanUtilities.connectChildren(spans);
+					if(pruning.containsPruned(spans))
+						continue;
+					if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
+						continue;
+				}
+
 				SpanUtilities.connectChildren(spans);
 				if(pruning.containsPruned(spans))
 					throw new RuntimeException();
@@ -378,5 +397,10 @@ public class RandomizedGreedyDecoder implements Decoder {
 		}
 		
 		return score;
+	}
+
+	@Override
+	public void shutdown() {
+		executorService.shutdownNow();
 	}
 }

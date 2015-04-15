@@ -8,6 +8,12 @@ import java.util.List;
 import constituencyParser.Rule.Type;
 
 public class SpanUtilities {
+	public static void print (List<Span> spans, LabelEnumeration labels) {
+		for (int z = 0; z < spans.size(); ++z)
+			System.out.print(spans.get(z).toString(labels) + ", ");
+		System.out.println();
+	}
+
 	/**
 	 * Prints spans for a sentence in a way that is relatively easier to read
 	 * @param spans
