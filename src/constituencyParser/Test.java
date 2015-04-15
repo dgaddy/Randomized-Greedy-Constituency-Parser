@@ -22,7 +22,7 @@ import constituencyParser.features.Features;
  */
 public class Test {
 	public static void main(String[] args) throws Exception {
-		OptionParser parser = new OptionParser("m:d:s:t:i:w:zp:");
+		OptionParser parser = new OptionParser("m:d:s:t:i:w:zp:f:");
 		OptionSet options = parser.parse(args);
 		
 		String modelFile = "";
@@ -33,6 +33,7 @@ public class Test {
 		int section = 0;
 		boolean useRandGreedy = true;
 		double percentOfData = 1;
+		String dataFile = null;
 		
 		if(options.has("m")) {
 			modelFile = (String)options.valueOf("m");
@@ -61,6 +62,9 @@ public class Test {
 			if(percentOfData > 1 || percentOfData < 0)
 				throw new RuntimeException("Percent of data should be between 0 and 1");
 		}
+		if(options.has("f")) {
+			dataFile = (String)options.valueOf("f");
+		}
 
 		SaveObject savedModel = SaveObject.loadSaveObject(modelFile);
 
@@ -69,10 +73,10 @@ public class Test {
 		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 
-		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, percentOfData, numberOfThreads, useRandGreedy, section);
+		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, percentOfData, numberOfThreads, useRandGreedy, section, dataFile);
 	}
 
-	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, boolean useRandGreedy, int section) throws IOException {
+	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, boolean useRandGreedy, int section, String dataFile) throws IOException {
 		Decoder decoder;
 		if(useRandGreedy) {
 			RandomizedGreedyDecoder rg = new RandomizedGreedyDecoder(words, labels, rules, threads);
@@ -82,7 +86,11 @@ public class Test {
 		else
 			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
-		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, section, section + 1, words, labels, rules, false);
+		List<SpannedWords> gold;
+		if(dataFile == null)
+			gold = PennTreebankReader.loadFromFiles(dataFolder, section, section + 1, words, labels, rules, false);
+		else
+			gold = PennTreebankReader.loadFromFiles(Arrays.asList(dataFile), words, labels, rules, false);
 		int number = (int)(gold.size() * fractionOfData);
 		gold = gold.subList(0, number);
 		

@@ -1,6 +1,7 @@
 package constituencyParser;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -17,7 +18,7 @@ import constituencyParser.features.Features;
 
 public class RunTraining {
 	public static void main(String[] args) throws Exception {
-		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:znqu:w:");
+		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:znqu:w:f:g:");
 		OptionSet options = parser.parse(args);
 		
 		String dataFolder = "";
@@ -37,6 +38,8 @@ public class RunTraining {
 		boolean mira = false;
 		boolean useSuffixes = true;
 		int rareWordCutoff = 0;
+		String dataFile = null;
+		String testFile = null;
 		
 		if(options.has("t")) {
 			dataFolder = (String)options.valueOf("t");
@@ -90,9 +93,18 @@ public class RunTraining {
 		if(options.has("w")) {
 			rareWordCutoff = Integer.parseInt((String)options.valueOf("w"));
 		}
+		if(options.has("f")) {
+			dataFile = (String)options.valueOf("f");
+		}
+		if(options.has("g")) {
+			testFile = (String)options.valueOf("g");
+		}
 		
 		System.out.println("Running training with " + cores + " cores for " + iterations + " iterations.");
-		System.out.println("Data directory: " + dataFolder);
+		if(dataFile == null)
+			System.out.println("Data directory: " + dataFolder);
+		else
+			System.out.println("Data file: " + dataFile);
 		System.out.println("Output directory: " + outputFolder);
 		System.out.println("Cores: " + cores);
 		System.out.println("Iteration: " + iterations);
@@ -112,10 +124,10 @@ public class RunTraining {
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
 		
-		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization, randGreedy, noNegativeFeatures, mira, useSuffixes, rareWordCutoff);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization, randGreedy, noNegativeFeatures, mira, useSuffixes, rareWordCutoff, dataFile, testFile);
 	}
 	
-	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization, boolean useRandGreedy, boolean noNegativeFeatures, boolean mira, boolean useSuffixes, int rareWordCutoff) throws IOException, ClassNotFoundException {
+	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization, boolean useRandGreedy, boolean noNegativeFeatures, boolean mira, boolean useSuffixes, int rareWordCutoff, String dataFile, String testFile) throws IOException, ClassNotFoundException {
 		WordEnumeration words = new WordEnumeration(useSuffixes, rareWordCutoff);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
@@ -131,7 +143,11 @@ public class RunTraining {
 		
 		System.out.println("load data... ");
 		
-		List<SpannedWords> examples = PennTreebankReader.loadFromFiles(dataFolder, 2,22, words, labels, rules, true); // use only between 2 and 21 for training
+		List<SpannedWords> examples;
+		if(dataFile == null)
+			examples = PennTreebankReader.loadFromFiles(dataFolder, 2,22, words, labels, rules, true); // use only between 2 and 21 for training
+		else
+			examples = PennTreebankReader.loadFromFiles(Arrays.asList(dataFile), words, labels, rules, true);
 		if(percentOfData < 1) {
 			examples = new ArrayList<>(examples.subList(0, (int)(examples.size() * percentOfData)));
 		}
@@ -165,7 +181,10 @@ public class RunTraining {
 			
 			if(mira)
 				params.averageParameters((i + 1) * examples.size());
-			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .3, cores, useRandGreedy, 0);
+			if(testFile == null)
+				Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .3, cores, useRandGreedy, 0, null);
+			else
+				Test.test(words, labels, rules, params, "", secondOrder, 100, 1, cores, useRandGreedy, 0, testFile);
 			
 			SaveObject so = new SaveObject(words, labels, rules, params);
 			so.save(outputFolder + "/modelIteration"+i);
@@ -295,7 +314,7 @@ public class RunTraining {
 			
 			shared = FeatureParameters.average(finalParams);
 			
-			Test.test(words, labels, rules, shared, dataFolder, secondOrder, 100, .1, 1, true, 0);
+			Test.test(words, labels, rules, shared, dataFolder, secondOrder, 100, .1, 1, true, 0, null);
 			
 			SaveObject so = new SaveObject(words, labels, rules, shared);
 			so.save(outputFolder + "/modelIteration"+i);

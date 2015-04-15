@@ -178,6 +178,21 @@ public class PennTreebankReader implements Closeable {
 	}
 	
 	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
+		String formatString = folder+"wsj.%1$02d.txt";
+		List<String> files = new ArrayList<>();
+		for(int i = firstFile; i < lastFile; i++) {
+			String fileName = String.format(formatString, i);
+			files.add(fileName);
+		}
+		
+		return loadFromFiles(files, words, labels, rules, training);
+	}
+	
+	static List<SpannedWords> loadFromFiles(List<String> files, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean training) throws IOException {
+		return loadFromFiles(files, words, labels, rules, false, training);
+	}
+	
+	static List<SpannedWords> loadFromFiles(List<String> files, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
 		if(shuffle && (words.getNumberOfWords() > 1 || labels.getNumberOfLabels() > 0)) { // words can be size 1 because of special unknown word
 			throw new IllegalArgumentException("Cannot shuffle when there are already words or labels because this would invalidate previously loaded trees.");
 		}
@@ -185,13 +200,10 @@ public class PennTreebankReader implements Closeable {
 		List<SpannedWords> loaded = new ArrayList<>();
 		List<TreeNode> trees = new ArrayList<>();
 		
-		String formatString = folder+"wsj.%1$02d.txt";
-		
 		HashMap<String, Integer> wordCounts = new HashMap<>();
-		for(int i = firstFile; i < lastFile; i++) {
-			System.out.print(" " + i);
-			String fileName = String.format(formatString, i);
-			PennTreebankReader reader = new PennTreebankReader(fileName);
+		for(String file : files) {
+			System.out.print(" " + file);
+			PennTreebankReader reader = new PennTreebankReader(file);
 			TreeNode tree;
 			while((tree = reader.readPtbTree()) != null) {
 				tree.removeNoneLabel();
