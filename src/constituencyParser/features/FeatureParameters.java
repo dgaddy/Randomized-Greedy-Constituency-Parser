@@ -29,6 +29,7 @@ public class FeatureParameters implements Serializable {
 	transient TIntArrayList dropout; // 1 if should drop, 0 if should keep
 	boolean dontMakeNewFeatures = false;
 	
+	int numberMiraUpdates = 0;
 	TDoubleArrayList featureValuesTotal = new TDoubleArrayList();
 	TDoubleArrayList featureValuesBak = new TDoubleArrayList();
 	
@@ -133,7 +134,10 @@ public class FeatureParameters implements Serializable {
 		}
 	}
 	
-	public void updateMIRA(TLongDoubleMap featureUpdates, double loss, int upd) {
+	public void updateMIRA(TLongDoubleMap featureUpdates, double loss) {
+		numberMiraUpdates++;
+		int upd = numberMiraUpdates;
+		
 		final TIntArrayList idx = new TIntArrayList(featureUpdates.size());
 		final TDoubleArrayList val = new TDoubleArrayList(featureUpdates.size());
 		/*
@@ -189,8 +193,9 @@ public class FeatureParameters implements Serializable {
 		}
 	}
 	
-	public void averageParameters(int T) 
+	public void averageParameters() 
 	{
+		int T = numberMiraUpdates;
 		featureValuesBak = featureValues;
 		int size = featureValues.size();
 		TDoubleArrayList avg = new TDoubleArrayList(size);

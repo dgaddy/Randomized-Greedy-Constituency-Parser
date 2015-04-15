@@ -302,7 +302,7 @@ public class Test {
 			// run passive aggressive on the first example
 			DiscriminativeCKYDecoder decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 			Train pa = new Train(words, labels, rules, decoder, params);
-			pa.train(examples.subList(0, 1), .05, false, false, 1, 0, false);
+			pa.train(examples.subList(0, 1), .05, false, false, 1, false);
 
 			// the first example should now classify correctly
 			//List<Span> result = decoder.decode(examples.get(0).getWords(), params);

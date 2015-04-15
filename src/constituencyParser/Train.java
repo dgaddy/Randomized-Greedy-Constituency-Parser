@@ -32,11 +32,9 @@ public class Train {
 		this.parameters = parameters;
 	}
 	
-	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, int batchSize, int iters, boolean mira) {
+	public void train(List<SpannedWords> trainingExamples, double dropout, boolean doSecondOrder, boolean costAugmenting, int batchSize, boolean mira) {
 		int totalLoss = 0;
-		int updateNumber = 0;
 		int index = 0;
-		int N = trainingExamples.size();
 		
 		//parameters.resetDropout(dropout);
 		System.out.println("Number of training examples: " + trainingExamples.size());
@@ -130,10 +128,8 @@ public class Train {
 				}
 			}
 			
-			updateNumber++;
 			if(mira) {
-				int miraCount = (iters * (N / batchSize + (N%batchSize > 0 ? 1 : 0)) + updateNumber);
-				parameters.updateMIRA(features, batchPredictedScore - batchGoldScore, miraCount);
+				parameters.updateMIRA(features, batchPredictedScore - batchGoldScore);
 			}
 			else
 				parameters.update(features);

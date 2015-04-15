@@ -176,11 +176,11 @@ public class RunTraining {
 		
 		for(int i = 0; i < iterations; i++) {
 			System.out.println("Iteration " + i + ":");
-			pa.train(examples, dropout, secondOrder, costAugmenting, batchSize, i, mira);
+			pa.train(examples, dropout, secondOrder, costAugmenting, batchSize, mira);
 			params = pa.getParameters();
 			
 			if(mira)
-				params.averageParameters((i + 1) * examples.size());
+				params.averageParameters();
 			if(testFile == null)
 				Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .3, cores, useRandGreedy, 0, null);
 			else
@@ -231,7 +231,7 @@ public class RunTraining {
 			RandomizedGreedyDecoder decoder = new RandomizedGreedyDecoder(words, labels, rules, 1);
 			Train pa = new Train(words, labels, rules, decoder, initialParams);
 			try {
-				pa.train(data, dropout, secondOrder, costAugmenting, 1, 0, false);
+				pa.train(data, dropout, secondOrder, costAugmenting, 1, false);
 			}
 			catch(Exception ex) {
 				ex.printStackTrace(); //because otherwise exceptions get caught by the executor and don't give a stack trace
