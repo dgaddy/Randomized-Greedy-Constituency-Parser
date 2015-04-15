@@ -66,15 +66,20 @@ public class DiscriminativeCKYSampler {
 			double maxBeforeUnaries = 0;
 			
 			for(int label = 0; label < labelsSize; label++) {
-				double spanScore = firstOrderFeatures.scoreTerminal(i, label);
-				if(costAugmenting && goldLabels[i][i+1] != label) {
-					spanScore += 1;
+				if (labels.isTerminalLabel(label)) {
+					double spanScore = firstOrderFeatures.scoreTerminal(i, label);
+					if(costAugmenting && goldLabels[i][i+1] != label) {
+						spanScore += 1;
+					}
+					
+					insideLogProbabilitiesBeforeUnaries[i][i+1][label] = spanScore;
+					
+					if(spanScore > maxBeforeUnaries)
+						maxBeforeUnaries = spanScore;
 				}
-				
-				insideLogProbabilitiesBeforeUnaries[i][i+1][label] = spanScore;
-				
-				if(spanScore > maxBeforeUnaries)
-					maxBeforeUnaries = spanScore;
+				else {
+					insideLogProbabilitiesBeforeUnaries[i][i+1][label] = Double.NEGATIVE_INFINITY;
+				}
 			}
 			
 			doUnaryProbabilities(words, i, i+1);
