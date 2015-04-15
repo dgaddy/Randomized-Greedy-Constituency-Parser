@@ -9,6 +9,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import constituencyParser.Rule.Type;
+
 /**
  * Adapted from github: yfpeng's PennTreebankReader
  */
@@ -226,11 +228,19 @@ public class PennTreebankReader implements Closeable {
 		
 		for(TreeNode tree : trees) {
 			SpannedWords sw = tree.getSpans(words, labels);
-			if (sw.getWords().size() <= 40) {
+			//if (sw.getWords().size() <= 40) {
 				SpanUtilities.connectChildren(sw.getSpans());
 				loaded.add(sw);
+			//}
+				
+			// add terminal albel
+			for (Span sp : sw.getSpans()) {
+				if (sp.getRule().getType() == Type.TERMINAL)
+					labels.addTerminalLabel(sp.getRule().getLabel());
 			}
 		}
+		
+		labels.buildList();
 		
 		if(training)
 			rules.addAllRules(loaded);

@@ -173,7 +173,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		public List<Span> call() {
 			List<Span> best = new ArrayList<Span>();
 			double bestScore = Double.NEGATIVE_INFINITY;
-			boolean useCKY = true;
+			boolean useCKY = false;
 			
 			while(true) {
 				synchronized(lockObject) {
@@ -233,6 +233,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 							List<ParentedSpans> options = greedyChange.makeGreedyLabelChanges(spans, i, i+1, false, pruning);
 							
 							spans = getMax(options, words, params).spans;
+							checkTerminal(spans);
 							
 							if(pruning.containsPruned(spans))
 								throw new RuntimeException();
@@ -261,7 +262,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 									}
 									
 									spans = getMax(update, words, params).spans;
-									
+									checkTerminal(spans);
+
 									if(pruning.containsPruned(spans))
 										throw new RuntimeException();
 									if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
@@ -276,7 +278,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 							break; // no valid option that uses top level labels
 						}
 						spans = getMax(options, words, params).spans;
-						
+						checkTerminal(spans);
+
 						if(pruning.containsPruned(spans))
 							throw new RuntimeException();
 						if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
@@ -292,6 +295,14 @@ public class RandomizedGreedyDecoder implements Decoder {
 			
 			return best;
 		}
+	}
+	
+	public boolean checkTerminal(List<Span> spans) {
+		for (Span span : spans) {
+			if (span.getRule().getType() == Type.TERMINAL && !labels.isTerminalLabel(span.getRule().getLabel()))
+				return false;
+		}
+		return true;
 	}
 	
 	/**

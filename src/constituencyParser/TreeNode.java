@@ -277,6 +277,8 @@ public class TreeNode {
 			for(TreeNode child : left.children) {
 				child.parent = null;
 				result.addChild(child);
+				if (child.isWord)
+					throw new RuntimeException("word below a -BAR label, invalid tree");
 			}
 		}
 		else {
@@ -287,6 +289,7 @@ public class TreeNode {
 			TreeNode right = children.get(1).unbinarize();
 			result.addChild(right);
 		}
+		
 		
 		return result;
 	}

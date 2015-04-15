@@ -4,6 +4,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 
+import constituencyParser.Rule.Type;
+
 public class PennTreebankWriter {
 	WordEnumeration words;
 	LabelEnumeration labels;
@@ -31,6 +33,12 @@ public class PennTreebankWriter {
 			writer.append("(TOP ");
 		}
 		
+		for (Span span : tree.getSpans()) {
+			if (span.getRule().getType() == Type.TERMINAL && !labels.isTerminalLabel(span.getRule().getLabel())) {
+				SpanUtilities.print(tree.getSpans(), labels);
+				throw new RuntimeException("aaa");
+			}
+		}
 		writer.append(TreeNode.makeTreeFromSpans(tree.getSpans(), tree.getWords(), words, labels).unbinarize().toString());
 		
 		if(addTop)

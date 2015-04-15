@@ -334,6 +334,9 @@ public class GreedyChange {
 			if(pruning.isPruned(spanToIterate.getStart(), spanToIterate.getEnd(), i))
 				continue;
 			
+			if (spanToIterate.getStart() + 1 == spanToIterate.getEnd() && !labels.isTerminalLabel(i))
+				continue;
+			
 			Span newToIterate = spanToIterate.changeLabel(i);
 			if(!rules.isExistingRule(newToIterate.getRule()))
 				continue;
@@ -375,6 +378,9 @@ public class GreedyChange {
 				continue;
 			
 			if(pruning.isPruned(spanToIterate.getStart(), spanToIterate.getEnd(), rule.getLabel()) || pruning.isPruned(spanToIterate.getStart(), spanToIterate.getEnd(), rule.getLeft()))
+				continue;
+
+			if (spanToIterate.getStart() + 1 == spanToIterate.getEnd() && !labels.isTerminalLabel(rule.getLeft()))
 				continue;
 
 			Span newToIterate = spanToIterate.changeLabel(rule.getLeft());

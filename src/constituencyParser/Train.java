@@ -15,7 +15,7 @@ import constituencyParser.features.Features;
  * Trains a parser using Adagrad
  */
 public class Train {
-	public DiscriminativeCKYDecoder CKYDecoder;
+	//public DiscriminativeCKYDecoder CKYDecoder;
 	
 	Decoder decoder;
 	WordEnumeration wordEnum;
@@ -62,10 +62,10 @@ public class Train {
 				List<Word> words = sw.getWords();
 				
 				// CKY
-				CKYDecoder.setCostAugmenting(costAugmenting, sw);
-				List<Span> CKYPredicted = CKYDecoder.decode(words, parameters);
-				((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
-				double CKYPredictedScore = CKYDecoder.getLastScore();
+				//CKYDecoder.setCostAugmenting(costAugmenting, sw);
+				//List<Span> CKYPredicted = CKYDecoder.decode(words, parameters);
+				//((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
+				//double CKYPredictedScore = CKYDecoder.getLastScore();
 
 				decoder.setCostAugmenting(costAugmenting, sw);
 				decoder.setSecondOrder(doSecondOrder);

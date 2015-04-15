@@ -60,12 +60,18 @@ public class DiscriminativeCKYDecoder implements Decoder {
 		
 		for(int i = 0; i < wordsSize; i++) {
 			for(int label = 0; label < labelsSize; label++) {
-				Span span = new Span(i, label);
-				double score = firstOrderFeatures.scoreTerminal(i, label);
-				if(costAugmenting && label != goldLabels[i][i+1])
-					score += 1;
-				scores[i][i+1][label] = score;
-				spans[i][i+1][label] = span;
+				if (labels.isTerminalLabel(label)) {
+					Span span = new Span(i, label);
+					double score = firstOrderFeatures.scoreTerminal(i, label);
+					if(costAugmenting && label != goldLabels[i][i+1])
+						score += 1;
+					scores[i][i+1][label] = score;
+					spans[i][i+1][label] = span;
+				}
+				else {
+					scores[i][i+1][label] = Double.NEGATIVE_INFINITY;
+					spans[i][i+1][label] = null;
+				}
 			}
 			
 			doUnary(words, i, i+1, Double.POSITIVE_INFINITY, params);

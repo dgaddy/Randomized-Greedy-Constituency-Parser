@@ -1,6 +1,8 @@
 package constituencyParser;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -69,12 +71,14 @@ public class Test {
 		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 
-		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, percentOfData, numberOfThreads, useRandGreedy, section);
+		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, percentOfData, numberOfThreads, useRandGreedy, section, "", "");
 	}
 
-	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, boolean useRandGreedy, int section) throws IOException {
+	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, 
+			String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, 
+			boolean useRandGreedy, int section, String outputFolder, String runid) throws IOException {
 		Decoder decoder;
-		DiscriminativeCKYDecoder CKYDecoder;
+		//DiscriminativeCKYDecoder CKYDecoder;
 		
 		if(useRandGreedy) {
 			RandomizedGreedyDecoder rg = new RandomizedGreedyDecoder(words, labels, rules, threads);
@@ -83,7 +87,7 @@ public class Test {
 		}
 		else
 			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
-		CKYDecoder = new DiscriminativeCKYDecoder(words, labels, rules);
+		//CKYDecoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, section, section + 1, words, labels, rules, false);
 		int number = (int)(gold.size() * fractionOfData);
@@ -95,15 +99,18 @@ public class Test {
 		int numberGold = 0;
 		int numberOutput = 0;
 		
-		PennTreebankWriter writer = new PennTreebankWriter("output.tst", words, labels, false);
+		PennTreebankWriter writer = new PennTreebankWriter(outputFolder + "output.tst." + runid, words, labels, false);
+		PennTreebankWriter writer_gold = new PennTreebankWriter(outputFolder + "output.gld." + runid, words, labels, false);
+		//String goldFile = "./data/wsj." + section + ".txt";
+		
 		int cnt = 0;
 		for(SpannedWords example : gold) {
 			cnt++;
 			if (cnt % 10 == 0)
 				System.out.print("  " + cnt);
 			
-			List<Span> CKYPredicted = CKYDecoder.decode(example.getWords(), parameters);
-			((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
+			//List<Span> CKYPredicted = CKYDecoder.decode(example.getWords(), parameters);
+			//((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
 
 			List<Bracket> goldBrackets = TreeNode.makeTreeFromSpans(example.getSpans(), example.getWords(), words, labels).unbinarize().getAllBrackets();
 			
@@ -116,6 +123,7 @@ public class Test {
 			}
 			
 			writer.writeTree(new SpannedWords(result, example.getWords()));
+			writer_gold.writeTree(example);
 			
 			List<Bracket> resultBrackets = TreeNode.makeTreeFromSpans(result, example.getWords(), words, labels).unbinarize().getAllBrackets();
 			
@@ -142,11 +150,40 @@ public class Test {
 		}
 		System.out.println();
 		writer.close();
+		writer_gold.close();
+		
 		double precision = numberCorrect / (double)numberOutput;
 		double recall = numberCorrect / (double)numberGold;
 
 		double score = 2*precision*recall/(precision+recall);
 		System.out.println("Development set score: " + score);
+		
+		// run script
+		runEval(outputFolder + "output.gld." + runid, outputFolder + "output.tst." + runid);
+		//runEval(goldFile, outputFolder + "output.tst." + runid);
+	}
+	
+	public static void runEval(String gold, String test) {
+		System.out.println("gold: " + gold + " test: " + test);
+		try {
+			Runtime r = Runtime.getRuntime();
+			Process p;
+			p = r.exec("./EVALB/evalb -p EVALB/new.prm " + gold + " " + test);
+			p.waitFor();
+			BufferedReader b = new BufferedReader(new InputStreamReader(p.getInputStream()));
+			String line = b.readLine();
+			while (line != null && !line.startsWith("=== Summary ==="))
+				line = b.readLine();
+
+			while (line != null) {
+			  System.out.println(line);
+			  line = b.readLine();
+			}
+
+			b.close();		
+		} catch (IOException | InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**

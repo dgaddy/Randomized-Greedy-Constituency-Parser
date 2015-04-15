@@ -17,9 +17,12 @@ public class LabelEnumeration implements Serializable {
 	HashMap<String, Integer> labelToId = new HashMap<>();
 	
 	HashSet<Integer> topLevelLabels = new HashSet<>();
+	HashSet<Integer> terminalLabels = new HashSet<>();
 	
 	String[] punctuation = new String[] {"''", ":", "#", ",", ".", "``", "-LRB-", "-", "-RRB-"};
 	String[] conjunctions = new String[] {"CC", "CONJP"};
+	
+	boolean[] isTerminal;
 	
 	public LabelEnumeration() {
 		Arrays.sort(punctuation);
@@ -75,6 +78,15 @@ public class LabelEnumeration implements Serializable {
 		topLevelLabels.add(getId(label));
 	}
 	
+	public void addTerminalLabel(String label) {
+		addLabel(label);
+		terminalLabels.add(getId(label));
+	}
+	
+	public void addTerminalLabel(int i) {
+		terminalLabels.add(i);
+	}
+	
 	public Set<Integer> getTopLevelLabelIds() {
 		return topLevelLabels;
 	}
@@ -89,6 +101,15 @@ public class LabelEnumeration implements Serializable {
 	
 	public int getNumberOfLabels() {
 		return idToLabel.size();
+	}
+	
+	public void buildList() {
+		int n = getNumberOfLabels();
+		isTerminal = new boolean[n];
+		for (int i = 0; i < n; ++i)
+			if (terminalLabels.contains(i)) {
+				isTerminal[i] = true;
+			}
 	}
 	
 	/**
@@ -110,5 +131,9 @@ public class LabelEnumeration implements Serializable {
 			if(c.equals(label))
 				return true;
 		return false;
+	}
+	
+	public boolean isTerminalLabel(int i) {
+		return isTerminal[i];
 	}
 }

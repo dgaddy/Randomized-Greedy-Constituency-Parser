@@ -18,6 +18,7 @@ import constituencyParser.features.Features;
 public class RunTraining {
 	public static void main(String[] args) throws Exception {
 		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:znqu:w:");
+		parser.accepts("id").withRequiredArg();
 		OptionSet options = parser.parse(args);
 		
 		String dataFolder = "";
@@ -36,6 +37,8 @@ public class RunTraining {
 		boolean noNegativeFeatures = false;
 		boolean mira = false;
 		boolean useSuffixes = true;
+		String runid = "test";
+		
 		int rareWordCutoff = 0;
 		
 		if(options.has("t")) {
@@ -90,6 +93,9 @@ public class RunTraining {
 		if(options.has("w")) {
 			rareWordCutoff = Integer.parseInt((String)options.valueOf("w"));
 		}
+		if(options.has("id")) {
+			runid = (String)options.valueOf("id");
+		}
 		
 		System.out.println("Running training with " + cores + " cores for " + iterations + " iterations.");
 		System.out.println("Data directory: " + dataFolder);
@@ -111,11 +117,13 @@ public class RunTraining {
 			System.out.println("starting from " + startModel);
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
+		System.out.println("run id: " + runid);
 		
-		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization, randGreedy, noNegativeFeatures, mira, useSuffixes, rareWordCutoff);
+		train(dataFolder, outputFolder, cores, iterations, percentOfData, dropout, startModel, secondOrder, costAugmenting, learningRate, batchSize, regularization, randGreedy, noNegativeFeatures, mira, useSuffixes, rareWordCutoff, runid);
 	}
 	
-	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization, boolean useRandGreedy, boolean noNegativeFeatures, boolean mira, boolean useSuffixes, int rareWordCutoff) throws IOException, ClassNotFoundException {
+	public static void train(String dataFolder, String outputFolder, int cores, int iterations, double percentOfData, double dropout, String startModel, boolean secondOrder, boolean costAugmenting, double learningRate, int batchSize, double regularization, boolean useRandGreedy, 
+			boolean noNegativeFeatures, boolean mira, boolean useSuffixes, int rareWordCutoff, String runid) throws IOException, ClassNotFoundException {
 		WordEnumeration words = new WordEnumeration(useSuffixes, rareWordCutoff);
 		LabelEnumeration labels = new LabelEnumeration();
 		RuleEnumeration rules = new RuleEnumeration();
@@ -150,7 +158,7 @@ public class RunTraining {
 		}
 		System.out.println(" Done.");
 		
-		DiscriminativeCKYDecoder CKYDecoder = new DiscriminativeCKYDecoder(words, labels, rules);
+		//DiscriminativeCKYDecoder CKYDecoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
 		Decoder decoder;
 		if(useRandGreedy)
@@ -159,7 +167,7 @@ public class RunTraining {
 			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
 		Train pa = new Train(words, labels, rules, decoder, params);
-		pa.CKYDecoder = CKYDecoder;
+		//pa.CKYDecoder = CKYDecoder;
 		
 		params.resetUpdateTimes();
 		
@@ -171,10 +179,11 @@ public class RunTraining {
 			if(mira)
 				//params.averageParameters((i + 1) * examples.size());
 				params.averageParameters();
-			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .3, cores, useRandGreedy, 0);
+			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .01, cores, useRandGreedy, 23, outputFolder, runid);
+			//Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .3, cores, useRandGreedy, 0);
 			
 			SaveObject so = new SaveObject(words, labels, rules, params);
-			so.save(outputFolder + "/modelIteration"+i);
+			so.save(outputFolder + "modelIteration"+i + "." + runid);
 			if(mira)
 				params.unaverageParameters();
 		}
@@ -303,7 +312,7 @@ public class RunTraining {
 			
 			shared = FeatureParameters.average(finalParams);
 			
-			Test.test(words, labels, rules, shared, dataFolder, secondOrder, 100, .1, 1, true, 0);
+			Test.test(words, labels, rules, shared, dataFolder, secondOrder, 100, .1, 1, true, 0, "", "");
 			
 			SaveObject so = new SaveObject(words, labels, rules, shared);
 			so.save(outputFolder + "/modelIteration"+i);
