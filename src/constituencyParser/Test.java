@@ -169,16 +169,18 @@ public class Test {
 			Runtime r = Runtime.getRuntime();
 			Process p;
 			p = r.exec("./EVALB/evalb -p EVALB/new.prm " + gold + " " + test);
-			p.waitFor();
 			BufferedReader b = new BufferedReader(new InputStreamReader(p.getInputStream()));
 			String line = b.readLine();
 			while (line != null && !line.startsWith("=== Summary ==="))
 				line = b.readLine();
 
+			System.out.println("summary");
 			while (line != null) {
 			  System.out.println(line);
 			  line = b.readLine();
 			}
+			p.waitFor();
+			System.out.println("evalutaion done");
 
 			b.close();		
 		} catch (IOException | InterruptedException e) {

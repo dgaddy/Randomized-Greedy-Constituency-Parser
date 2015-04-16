@@ -179,7 +179,7 @@ public class RunTraining {
 			if(mira)
 				//params.averageParameters((i + 1) * examples.size());
 				params.averageParameters();
-			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .01, cores, useRandGreedy, 23, outputFolder, runid);
+			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, 1.0, cores, useRandGreedy, 23, outputFolder, runid);
 			//Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .3, cores, useRandGreedy, 0);
 			
 			SaveObject so = new SaveObject(words, labels, rules, params);
