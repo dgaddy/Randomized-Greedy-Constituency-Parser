@@ -17,6 +17,7 @@ public class LabelEnumeration implements Serializable {
 	HashMap<String, Integer> labelToId = new HashMap<>();
 	
 	HashSet<Integer> topLevelLabels = new HashSet<>();
+	List<Integer> POSLabels = new ArrayList<>();
 	
 	String[] punctuation = new String[] {"''", ":", "#", ",", ".", "``", "-LRB-", "-", "-RRB-"};
 	String[] conjunctions = new String[] {"CC", "CONJP"};
@@ -77,6 +78,21 @@ public class LabelEnumeration implements Serializable {
 	
 	public Set<Integer> getTopLevelLabelIds() {
 		return topLevelLabels;
+	}
+	
+	public void addPOSLabel(String label) {
+		addLabel(label); // just to be sure
+		POSLabels.add(getId(label));
+	}
+	
+	public void addAllPOSLabels(List<String> labels) {
+		for(String label : labels) {
+			addPOSLabel(label);
+		}
+	}
+	
+	public List<Integer> getPOSLabels() {
+		return POSLabels;
 	}
 	
 	public String getLabel(int id) {

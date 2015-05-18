@@ -226,6 +226,14 @@ public class Span {
 		return false;
 	}
 	
+	public boolean equalsWithChildren(Span other) {
+		if(!this.equals(other))
+			return false;
+		boolean leftOk = left == null ? other.left == null : left.equalsWithChildren(other.left);
+		boolean rightOk = right == null ? other.right == null : right.equalsWithChildren(other.right);
+		return leftOk && rightOk;
+	}
+	
 	public int hashCode() {
 		int value = start * 17 + end * 19 + 3 * rule.hashCode();
 		if(rule.getType() == Type.BINARY) {

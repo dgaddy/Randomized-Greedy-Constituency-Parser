@@ -177,30 +177,33 @@ public class PennTreebankReader implements Closeable {
 		return loadFromFiles(folder, firstFile, lastFile, words, labels, rules, false, training);
 	}
 	
-	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
+	static List<String> getWSJFiles(String folder, int first, int lastExclusive) {
 		String formatString = folder+"wsj.%1$02d.txt";
 		List<String> files = new ArrayList<>();
-		for(int i = firstFile; i < lastFile; i++) {
+		for(int i = first; i < lastExclusive; i++) {
 			String fileName = String.format(formatString, i);
 			files.add(fileName);
 		}
-		
-		return loadFromFiles(files, words, labels, rules, training);
+		return files;
+	}
+	
+	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
+		return loadFromFiles(getWSJFiles(folder, firstFile, lastFile), words, labels, rules, training);
 	}
 	
 	static List<SpannedWords> loadFromFiles(List<String> files, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean training) throws IOException {
 		return loadFromFiles(files, words, labels, rules, false, training);
 	}
 	
-	static List<SpannedWords> loadFromFiles(List<String> files, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
-		if(shuffle && (words.getNumberOfWords() > 1 || labels.getNumberOfLabels() > 0)) { // words can be size 1 because of special unknown word
-			throw new IllegalArgumentException("Cannot shuffle when there are already words or labels because this would invalidate previously loaded trees.");
-		}
-		
-		List<SpannedWords> loaded = new ArrayList<>();
+	/**
+	 * Load unbinarized TreeNodes from files
+	 * @param files
+	 * @return
+	 * @throws IOException
+	 */
+	static List<TreeNode> loadTreeNodesFromFiles(List<String> files) throws IOException {
 		List<TreeNode> trees = new ArrayList<>();
 		
-		HashMap<String, Integer> wordCounts = new HashMap<>();
 		for(String file : files) {
 			System.out.print(" " + file);
 			PennTreebankReader reader = new PennTreebankReader(file);
@@ -209,23 +212,40 @@ public class PennTreebankReader implements Closeable {
 				tree.removeNoneLabel();
 				tree.removeStackedUnaries();
 				tree.makeLabelsSimple();
-				tree = tree.makeBinary();
 				trees.add(tree);
-				labels.addAllLabels(tree.getAllLabels());
-				labels.addTopLevelLabel(tree.getLabel());
-				
-				for(String word : tree.getAllWords()) {
-					Integer count = wordCounts.get(word);
-					if(count == null)
-						wordCounts.put(word, 1);
-					else
-						wordCounts.put(word, count+1);
-				}
 			}
 			
 			reader.close();
 		}
-		System.out.println(" Done.");
+		
+		return trees;
+	}
+	
+	static List<SpannedWords> loadFromFiles(List<String> files, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
+		if(shuffle && (words.getNumberOfWords() > 1 || labels.getNumberOfLabels() > 0)) { // words can be size 1 because of special unknown word
+			throw new IllegalArgumentException("Cannot shuffle when there are already words or labels because this would invalidate previously loaded trees.");
+		}
+		
+		List<SpannedWords> loaded = new ArrayList<>();
+		List<TreeNode> trees = loadTreeNodesFromFiles(files);
+		
+		HashMap<String, Integer> wordCounts = new HashMap<>();
+		for(int i = 0; i < trees.size(); i++) {
+			TreeNode tree = trees.get(i);
+			tree = tree.makeBinary();
+			trees.set(i, tree);
+			labels.addAllLabels(tree.getAllLabels());
+			labels.addTopLevelLabel(tree.getLabel());
+			labels.addAllPOSLabels(tree.getAllPOSLabels());
+			
+			for(String word : tree.getAllWords()) {
+				Integer count = wordCounts.get(word);
+				if(count == null)
+					wordCounts.put(word, 1);
+				else
+					wordCounts.put(word, count+1);
+			}
+		}
 		if(training)
 			words.addTrainingWords(wordCounts);
 		
@@ -246,6 +266,8 @@ public class PennTreebankReader implements Closeable {
 			rules.addAllRules(loaded);
 		else
 			rules.countMissingRules(loaded);
+
+		System.out.println(" Done loading.");
 		
 		return loaded;
 	}
