@@ -78,8 +78,14 @@ public class Train {
 					List<Long> goldFeatures = Features.getAllFeatures(gold, words, doSecondOrder, wordEnum, labels, rules);
 					double goldScore = 0;
 					for(Long code : goldFeatures) {
-						features.adjustOrPutValue(code, -1.0, -1.0);
 						goldScore += parameters.getScore(code);
+					}
+					
+					if(goldScore > decoder.getLastScore())
+						continue; // don't update score if gold score higher
+					
+					for(Long code : goldFeatures) {
+						features.adjustOrPutValue(code, -1.0, -1.0);
 						goldFeatureCounts.adjustOrPutValue(code, 1.0, 1.0);
 					}
 					
