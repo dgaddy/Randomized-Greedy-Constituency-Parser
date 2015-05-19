@@ -173,11 +173,11 @@ public class PennTreebankReader implements Closeable {
 	 * @return
 	 * @throws IOException 
 	 */
-	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean training) throws IOException {
+	public static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean training) throws IOException {
 		return loadFromFiles(folder, firstFile, lastFile, words, labels, rules, false, training);
 	}
 	
-	static List<String> getWSJFiles(String folder, int first, int lastExclusive) {
+	public static List<String> getWSJFiles(String folder, int first, int lastExclusive) {
 		String formatString = folder+"wsj.%1$02d.txt";
 		List<String> files = new ArrayList<>();
 		for(int i = first; i < lastExclusive; i++) {
@@ -187,11 +187,11 @@ public class PennTreebankReader implements Closeable {
 		return files;
 	}
 	
-	static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
+	public static List<SpannedWords> loadFromFiles(String folder, int firstFile, int lastFile, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
 		return loadFromFiles(getWSJFiles(folder, firstFile, lastFile), words, labels, rules, training);
 	}
 	
-	static List<SpannedWords> loadFromFiles(List<String> files, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean training) throws IOException {
+	public static List<SpannedWords> loadFromFiles(List<String> files, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean training) throws IOException {
 		return loadFromFiles(files, words, labels, rules, false, training);
 	}
 	
@@ -201,7 +201,7 @@ public class PennTreebankReader implements Closeable {
 	 * @return
 	 * @throws IOException
 	 */
-	static List<TreeNode> loadTreeNodesFromFiles(List<String> files) throws IOException {
+	public static List<TreeNode> loadTreeNodesFromFiles(List<String> files) throws IOException {
 		List<TreeNode> trees = new ArrayList<>();
 		
 		for(String file : files) {
@@ -221,7 +221,7 @@ public class PennTreebankReader implements Closeable {
 		return trees;
 	}
 	
-	static List<SpannedWords> loadFromFiles(List<String> files, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
+	public static List<SpannedWords> loadFromFiles(List<String> files, WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, boolean shuffle, boolean training) throws IOException {
 		if(shuffle && (words.getNumberOfWords() > 1 || labels.getNumberOfLabels() > 0)) { // words can be size 1 because of special unknown word
 			throw new IllegalArgumentException("Cannot shuffle when there are already words or labels because this would invalidate previously loaded trees.");
 		}

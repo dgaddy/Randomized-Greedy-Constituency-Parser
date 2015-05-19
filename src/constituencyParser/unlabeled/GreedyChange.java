@@ -1,11 +1,16 @@
-package constituencyParser;
+package constituencyParser.unlabeled;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
+import constituencyParser.LabelEnumeration;
+import constituencyParser.Pruning;
+import constituencyParser.Rule;
 import constituencyParser.Rule.Type;
+import constituencyParser.Span;
+import constituencyParser.SpanUtilities;
+import constituencyParser.Word;
 
 /**
  * Used by RandomizeedGreedyDecoder to find all possible greedy changes to a parse tree.
@@ -21,36 +26,34 @@ public class GreedyChange {
 			this.spans = spans;
 			this.parents = parents;
 		}
-		
+
 		public List<Span> spans;
 		public int[] parents;
 	}
-	
+
 	/**
 	 * Another way of representing parse trees that makes doing greedy updates easier.
 	 */
 	private static class ConstituencyNode {
 		ConstituencyNode parent;
-		int unaryLabel; // -1 if there is not a unary on this
 		int label;
-		
+		int headWordIndex;
+
 		boolean terminal;
 		int index; // for terminals
-		
+
 		// for non-terminals
 		ConstituencyNode left;
 		ConstituencyNode right;
-		
+
 		int start;
 		int end;
-		
+
 		public ConstituencyNode() {
-			unaryLabel = -1;
 		}
-		
+
 		public ConstituencyNode(ConstituencyNode other) {
 			this.parent = null;
-			this.unaryLabel = other.unaryLabel;
 			this.label = other.label;
 			this.terminal = other.terminal;
 			this.index = other.index;
@@ -61,10 +64,9 @@ public class GreedyChange {
 			this.start = other.start;
 			this.end = other.end;
 		}
-		
+
 		public ConstituencyNode(ConstituencyNode other, ConstituencyNode parent) {
 			this.parent = parent;
-			this.unaryLabel = other.unaryLabel;
 			this.label = other.label;
 			this.terminal = other.terminal;
 			this.index = other.index;
@@ -75,7 +77,7 @@ public class GreedyChange {
 			this.start = other.start;
 			this.end = other.end;
 		}
-		
+
 		private void updateSpanLocations() {
 			if(terminal){
 				start = index;
@@ -90,22 +92,42 @@ public class GreedyChange {
 			}
 		}
 		
+		private void propagateLabels(BinaryHeadPropagation p) {
+			if(terminal) {
+				headWordIndex = index;
+				return;
+			}
+			else {
+				left.propagateLabels(p);
+				right.propagateLabels(p);
+				boolean propLeft = p.getPropagateLeft(left.label, right.label);
+				if(propLeft) {
+					label = left.label;
+					headWordIndex = left.headWordIndex;
+				}
+				else {
+					label = right.label;
+					headWordIndex = right.headWordIndex;
+				}
+			}
+		}
+
 		List<ConstituencyNode> getAdjacent(ConstituencyNode node) {
 			List<ConstituencyNode> result = new ArrayList<>();
 			getAdjacent(node, result);
 			return result;
 		}
-		
+
 		private void getAdjacent(ConstituencyNode node, List<ConstituencyNode> result) {
 			if(start == node.end || end == node.start)
 				result.add(this);
-			
+
 			if(!terminal) {
 				left.getAdjacent(node, result);
 				right.getAdjacent(node, result);
 			}
 		}
-		
+
 		private void remove(ConstituencyNode node) {
 			if(!terminal) {
 				if(left == node) {
@@ -128,7 +150,7 @@ public class GreedyChange {
 				}
 			}
 		}
-		
+
 		/**
 		 * Finds a node with same start and end as 
 		 * @param node
@@ -145,7 +167,7 @@ public class GreedyChange {
 					parent.right = newParent;
 				}
 			}
-			
+
 			if(node.start == end) {
 				newParent.left = this;
 				newParent.right = node;
@@ -157,17 +179,17 @@ public class GreedyChange {
 			else {
 				throw new RuntimeException();
 			}
-			
+
 			this.parent = newParent;
 			node.parent = newParent;
-			
+
 			return newParent;
 		}
-		
-		private ParentedSpans getSpans() {
+
+		private ParentedSpans getSpans(List<Word> words) {
 			List<Span> spans = new ArrayList<>();
 			List<Integer> parents = new ArrayList<>();
-			getSpans(spans, parents, -1);
+			getSpans(spans, parents, -1, words);
 			ParentedSpans result = new ParentedSpans();
 			result.parents = new int[parents.size()];
 			for(int i = 0; i < parents.size(); i++)
@@ -175,28 +197,26 @@ public class GreedyChange {
 			result.spans = spans;
 			return result;
 		}
-		
-		private void getSpans(List<Span> result, List<Integer> parents, int parentIndex) {
-			if(unaryLabel != -1) {
-				parents.add(parentIndex);
-				parentIndex = result.size(); // set the unary index to the parent index for the terminal and binary rules below
-				result.add(new Span(start, end, unaryLabel, label));
-			}
-			
+
+		private void getSpans(List<Span> result, List<Integer> parents, int parentIndex, List<Word> words) {
 			if(terminal) {
-				result.add(new Span(index, label));
+				Span s = new Span(index, label);
+				//s.setHeadWord(words.get(headWordIndex).getId()); TODO: put back
+				result.add(s);
 				parents.add(parentIndex);
 			}
 			else {
 				int index = result.size();
-				result.add(new Span(start, end, left.end, label, left.unaryLabel != -1 ? left.unaryLabel : left.label, right.unaryLabel != -1 ? right.unaryLabel : right.label));
+				Span s = new Span(start, end, left.end, label, left.label, right.label);
+				//s.setHeadWord(words.get(headWordIndex).getId()); TODO: put back
+				result.add(s);
 				parents.add(parentIndex);
-				
-				left.getSpans(result, parents, index);
-				right.getSpans(result, parents, index);
+
+				left.getSpans(result, parents, index, words);
+				right.getSpans(result, parents, index, words);
 			}
 		}
-		
+
 		private ConstituencyNode getNode(int s, int e) {
 			if(start == s && end == e)
 				return this;
@@ -205,7 +225,7 @@ public class GreedyChange {
 			else
 				return right.getNode(s, e);
 		}
-		
+
 		public String toString() {
 			if(terminal) {
 				return "{" + index + ":" + label + "}";
@@ -215,54 +235,49 @@ public class GreedyChange {
 			}
 		}
 	}
-	
+
 	private LabelEnumeration labels;
-	private RuleEnumeration rules;
-	
-	public GreedyChange(LabelEnumeration labels, RuleEnumeration rules) {
+	private BinaryHeadPropagation headPropagation;
+
+	public GreedyChange(LabelEnumeration labels, BinaryHeadPropagation headPropagation) {
 		this.labels = labels;
-		this.rules = rules;
+		this.headPropagation = headPropagation;
 	}
 	
-	/**
-	 * Iterate over possible labels for the span (or spans if there is a unary rule) that starts at indexStart and goes to indexEnd
-	 * @param spans
-	 * @param indexStart
-	 * @param indexEnd
-	 * @param topLevel
-	 * @return
-	 */
-	public List<ParentedSpans> makeGreedyLabelChanges(List<Span> spans, int indexStart, int indexEnd, boolean topLevel, Pruning pruning) {
+	public List<ParentedSpans> makeGreedyTerminalChanges(List<Span> spans, int indexToChange, Pruning pruning, List<Word> words) {
 		List<ParentedSpans> result = new ArrayList<>();
 		
 		ConstituencyNode root = getTree(spans);
 		
-		ConstituencyNode toUpdate = root.getNode(indexStart, indexEnd);
-		
-		iterateLabels(root, toUpdate, result, topLevel, pruning);
+		ConstituencyNode toChange = root.getNode(indexToChange, indexToChange+1);
+		for(int label : labels.getPOSLabels()) {
+			toChange.label = label;
+			root.propagateLabels(headPropagation);
+			result.add(root.getSpans(words));
+		}
 		
 		return result;
 	}
-	
+
 	/**
 	 * Returns a list of parse trees (in the form of ParentedSpans) that are all local changes from changing the span at (spanToUpdateStart, spanToUpdateEnd)
-	 * This includes trying to connect this span to the tree differently and iterating over different label values at each location
+	 * This includes trying to connect this span to the tree differently
 	 * @param spans
 	 * @param spanToUpdateStart
 	 * @param spanToUpdateEnd
 	 * @return
 	 */
-	public List<ParentedSpans> makeGreedyChanges(List<Span> spans, int spanToUpdateStart, int spanToUpdateEnd, Pruning pruning) {
+	public List<ParentedSpans> makeGreedyChanges(List<Span> spans, int spanToUpdateStart, int spanToUpdateEnd, Pruning pruning, List<Word> words) {
 		List<ParentedSpans> result = new ArrayList<>();
-		
+
 		ConstituencyNode root = getTree(spans);
-		
+
 		ConstituencyNode toUpdate = root.getNode(spanToUpdateStart, spanToUpdateEnd);
-		
+
 		if(toUpdate.parent == null) {
 			return Arrays.asList(new ParentedSpans(spans, SpanUtilities.getParents(spans))); // it doesn't really make sense to remove and add back the entire tree
 		}
-		
+
 		if(toUpdate.parent.parent == null) {
 			// one level down from root
 			// remove root and make sibling root
@@ -280,7 +295,7 @@ public class GreedyChange {
 			root.updateSpanLocations();
 		}
 		List<ConstituencyNode> adjacent = root.getAdjacent(toUpdate);
-		
+
 		for(ConstituencyNode a : adjacent) {
 			ConstituencyNode newRoot = new ConstituencyNode(root);
 			ConstituencyNode sibling = newRoot.getNode(a.start, a.end);
@@ -289,113 +304,16 @@ public class GreedyChange {
 			if(addingToRoot) {
 				newRoot = parent;
 			}
-			
+
 			newRoot.updateSpanLocations();
-			
-			iterateLabels(newRoot, parent, result, false, pruning);
+			newRoot.propagateLabels(headPropagation);
+
+			result.add(newRoot.getSpans(words));
 		}
-		
+
 		return result;
 	}
-	
-	/**
-	 * Iterate over possible values of labels for toIterate node.  Puts all possible resulting parses in resultAccumulator.
-	 * @param root
-	 * @param toIterate
-	 * @param resultAccumulator
-	 * @param topLevel
-	 */
-	void iterateLabels(ConstituencyNode root, ConstituencyNode toIterate, List<ParentedSpans> resultAccumulator, boolean topLevel, Pruning pruning) {
-		Set<Integer> topLevelLabels = labels.getTopLevelLabelIds();
-		
-		// iterate with no unary labels
-		toIterate.unaryLabel = -1; // -1 indicates no unary
-		toIterate.label = -2; // using -2 as a marker to find this span
-		ParentedSpans spans = root.getSpans();
-		int spanToIterateIndex = -1;
-		Span spanToIterate = null;
-		for(int i = 0; i < spans.spans.size(); i++){
-			if(spans.spans.get(i).getRule().getLabel() == -2) {
-				spanToIterateIndex = i;
-				spanToIterate = spans.spans.get(i);
-			}
-		}
-		int parentIndex = spans.parents[spanToIterateIndex];
-		Span parent = null;
-		boolean leftChild = true;
-		if(parentIndex != -1) {
-			parent = spans.spans.get(parentIndex);
-			leftChild = parent.getRule().getLeft() == -2;
-		}
-		for(int i = 0; i < labels.getNumberOfLabels(); i++) {
-			if(topLevel && !topLevelLabels.contains(i))
-				continue;
-			
-			if(pruning.isPruned(spanToIterate.getStart(), spanToIterate.getEnd(), i))
-				continue;
-			
-			Span newToIterate = spanToIterate.changeLabel(i);
-			if(!rules.isExistingRule(newToIterate.getRule()))
-				continue;
-			List<Span> newSpans = new ArrayList<>(spans.spans);
-			newSpans.set(spanToIterateIndex, newToIterate);
-			if(parentIndex != -1) {
-				Span newParent = parent.changeChildLabel(leftChild, i);
-				if(!rules.isExistingRule(newParent.getRule()))
-					continue;
-				newSpans.set(parentIndex, newParent);
-			}
-			
-			SpanUtilities.connectChildren(newSpans, spans.parents);
-			resultAccumulator.add(new ParentedSpans(newSpans, spans.parents));
-		}
-		
-		// iterate unary combinations
-		toIterate.unaryLabel = -2; // using -2 as a marker to find this span
-		toIterate.label = -3; // using -3 as a marker to find this span
-		spans = root.getSpans();
-		spanToIterateIndex = -1;
-		spanToIterate = null;
-		for(int i = 0; i < spans.spans.size(); i++){
-			if(spans.spans.get(i).getRule().getLabel() == -3) {
-				spanToIterateIndex = i;
-				spanToIterate = spans.spans.get(i);
-			}
-		}
-		int unaryIndex = spans.parents[spanToIterateIndex];
-		Span unary = spans.spans.get(unaryIndex);
-		parentIndex = spans.parents[unaryIndex];
-		if(parentIndex != -1) {
-			parent = spans.spans.get(parentIndex);
-			leftChild = parent.getRule().getLeft() == -2;
-		}
-		for(int i = 0; i < rules.getNumberOfUnaryRules(); i++) {
-			Rule rule = rules.getUnaryRule(i);
-			if(topLevel && !topLevelLabels.contains(rule.getLabel()))
-				continue;
-			
-			if(pruning.isPruned(spanToIterate.getStart(), spanToIterate.getEnd(), rule.getLabel()) || pruning.isPruned(spanToIterate.getStart(), spanToIterate.getEnd(), rule.getLeft()))
-				continue;
 
-			Span newToIterate = spanToIterate.changeLabel(rule.getLeft());
-			if(!rules.isExistingRule(newToIterate.getRule()))
-				continue;
-			Span newUnary = unary.changeChildLabel(true, rule.getLeft()).changeLabel(rule.getLabel());
-			List<Span> newSpans = new ArrayList<>(spans.spans);
-			newSpans.set(spanToIterateIndex, newToIterate);
-			newSpans.set(unaryIndex, newUnary);
-			if(parentIndex != -1) {
-				Span newParent = parent.changeChildLabel(leftChild, rule.getLabel());
-				if(!rules.isExistingRule(newParent.getRule()))
-					continue;
-				newSpans.set(parentIndex, newParent);
-			}
-			
-			SpanUtilities.connectChildren(newSpans, spans.parents);
-			resultAccumulator.add(new ParentedSpans(newSpans, spans.parents));
-		}
-	}
-	
 	/**
 	 * Converts list of Span representation to ConstituencyNode representation.  Used before doing greedy updates.
 	 * @param spans
@@ -403,40 +321,27 @@ public class GreedyChange {
 	 */
 	private static ConstituencyNode getTree(List<Span> spans) {
 		int[] parents = SpanUtilities.getParents(spans);
-		
+
 		ConstituencyNode[] nodes = new ConstituencyNode[spans.size()];
 		for(int i = 0; i < spans.size(); i++) {
 			Rule rule = spans.get(i).getRule();
 			if(rule.getType() == Type.UNARY) // we are going to merge the unaries with the node below them
-				continue;
-			else {
-				ConstituencyNode node = new ConstituencyNode();
-				if(rule.getType() == Type.TERMINAL) {
-					node.terminal = true;
-					node.index = spans.get(i).getStart();
-				}
-				node.label = rule.getLabel();
-				nodes[i] = node;
-				int pi = parents[i];
-				if(pi != -1) {
-					Span parent = spans.get(pi);
-					if(parent.getRule().getType() == Type.UNARY) {
-						nodes[pi] = node;
-						node.unaryLabel = parent.getRule().getLabel();
-					}
-				}
+				throw new RuntimeException("This is not for trees with unaries");
+
+			ConstituencyNode node = new ConstituencyNode();
+			if(rule.getType() == Type.TERMINAL) {
+				node.terminal = true;
+				node.index = spans.get(i).getStart();
 			}
+			node.label = rule.getLabel();
+			nodes[i] = node;
 		}
 		ConstituencyNode root = null;
 		for(int i = 0; i < spans.size(); i++) {
 			int pi = parents[i];
 			if(pi != -1) {
-				if(spans.get(pi).getRule().getType() == Type.UNARY) {
-					continue; // we will handle this one when we get to the unary
-				}
-				
 				nodes[i].parent = nodes[pi];
-				
+
 				if(spans.get(i).getStart() < spans.get(pi).getSplit())
 					nodes[pi].left = nodes[i];
 				else
@@ -446,10 +351,8 @@ public class GreedyChange {
 				root = nodes[i];
 			}
 		}
-		
+
 		root.updateSpanLocations();
 		return root;
 	}
-	
-	
 }

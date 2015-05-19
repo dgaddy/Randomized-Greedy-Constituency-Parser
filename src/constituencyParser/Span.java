@@ -12,6 +12,8 @@ public class Span {
 	
 	private Rule rule;
 	
+	private int word;
+	
 	// binary only, not defined for unary features
 	private int split;
 	
@@ -132,6 +134,14 @@ public class Span {
 	
 	public Span getRight() {
 		return right;
+	}
+	
+	public void setHeadWord(int word) {
+		this.word = word;
+	}
+	
+	public int getHeadWord() {
+		return word;
 	}
 	
 	public Span removeRange(int start, int end) {

@@ -82,7 +82,9 @@ public class LabelEnumeration implements Serializable {
 	
 	public void addPOSLabel(String label) {
 		addLabel(label); // just to be sure
-		POSLabels.add(getId(label));
+		int id = getId(label);
+		if(!POSLabels.contains(id))
+			POSLabels.add(id);
 	}
 	
 	public void addAllPOSLabels(List<String> labels) {

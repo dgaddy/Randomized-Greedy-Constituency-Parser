@@ -33,13 +33,21 @@ public class BinaryHeadPropagation {
 		}
 	}
 
-	List<BinaryHeadPropagationRule> rules = new ArrayList<>();
-	List<TreeNode> examples = new ArrayList<>(); // already head binarized
+	private List<BinaryHeadPropagationRule> rules = new ArrayList<>();
+	private List<TreeNode> examples = new ArrayList<>(); // already head binarized
+	private boolean[][] propagationRules;
+	private LabelEnumeration labels = new LabelEnumeration();
 	
 	private BinaryHeadPropagation() {
 		
 	}
 
+	/**
+	 * Called in TreeNode only
+	 * @param left
+	 * @param right
+	 * @param leftHead
+	 */
 	public void addCount(String left, String right, boolean leftHead) {
 		boolean found = false;
 		for(BinaryHeadPropagationRule r : rules) {
@@ -97,14 +105,24 @@ public class BinaryHeadPropagation {
 
 		return result;
 	}
+	
+	/**
+	 * Returns true if should propagate left
+	 * @param leftLabel
+	 * @param rightLabel
+	 * @return
+	 */
+	public boolean getPropagateLeft(int leftLabel, int rightLabel) {
+		return propagationRules[leftLabel][rightLabel];
+	}
+	
+	public LabelEnumeration getLabels() {
+		return labels;
+	}
 
-	public List<SpannedWords> getExamples(boolean training, WordEnumeration words, LabelEnumeration labels, RuleEnumeration ruleEnum) {
+	public List<SpannedWords> getExamples(boolean training, WordEnumeration words, RuleEnumeration ruleEnum) {
 		HashMap<String, Integer> wordCounts = new HashMap<>();
 		for(TreeNode tree : examples) {
-			labels.addAllLabels(tree.getAllLabels());
-			labels.addTopLevelLabel(tree.getLabel());
-			labels.addAllPOSLabels(tree.getAllPOSLabels());
-
 			for(String word : tree.getAllWords()) {
 				Integer count = wordCounts.get(word);
 				if(count == null)
@@ -140,7 +158,20 @@ public class BinaryHeadPropagation {
 			tree.findHeads();
 			tree = tree.headBinarize(true);
 			tree.getHeadPropagationStats(prop);
+			tree.makeHeadPOSLabels();
+			tree.removeUnaries();
 			prop.examples.add(tree);
+			
+			prop.labels.addAllLabels(tree.getAllLabels());
+			prop.labels.addAllPOSLabels(tree.getAllPOSLabels());
+		}
+		
+		int n = RuleEnumeration.NUMBER_LABELS;
+		prop.propagationRules = new boolean[n][n]; // defaults to false, propagate right if not in training data
+		
+		for(BinaryHeadPropagationRule r : prop.rules) {
+			int left = prop.labels.getId(r.leftPOS), right = prop.labels.getId(r.rightPOS);
+			prop.propagationRules[left][right] = r.leftHeadCounts > r.rightHeadCounts;
 		}
 
 		return prop;

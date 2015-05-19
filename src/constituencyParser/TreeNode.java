@@ -409,6 +409,27 @@ public class TreeNode {
 			head = headFinder.findHead(null, Symbol.add(label), childList) - 1; // -1 because this function is one indexed
 		}
 	}
+	
+	public void makeHeadPOSLabels() {
+		if(!isWord && !(children.size() == 1 && children.get(0).isWord())) { // not word or POS
+			for(TreeNode child : children)
+				child.makeHeadPOSLabels();
+			this.label = children.get(head).getLabel();
+		}
+	}
+	
+	public void removeUnaries() {
+		if(!isWord && !(children.size() == 1 && children.get(0).isWord())) { // not word or POS
+			if(children.size() == 1) {
+				List<TreeNode> newChildren = children.get(0).children;
+				children = new ArrayList<>();
+				for(TreeNode child : newChildren) {
+					child.parent = null;
+					addChild(child);
+				}
+			}
+		}
+	}
 
 	public TreeNode headBinarize(boolean leftBias) {
 		if(isWord)

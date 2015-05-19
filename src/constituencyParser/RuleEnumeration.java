@@ -19,7 +19,7 @@ public class RuleEnumeration implements Serializable {
 	private List<Rule> unaryRules = new ArrayList<>();
 	int[][] unaryIds;
 	
-	static final int NUMBER_LABELS = 150;
+	public static final int NUMBER_LABELS = 150;
 	
 	public RuleEnumeration() {
 		 binaryIds = new int[NUMBER_LABELS][NUMBER_LABELS][NUMBER_LABELS];

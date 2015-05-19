@@ -27,6 +27,7 @@ public class Features {
 		CO_PAR,
 		CO_LEN_PAR,
 		SECOND_ORDER_PROPERTY_BY_RULE,
+		LEXICAL_DEPENDENCY
 	}
 	
 	public static long getCodeBase(FeatureType type) {
@@ -79,6 +80,10 @@ public class Features {
 	
 	public static boolean isSecondOrderFeature(long code) {
 		return (code >> 52L) == FeatureType.SECOND_ORDER_RULE.ordinal();
+	}
+	
+	public static long getLexicalDependencyFeature(long parentWord, long childWord) {
+		return getCodeBase(FeatureType.LEXICAL_DEPENDENCY) | (parentWord << 25L) | childWord;
 	}
 	
 	/**
@@ -226,6 +231,10 @@ public class Features {
 	}
 	
 	public static List<Long> getAllFeatures(List<Span> spans, List<Word> words, boolean doSecondOrder, WordEnumeration wordEnum, LabelEnumeration labels, RuleEnumeration rules) {
+		return getAllFeatures(spans, words, doSecondOrder, wordEnum, labels, rules, false);
+	}
+	
+	public static List<Long> getAllFeatures(List<Span> spans, List<Word> words, boolean doSecondOrder, WordEnumeration wordEnum, LabelEnumeration labels, RuleEnumeration rules, boolean doLexicalFeatures) {
 		List<Long> features = new ArrayList<>();
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
@@ -234,9 +243,29 @@ public class Features {
 			features.addAll(Features.getSpanPropertyByLabelFeatures(words, s));
 		}
 		
+		if(doLexicalFeatures) {
+			int[] parents = SpanUtilities.getParents(spans);
+			features.addAll(getLexicalDependencyFeatures(spans, parents));
+		}
+		
 		if(doSecondOrder) {
 			int[] parents = SpanUtilities.getParents(spans);
 			features.addAll(Features.getAllHigherOrderFeatures(words, spans, parents, rules, wordEnum, labels));
+		}
+		return features;
+	}
+	
+	public static List<Long> getLexicalDependencyFeatures(List<Span> spans, int[] parents) {
+		List<Long> features = new ArrayList<>();
+		for(int s = 0; s < spans.size(); s++) {
+			Span span = spans.get(s);
+			int parentIndex = parents[s];
+			if(parentIndex != -1) {
+				int parentWord = spans.get(parentIndex).getHeadWord();
+				int childWord = span.getHeadWord();
+				if(parentWord != childWord)
+					features.add(getLexicalDependencyFeature(parentWord, childWord));
+			}
 		}
 		return features;
 	}
