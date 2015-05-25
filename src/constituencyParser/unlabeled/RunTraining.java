@@ -15,7 +15,6 @@ import constituencyParser.TrainOptions;
 import constituencyParser.TreeNode;
 import constituencyParser.WordEnumeration;
 import constituencyParser.features.FeatureParameters;
-import constituencyParser.features.Features;
 
 
 public class RunTraining {
@@ -44,9 +43,8 @@ public class RunTraining {
 		System.out.println("load data... ");
 		
 		List<TreeNode> trees = PennTreebankReader.loadTreeNodesFromFiles(PennTreebankReader.getWSJFiles(options.dataFolder, 2, 22));
-		BinaryHeadPropagation prop = BinaryHeadPropagation.getBinaryHeadPropagation(trees);
+		BinaryHeadPropagation prop = BinaryHeadPropagation.getBinaryHeadPropagation(trees, labels);
 		List<SpannedWords> examples = prop.getExamples(true, words, rules);
-		labels = prop.getLabels();
 		
 		if(options.percentOfData < 1) {
 			examples = new ArrayList<>(examples.subList(0, (int)(examples.size() * options.percentOfData)));
@@ -59,7 +57,7 @@ public class RunTraining {
 				cnt++;
 				if (cnt % 1000 == 0)
 					System.out.print("  " + cnt);
-				List<Long> features = Features.getAllFeatures(ex.getSpans(), ex.getWords(), options.secondOrder, words, labels, rules);
+				List<Long> features = UnlabeledFeatures.getAllFeatures(ex.getSpans(), ex.getWords(), options.secondOrder, words, labels, rules);
 				params.ensureContainsFeatures(features);
 			}
 			params.stopAddingFeatures();

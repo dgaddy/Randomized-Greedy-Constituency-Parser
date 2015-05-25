@@ -10,7 +10,7 @@ import constituencyParser.features.FeatureParameters;
 /**
  * Labels are replaced by propagated POS labels
  */
-public class UnlabeledCKY implements Decoder {
+public class LexicalizedUnlabeledCKY implements Decoder {
 	private static final double PRUNE_THRESHOLD = 10;
 	
 	WordEnumeration wordEnum;
@@ -19,7 +19,7 @@ public class UnlabeledCKY implements Decoder {
 	
 	UnlabeledFirstOrderFeatureHolder firstOrderFeatures;
 	
-	double[][][] scores;
+	double[][][] scores; // indexed by start, end, head word index
 	Span[][][] spans;
 	
 	List<Span> usedSpans;
@@ -27,7 +27,7 @@ public class UnlabeledCKY implements Decoder {
 	boolean costAugmenting;
 	boolean[][] goldSpans;
 	
-	public UnlabeledCKY(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
+	public LexicalizedUnlabeledCKY(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;
@@ -51,7 +51,7 @@ public class UnlabeledCKY implements Decoder {
 		spans = new Span[wordsSize][wordsSize+1][labelsSize];
 		
 		for(int i = 0; i < wordsSize; i++) {
-			for(int label : wordEnum.getPartsOfSpeech(words.get(i))) { // TODO decide if the pos speech thing helps
+			for(int label : labels.getPOSLabels()) {
 				Span span = new Span(i, label);
 				double score = firstOrderFeatures.scoreTerminal(i, label);
 				if(costAugmenting && !goldSpans[i][i+1])

@@ -11,7 +11,6 @@ import constituencyParser.RuleEnumeration;
 import constituencyParser.Span;
 import constituencyParser.Word;
 import constituencyParser.WordEnumeration;
-import constituencyParser.features.FirstOrderFeatureHolder;
 
 /**
  * A sampler of parse trees based on DiscriminativeCKYDecoder
@@ -23,7 +22,7 @@ public class DiscriminativeCKYSampler {
 	LabelEnumeration labels;
 	RuleEnumeration rules;
 	
-	FirstOrderFeatureHolder firstOrderFeatures;
+	UnlabeledFirstOrderFeatureHolder firstOrderFeatures;
 	
 	// stuff set by calculateProbabilities
 	int wordsSize;
@@ -35,7 +34,7 @@ public class DiscriminativeCKYSampler {
 	boolean costAugmenting = false;
 	boolean[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
 	
-	public DiscriminativeCKYSampler(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FirstOrderFeatureHolder features) {
+	public DiscriminativeCKYSampler(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, UnlabeledFirstOrderFeatureHolder features) {
 		this.wordEnum = words;
 		this.labels = labels;
 		this.rules = rules;

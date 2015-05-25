@@ -11,6 +11,7 @@ import constituencyParser.SpanUtilities;
 import constituencyParser.SpannedWords;
 import constituencyParser.TreeNode;
 import constituencyParser.WordEnumeration;
+import constituencyParser.WordPOS;
 
 public class BinaryHeadPropagation {
 	static class BinaryHeadPropagationRule {
@@ -36,7 +37,7 @@ public class BinaryHeadPropagation {
 	private List<BinaryHeadPropagationRule> rules = new ArrayList<>();
 	private List<TreeNode> examples = new ArrayList<>(); // already head binarized
 	private boolean[][] propagationRules;
-	private LabelEnumeration labels = new LabelEnumeration();
+	private LabelEnumeration labels;
 	
 	private BinaryHeadPropagation() {
 		
@@ -100,7 +101,8 @@ public class BinaryHeadPropagation {
 		List<Rule> result = new ArrayList<>();
 
 		for(BinaryHeadPropagationRule r : rules) {
-			result.add(Rule.getRule(r.leftHeadCounts > r.rightHeadCounts ? r.leftPOS : r.rightPOS, r.leftPOS, r.rightPOS, labels));
+			boolean leftHead = r.leftHeadCounts > r.rightHeadCounts;
+			result.add(Rule.getRule(leftHead ? r.leftPOS : r.rightPOS, r.leftPOS, r.rightPOS, labels, leftHead));
 		}
 
 		return result;
@@ -115,25 +117,33 @@ public class BinaryHeadPropagation {
 	public boolean getPropagateLeft(int leftLabel, int rightLabel) {
 		return propagationRules[leftLabel][rightLabel];
 	}
-	
-	public LabelEnumeration getLabels() {
-		return labels;
-	}
 
 	public List<SpannedWords> getExamples(boolean training, WordEnumeration words, RuleEnumeration ruleEnum) {
 		HashMap<String, Integer> wordCounts = new HashMap<>();
+		HashMap<WordPOS, Integer> wordPOSCounts = new HashMap<>();
 		for(TreeNode tree : examples) {
-			for(String word : tree.getAllWords()) {
+			List<String> ws = tree.getAllWords();
+			for(String word : ws) {
 				Integer count = wordCounts.get(word);
 				if(count == null)
 					wordCounts.put(word, 1);
 				else
 					wordCounts.put(word, count+1);
 			}
+			List<WordPOS> poss = tree.getWordsWithPOS();
+			for(WordPOS word : poss) {
+				Integer count = wordPOSCounts.get(word);
+				if(count == null)
+					wordPOSCounts.put(word, 1);
+				else
+					wordPOSCounts.put(word, count+1);
+			}
+			if(poss.size() != ws.size())
+				throw new RuntimeException();
 		}
 		
 		if(training)
-			words.addTrainingWords(wordCounts);
+			words.addTrainingWords(wordCounts, wordPOSCounts, labels);
 		
 		List<SpannedWords> loaded = new ArrayList<>();
 		for(TreeNode tree : examples) {
@@ -144,14 +154,17 @@ public class BinaryHeadPropagation {
 		
 		if(training) {
 			for(BinaryHeadPropagationRule r : rules) {
-				ruleEnum.addBinaryRule(Rule.getRule(r.leftHeadCounts > r.rightHeadCounts ? r.leftPOS : r.rightPOS, r.leftPOS, r.rightPOS, labels));
+				boolean leftHead = r.leftHeadCounts > r.rightHeadCounts;
+				ruleEnum.addBinaryRule(Rule.getRule(leftHead ? r.leftPOS : r.rightPOS, r.leftPOS, r.rightPOS, labels, leftHead));
 			}
+		} else {
+			ruleEnum.countMissingRules(loaded);
 		}
 		
 		return loaded;
 	}
 
-	public static BinaryHeadPropagation getBinaryHeadPropagation(List<TreeNode> trees) {
+	public static BinaryHeadPropagation getBinaryHeadPropagation(List<TreeNode> trees, LabelEnumeration labels) {
 		BinaryHeadPropagation prop = new BinaryHeadPropagation();
 
 		for(TreeNode tree : trees) {
@@ -162,8 +175,9 @@ public class BinaryHeadPropagation {
 			tree.removeUnaries();
 			prop.examples.add(tree);
 			
-			prop.labels.addAllLabels(tree.getAllLabels());
-			prop.labels.addAllPOSLabels(tree.getAllPOSLabels());
+			prop.labels = labels;
+			labels.addAllLabels(tree.getAllLabels());
+			labels.addAllPOSLabels(tree.getAllPOSLabels());
 		}
 		
 		int n = RuleEnumeration.NUMBER_LABELS;

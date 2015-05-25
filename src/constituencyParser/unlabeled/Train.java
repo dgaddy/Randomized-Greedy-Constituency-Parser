@@ -19,7 +19,6 @@ import constituencyParser.Word;
 import constituencyParser.WordEnumeration;
 import constituencyParser.Rule.Type;
 import constituencyParser.features.FeatureParameters;
-import constituencyParser.features.Features;
 
 /**
  * Trains a parser using Adagrad
@@ -77,7 +76,10 @@ public class Train {
 				}
 				else {
 					predicted = decoder.decode(words, parameters);
+					// TODO fix
+					//predicted = ((UnlabeledCKY)decoder).decodeWithPOS(sw.getWords(), SpanUtilities.getPOS(sw.getWords().size(), sw.getSpans()), parameters);
 				}
+				//System.out.println(predicted);
 			
 				int loss = computeLoss(predicted, sw.getSpans()); 
 				totalLoss += loss;
@@ -86,14 +88,16 @@ public class Train {
 					List<Span> gold = sw.getSpans();
 					
 					// positive
-					List<Long> goldFeatures = Features.getAllFeatures(gold, words, options.secondOrder, wordEnum, labels, rules, options.randGreedy);
+					List<Long> goldFeatures = UnlabeledFeatures.getAllFeatures(gold, words, options.secondOrder, wordEnum, labels, rules, options.randGreedy);
 					double goldScore = 0;
 					for(Long code : goldFeatures) {
 						goldScore += parameters.getScore(code);
 					}
 					
-					if(goldScore > decoder.getLastScore())
+					if(goldScore > decoder.getLastScore()) {
+						System.out.println("skipping param update because gold score higher");
 						continue; // don't update score if gold score higher
+					}
 					
 					for(Long code : goldFeatures) {
 						features.adjustOrPutValue(code, -1.0, -1.0);
@@ -103,14 +107,51 @@ public class Train {
 					batchGoldScore += goldScore;
 					batchPredictedScore += decoder.getLastScore();
 					
+					
+					
 					// negative
-					List<Long> predictedFeatures = Features.getAllFeatures(predicted, words, options.secondOrder, wordEnum, labels, rules, options.randGreedy);
+					List<Long> predictedFeatures = UnlabeledFeatures.getAllFeatures(predicted, words, options.secondOrder, wordEnum, labels, rules, options.randGreedy);
+					
+					/*List<List<List<Long>>> a = ((UnlabeledCKY)decoder).firstOrderFeatures.terminalProperties;
+					UnlabeledFirstOrderFeatureHolder holder = ((UnlabeledCKY)decoder).firstOrderFeatures;
+					UnlabeledCKY cky = (UnlabeledCKY)decoder;
+					double total1 = 0;
+					double total3 = 0;
+					
+					double scoreFromHolder = 0;
+					for(Span s : predicted) {
+						if(s.getRule().getType() == Type.TERMINAL) {
+							scoreFromHolder += holder.scoreTerminal(s.getStart(), s.getRule().getLabel());
+							
+							List<Long> f = a.get(s.getStart()).get(s.getRule().getLabel());
+							for(Long l : f) {
+								if(!predictedFeatures.contains(l))
+									throw new RuntimeException("" + l);
+								System.out.println(l + " " + parameters.getScore(l));
+								total1 += parameters.getScore(l);
+							}
+							
+							total3 += holder.terminalScores[s.getStart()][s.getRule().getLabel()];
+						}
+						else {
+							double spanScore = holder.scoreBinary(s.getStart(), s.getEnd(), s.getSplit(), s.getRule().getLeft(), s.getRule().getRight(), s.getRule().getLeftPropagateHead());
+							scoreFromHolder += spanScore;
+							double spanScore2 = cky.scores[s.getStart()][s.getEnd()][s.getRule().getLabel()]-cky.scores[s.getStart()][s.getSplit()][s.getRule().getLeft()]-cky.scores[s.getSplit()][s.getEnd()][s.getRule().getRight()];
+							if(options.costAugmenting && !cky.goldSpans[s.getStart()][s.getEnd()])
+								spanScore += 1;
+							if(Math.abs(spanScore - spanScore2) > 1e-6)
+								throw new RuntimeException(spanScore + " " + spanScore2 + " " + s.getRule() + " " + s.getRule().getLeftPropagateHead());
+						}
+					}
+					System.out.println();*/
+					
 					double predictedScore = 0;
 					for(Long code : predictedFeatures) {
 						features.adjustOrPutValue(code, 1.0, 1.0);
 						predictedScore += parameters.getScore(code);
 						predictedFeatureCounts.adjustOrPutValue(code, 1.0, 1.0);
 					}
+					
 					
 					// used to double check scoring
 					int augmentingScore = 0;
@@ -130,11 +171,13 @@ public class Train {
 							}
 						}
 					}
+					//System.out.println(predictedScore + " " + (decoder.getLastScore() - augmentingScore));
+					
 					
 					if(Math.abs(predictedScore + augmentingScore - decoder.getLastScore()) > 1e-4 && !Double.isInfinite(decoder.getLastScore())) {
 						SpanUtilities.printSpans(predicted, sw.getWords().size(), labels);
-						
-						throw new RuntimeException("" + index + " Decoder score and freshly calculated score don't match: " + (predictedScore + augmentingScore) + " " + decoder.getLastScore());
+						System.out.println("augmenting " + augmentingScore);
+						throw new RuntimeException("" + index + " Decoder score and freshly calculated score don't match: " + (predictedScore + augmentingScore) + " " + decoder.getLastScore() + " " + (predictedScore + augmentingScore - decoder.getLastScore()));
 					}
 					
 					/*if(goldScore > predictedScore + augmentingScore) {
@@ -163,19 +206,19 @@ public class Train {
 			FileWriter writer = new FileWriter("second_order_features");
 			parameters.resetDropout(0);
 			for(Long feature : parameters.getStoredFeatures()) {
-				if(!Features.isSecondOrderFeature(feature))
+				if(!UnlabeledFeatures.isSecondOrderFeature(feature))
 					continue;
 				
 				double score = parameters.getScore(feature);
 				double predictedCount = predictedFeatureCounts.get(feature);
 				double goldCount = goldFeatureCounts.get(feature);
-				writer.write(Features.getStringForCode(feature, wordEnum, rules, labels) + " " + score + " " + predictedCount + " " + goldCount);
+				writer.write(UnlabeledFeatures.getStringForCode(feature, wordEnum, rules, labels) + " " + score + " " + predictedCount + " " + goldCount);
 				if(score > 1 && predictedCount > goldCount) {
-					System.out.println("Feature " + Features.getStringForCode(feature, wordEnum, rules, labels) + " has positive score,");
+					System.out.println("Feature " + UnlabeledFeatures.getStringForCode(feature, wordEnum, rules, labels) + " has positive score,");
 					System.out.println("but it appears " + predictedCount + " in predicted and " + goldCount + " in gold");
 				}
 				if(score < -1 && goldCount > predictedCount) {
-					System.out.println("Feature " + Features.getStringForCode(feature, wordEnum, rules, labels) + " has negative score,");
+					System.out.println("Feature " + UnlabeledFeatures.getStringForCode(feature, wordEnum, rules, labels) + " has negative score,");
 					System.out.println("but it appears " + predictedCount + " in predicted and " + goldCount + " in gold");
 				}
 			}

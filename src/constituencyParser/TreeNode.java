@@ -159,6 +159,23 @@ public class TreeNode {
 			}
 		}
 	}
+	
+	public List<WordPOS> getWordsWithPOS() {
+		List<WordPOS> result = new ArrayList<>();
+		getWordsWithPOS(result);
+		return result;
+	}
+	
+	private void getWordsWithPOS(List<WordPOS> result) {
+		if(isWord) {
+			result.add(new WordPOS(word, parent.getLabel()));
+		}
+		else {
+			for(TreeNode child : children) {
+				child.getWordsWithPOS(result);
+			}
+		}
+	}
 
 	public static class Bracket {
 		int start;
@@ -234,7 +251,9 @@ public class TreeNode {
 		else if(children.size() == 2) {
 			SpannedWords left = children.get(0).getSpans(words, labels);
 			SpannedWords right = children.get(1).getSpans(words, labels);
-			return new SpannedWords(left, right, labels.getId(label), labels.getId(children.get(0).getLabel()), labels.getId(children.get(1).getLabel()));
+			if(!(head == 0 || head == 1))
+				throw new RuntimeException("Expected head to be set.");
+			return new SpannedWords(left, right, labels.getId(label), labels.getId(children.get(0).getLabel()), labels.getId(children.get(1).getLabel()), head == 0);
 		}
 		else {
 			throw new UnsupportedOperationException("Can only get spans for binary trees.  Use makeBinary().");
@@ -419,8 +438,12 @@ public class TreeNode {
 	}
 	
 	public void removeUnaries() {
+		for(TreeNode child : children) {
+			child.removeUnaries();
+		}
 		if(!isWord && !(children.size() == 1 && children.get(0).isWord())) { // not word or POS
 			if(children.size() == 1) {
+				this.head = children.get(0).head;
 				List<TreeNode> newChildren = children.get(0).children;
 				children = new ArrayList<>();
 				for(TreeNode child : newChildren) {

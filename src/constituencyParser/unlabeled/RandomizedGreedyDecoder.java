@@ -25,8 +25,6 @@ import constituencyParser.SpannedWords;
 import constituencyParser.Word;
 import constituencyParser.WordEnumeration;
 import constituencyParser.features.FeatureParameters;
-import constituencyParser.features.Features;
-import constituencyParser.features.FirstOrderFeatureHolder;
 import constituencyParser.unlabeled.GreedyChange.ParentedSpans;
 
 /**
@@ -41,7 +39,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 	
 	GreedyChange greedyChange;
 	
-	FirstOrderFeatureHolder firstOrderFeatures;
+	UnlabeledFirstOrderFeatureHolder firstOrderFeatures;
 	Pruning pruning;
 	
 	Set<Set<Span>> alreadySeenSpans;
@@ -62,7 +60,7 @@ public class RandomizedGreedyDecoder implements Decoder {
 		this.labels = labels;
 		this.rules = rules;
 		
-		firstOrderFeatures = new FirstOrderFeatureHolder(words, labels, rules);
+		firstOrderFeatures = new UnlabeledFirstOrderFeatureHolder(words, labels, rules);
 		sampler = new DiscriminativeCKYSampler(words, labels, rules, firstOrderFeatures);
 		
 		this.greedyChange = new GreedyChange(labels, headPropagation);
@@ -358,12 +356,12 @@ public class RandomizedGreedyDecoder implements Decoder {
 			}
 		}
 		
-		for(long feature : Features.getLexicalDependencyFeatures(spans, parents)) {
+		for(long feature : UnlabeledFeatures.getLexicalDependencyFeatures(spans, parents)) {
 			score += params.getScore(feature);
 		}
 		
 		if(doSecondOrder) {
-			for(long feature : Features.getAllHigherOrderFeatures(words, spans, parents, rules, wordEnum, labels)) {
+			for(long feature : UnlabeledFeatures.getAllHigherOrderFeatures(words, spans, parents, rules, wordEnum, labels)) {
 				score += params.getScore(feature);
 			}
 		}

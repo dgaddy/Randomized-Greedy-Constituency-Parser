@@ -33,6 +33,8 @@ public class SpanProperties {
 		if(location + 1 < words.size())
 			properties.add(getWordPropertyCode(words.get(location + 1), WordPropertyType.AFTER));
 		
+		
+		//System.out.println(words.get(location).getPrefixIds());
 		for(int prefix : words.get(location).getPrefixIds()) {
 			properties.add(getPrefixPropertyCode(prefix));
 		}

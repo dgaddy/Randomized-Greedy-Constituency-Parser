@@ -230,6 +230,7 @@ public class PennTreebankReader implements Closeable {
 		List<TreeNode> trees = loadTreeNodesFromFiles(files);
 		
 		HashMap<String, Integer> wordCounts = new HashMap<>();
+		HashMap<WordPOS, Integer> wordPOSCounts = new HashMap<>();
 		for(int i = 0; i < trees.size(); i++) {
 			TreeNode tree = trees.get(i);
 			tree = tree.makeBinary();
@@ -245,9 +246,16 @@ public class PennTreebankReader implements Closeable {
 				else
 					wordCounts.put(word, count+1);
 			}
+			for(WordPOS word : tree.getWordsWithPOS()) {
+				Integer count = wordPOSCounts.get(word);
+				if(count == null)
+					wordPOSCounts.put(word, 1);
+				else
+					wordPOSCounts.put(word, count+1);
+			}
 		}
 		if(training)
-			words.addTrainingWords(wordCounts);
+			words.addTrainingWords(wordCounts, wordPOSCounts, labels);
 		
 		if(shuffle) {
 			words.shuffleWordIds();

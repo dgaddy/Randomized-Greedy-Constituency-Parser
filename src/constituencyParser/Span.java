@@ -77,8 +77,8 @@ public class Span {
 	 * @param leftLabel
 	 * @param rightLabel
 	 */
-	public Span(int start, int end, int split, int label, int leftLabel, int rightLabel) {
-		this.rule = new Rule(label, leftLabel, rightLabel);
+	public Span(int start, int end, int split, int label, int leftLabel, int rightLabel, boolean leftPropagate) {
+		this.rule = new Rule(label, leftLabel, rightLabel, leftPropagate);
 		this.start = start;
 		this.end = end;
 		this.split = split;
@@ -186,7 +186,7 @@ public class Span {
 			newRule = new Rule(label);
 			break;
 		case BINARY:
-			newRule = new Rule(label, this.rule.getLeft(), this.rule.getRight());
+			newRule = new Rule(label, this.rule.getLeft(), this.rule.getRight(), this.rule.getLeftPropagateHead());
 			break;
 		default:
 			throw new RuntimeException();
@@ -208,9 +208,9 @@ public class Span {
 			break;
 		case BINARY:
 			if(left)
-				newRule = new Rule(this.rule.getLabel(), label, this.rule.getRight());
+				newRule = new Rule(this.rule.getLabel(), label, this.rule.getRight(), this.rule.getLeftPropagateHead());
 			else
-				newRule = new Rule(this.rule.getLabel(), this.rule.getLeft(), label);
+				newRule = new Rule(this.rule.getLabel(), this.rule.getLeft(), label, this.rule.getLeftPropagateHead());
 			break;
 		default:
 			throw new RuntimeException();

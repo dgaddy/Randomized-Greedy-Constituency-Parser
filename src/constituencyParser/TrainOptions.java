@@ -19,8 +19,8 @@ public class TrainOptions {
 	public boolean randGreedy = true;
 	public boolean noNegativeFeatures = false;
 	public boolean mira = false;
-	public boolean useSuffixes = true;
-	public int rareWordCutoff = 0;
+	public boolean useSuffixes = false;
+	public int rareWordCutoff = 100;
 	public String dataFile = null;
 	public String testFile = null;
 	
