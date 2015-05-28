@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import constituencyParser.LabelEnumeration;
 import constituencyParser.Pruning;
 import constituencyParser.Rule;
 import constituencyParser.Rule.Type;
 import constituencyParser.Span;
 import constituencyParser.SpanUtilities;
 import constituencyParser.Word;
+import constituencyParser.WordEnumeration;
 
 /**
  * Used by RandomizeedGreedyDecoder to find all possible greedy changes to a parse tree.
@@ -38,6 +38,8 @@ public class GreedyChange {
 		ConstituencyNode parent;
 		int label;
 		int headWordIndex;
+		
+		boolean propagateLeft;
 
 		boolean terminal;
 		int index; // for terminals
@@ -55,6 +57,8 @@ public class GreedyChange {
 		public ConstituencyNode(ConstituencyNode other) {
 			this.parent = null;
 			this.label = other.label;
+			this.headWordIndex = other.headWordIndex;
+			this.propagateLeft = other.propagateLeft;
 			this.terminal = other.terminal;
 			this.index = other.index;
 			if(other.left != null)
@@ -68,6 +72,8 @@ public class GreedyChange {
 		public ConstituencyNode(ConstituencyNode other, ConstituencyNode parent) {
 			this.parent = parent;
 			this.label = other.label;
+			this.headWordIndex = other.headWordIndex;
+			this.propagateLeft = other.propagateLeft;
 			this.terminal = other.terminal;
 			this.index = other.index;
 			if(other.left != null)
@@ -92,16 +98,15 @@ public class GreedyChange {
 			}
 		}
 		
-		private void propagateLabels(BinaryHeadPropagation p) {
+		private void propagateLabels() {
 			if(terminal) {
 				headWordIndex = index;
 				return;
 			}
 			else {
-				left.propagateLabels(p);
-				right.propagateLabels(p);
-				boolean propLeft = p.getPropagateLeft(left.label, right.label);
-				if(propLeft) {
+				left.propagateLabels();
+				right.propagateLabels();
+				if(propagateLeft) {
 					label = left.label;
 					headWordIndex = left.headWordIndex;
 				}
@@ -187,8 +192,8 @@ public class GreedyChange {
 		}
 
 		private ParentedSpans getSpans(List<Word> words) {
-			List<Span> spans = new ArrayList<>();
-			List<Integer> parents = new ArrayList<>();
+			List<Span> spans = new ArrayList<>(words.size()*2);
+			List<Integer> parents = new ArrayList<>(words.size()*2);
 			getSpans(spans, parents, -1, words);
 			ParentedSpans result = new ParentedSpans();
 			result.parents = new int[parents.size()];
@@ -201,14 +206,14 @@ public class GreedyChange {
 		private void getSpans(List<Span> result, List<Integer> parents, int parentIndex, List<Word> words) {
 			if(terminal) {
 				Span s = new Span(index, label);
-				//s.setHeadWord(words.get(headWordIndex).getId()); TODO: put back
+				s.setHeadWord(words.get(headWordIndex).getId());
 				result.add(s);
 				parents.add(parentIndex);
 			}
 			else {
 				int index = result.size();
-				Span s = new Span(start, end, left.end, label, left.label, right.label);
-				//s.setHeadWord(words.get(headWordIndex).getId()); TODO: put back
+				Span s = new Span(start, end, left.end, label, left.label, right.label, propagateLeft);
+				s.setHeadWord(words.get(headWordIndex).getId());
 				result.add(s);
 				parents.add(parentIndex);
 
@@ -225,6 +230,13 @@ public class GreedyChange {
 			else
 				return right.getNode(s, e);
 		}
+		
+		boolean isPruned(Pruning pruning) {
+			if(this.terminal)
+				return pruning.isPruned(start, end, label);
+			else
+				return pruning.isPruned(start, end, label) || left.isPruned(pruning) || right.isPruned(pruning);
+		}
 
 		public String toString() {
 			if(terminal) {
@@ -235,13 +247,10 @@ public class GreedyChange {
 			}
 		}
 	}
+	private WordEnumeration wordEnum;
 
-	private LabelEnumeration labels;
-	private BinaryHeadPropagation headPropagation;
-
-	public GreedyChange(LabelEnumeration labels, BinaryHeadPropagation headPropagation) {
-		this.labels = labels;
-		this.headPropagation = headPropagation;
+	public GreedyChange(WordEnumeration wordEnum) {
+		this.wordEnum = wordEnum;
 	}
 	
 	public List<ParentedSpans> makeGreedyTerminalChanges(List<Span> spans, int indexToChange, Pruning pruning, List<Word> words) {
@@ -250,10 +259,11 @@ public class GreedyChange {
 		ConstituencyNode root = getTree(spans);
 		
 		ConstituencyNode toChange = root.getNode(indexToChange, indexToChange+1);
-		for(int label : labels.getPOSLabels()) {
+		for(int label : wordEnum.getPartsOfSpeech(words.get(indexToChange))) {
 			toChange.label = label;
-			root.propagateLabels(headPropagation);
-			result.add(root.getSpans(words));
+			root.propagateLabels();
+			if(!root.isPruned(pruning))
+				result.add(root.getSpans(words));
 		}
 		
 		return result;
@@ -306,9 +316,19 @@ public class GreedyChange {
 			}
 
 			newRoot.updateSpanLocations();
-			newRoot.propagateLabels(headPropagation);
-
-			result.add(newRoot.getSpans(words));
+			
+			// try both head propagation directions
+			parent.propagateLeft = true;
+			newRoot.propagateLabels();
+			if(!newRoot.isPruned(pruning))
+				result.add(newRoot.getSpans(words));
+			
+			parent.propagateLeft = false;
+			newRoot.propagateLabels();
+			if(!newRoot.isPruned(pruning))
+				result.add(newRoot.getSpans(words));
+			
+			// TODO check if we at least return the original
 		}
 
 		return result;
@@ -332,6 +352,9 @@ public class GreedyChange {
 			if(rule.getType() == Type.TERMINAL) {
 				node.terminal = true;
 				node.index = spans.get(i).getStart();
+			}
+			else { // binary
+				node.propagateLeft = rule.getLeftPropagateHead();
 			}
 			node.label = rule.getLabel();
 			nodes[i] = node;

@@ -2,7 +2,6 @@ package constituencyParser.unlabeled;
 
 import gnu.trove.list.TLongList;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import constituencyParser.*;
@@ -12,7 +11,6 @@ import constituencyParser.features.SpanProperties;
 public class UnlabeledFirstOrderFeatureHolder {
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
-	RuleEnumeration rules;
 
 	// for binary rules
 	double[][][][] startSpanScores; // indexed by word number in sentence then rule - value is the score of start span property features
@@ -20,16 +18,14 @@ public class UnlabeledFirstOrderFeatureHolder {
 	double[][][][] splitSpanScores;
 	double[][][][] lengthSpanScores; // indexed by length then rule
 	double[][][] binaryRuleScores;
+	double[][][][] dependencyScores; // parent index, child index, parent POS, childPOS
 
 	// for terminal rules
 	double[][] terminalScores; // by word number then rule
-	
-	List<List<List<Long>>> terminalProperties;
 
-	public UnlabeledFirstOrderFeatureHolder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
+	public UnlabeledFirstOrderFeatureHolder(WordEnumeration words, LabelEnumeration labels) {
 		this.wordEnum = words;
 		this.labels = labels;
-		this.rules = rules;
 	}
 
 	public void fillScoreArrays(List<Word> words, FeatureParameters params) {
@@ -42,6 +38,8 @@ public class UnlabeledFirstOrderFeatureHolder {
 		binaryRuleScores = new double[labelsSize][labelsSize][2];
 
 		terminalScores = new double[wordsSize][labelsSize];
+		
+		dependencyScores = new double[wordsSize][wordsSize][labelsSize][labelsSize];
 
 		for(int i = 0; i < wordsSize; i++) {
 			Word word = words.get(i);
@@ -97,26 +95,34 @@ public class UnlabeledFirstOrderFeatureHolder {
 				}
 			}
 		}
-
-		terminalProperties = new ArrayList<>();
+		
 		for(int i = 0; i < wordsSize; i++) {
 			TLongList spanProperties = SpanProperties.getTerminalSpanProperties(words, i, wordEnum);
 			
-			List<List<Long>> a = new ArrayList<>();
 			for(int label = 0; label < labelsSize; label++) {
 				double spanScore = 0;
-				ArrayList<Long> prop = new ArrayList<>();
 				for(int p = 0; p < spanProperties.size(); p++) {
 					long code = UnlabeledFeatures.getSpanPropertyByTerminalRuleFeature(spanProperties.get(p), label);
 					spanScore += params.getScore(code);
-					prop.add(code);
 				}
-				prop.add(UnlabeledFeatures.getTerminalRuleFeature(label));
-				a.add(prop);
 				spanScore += params.getScore(UnlabeledFeatures.getTerminalRuleFeature(label));
 				terminalScores[i][label] = spanScore;
 			}
-			terminalProperties.add(a);
+		}
+		
+		for(int p = 0; p < wordsSize; p++) {
+			for(int c = 0; c < wordsSize; c++) {
+				for(int parentLabel = 0; parentLabel < labelsSize; parentLabel++) {
+					for(int childLabel = 0; childLabel < labelsSize; childLabel++) {
+						int parentWord = words.get(p).getId();
+						int childWord = words.get(c).getId();
+						double score = params.getScore(UnlabeledFeatures.getLexicalDependencyFeature(parentWord, childWord));
+						score += params.getScore(UnlabeledFeatures.getLexPosDependencyFeature(parentWord, childLabel));
+						score += params.getScore(UnlabeledFeatures.getPosLexDependencyFeature(parentLabel, childWord));
+						dependencyScores[p][c][parentLabel][childLabel] = score;
+					}
+				}
+			}
 		}
 	}
 
@@ -131,5 +137,9 @@ public class UnlabeledFirstOrderFeatureHolder {
 
 	public double scoreBinary(int start, int end, int split, int leftLabel, int rightLabel, boolean leftHead) {
 		return startSpanScores[start][leftLabel][rightLabel][leftHead ? 1 : 0] + endSpanScores[end][leftLabel][rightLabel][leftHead ? 1 : 0]  + splitSpanScores[split][leftLabel][rightLabel][leftHead ? 1 : 0]  + lengthSpanScores[end-start][leftLabel][rightLabel][leftHead ? 1 : 0]  + binaryRuleScores[leftLabel][rightLabel][leftHead ? 1 : 0] ;
+	}
+	
+	public double scoreDependencyFeature(int parentWordPosition, int childWordPosition, int parentPOS, int childPOS) {
+		return dependencyScores[parentWordPosition][childWordPosition][parentPOS][childPOS];
 	}
 }

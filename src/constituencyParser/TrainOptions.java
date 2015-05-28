@@ -18,14 +18,16 @@ public class TrainOptions {
 	public double dropout = 0.0;
 	public boolean randGreedy = true;
 	public boolean noNegativeFeatures = false;
-	public boolean mira = false;
+	public boolean mira = true;
 	public boolean useSuffixes = false;
 	public int rareWordCutoff = 100;
 	public String dataFile = null;
 	public String testFile = null;
+	public boolean lexical = true;
+	public double pruningCutoff = 1;
 	
 	public TrainOptions(String[] args) {
-		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:znqu:w:f:g:");
+		OptionParser parser = new OptionParser("t:o:c:i:s:a:p:m:l:b:r:d:znq:u:w:f:g:h:e:");
 		OptionSet options = parser.parse(args);
 		
 		if(options.has("t")) {
@@ -72,7 +74,7 @@ public class TrainOptions {
 			noNegativeFeatures = true;
 		}
 		if(options.has("q")) {
-			mira = true;
+			mira = "t".equals(options.valueOf("q"));
 		}
 		if(options.has("u")) {
 			useSuffixes = "t".equals(options.valueOf("u"));
@@ -85,6 +87,12 @@ public class TrainOptions {
 		}
 		if(options.has("g")) {
 			testFile = (String)options.valueOf("g");
+		}
+		if(options.has("h")) {
+			lexical = "t".equals(options.valueOf("h"));
+		}
+		if(options.has("e")) {
+			pruningCutoff = Double.parseDouble((String)options.valueOf("e"));
 		}
 		
 		System.out.println("Training options");
@@ -106,9 +114,11 @@ public class TrainOptions {
 		System.out.println("mira: " + mira);
 		System.out.println("use suffixes: " + useSuffixes);
 		System.out.println("rare word cutoff: " + rareWordCutoff);
+		System.out.println("pruning: " + pruningCutoff);
 		if(startModel != null)
 			System.out.println("starting from: " + startModel);
 		if(percentOfData < 1)
 			System.out.println("using " + percentOfData + " of data");
+		System.out.println("lexical: " + lexical);
 	}
 }

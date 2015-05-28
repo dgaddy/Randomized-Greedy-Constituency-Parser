@@ -37,15 +37,19 @@ public class Test {
 	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, TestOptions options) throws IOException {
 		List<TreeNode> trees = PennTreebankReader.loadTreeNodesFromFiles(PennTreebankReader.getWSJFiles(options.dataDir, options.section, options.section + 1));
 		BinaryHeadPropagation prop = BinaryHeadPropagation.getBinaryHeadPropagation(trees, labels);
-		List<SpannedWords> gold = prop.getExamples(false, words, rules); // TODO: change first parameter to false
+		List<SpannedWords> gold = prop.getExamples(false, words);
 		int number = (int)(gold.size() * options.percentOfData);
 		gold = gold.subList(0, number);
 		
 		Decoder decoder;
-		if(options.secondOrder)
-			decoder = new RandomizedGreedyDecoder(words, labels, rules, options.numberOfThreads, prop);
-		else
-			decoder = new UnlabeledCKY(words, labels, rules);
+		if(options.useRandGreedy)
+			decoder = new RandomizedGreedyDecoder(words, labels, options.numberOfThreads, prop, options.pruningCutoff, options.lexical);
+		else {
+			if(options.lexical)
+				decoder = new LexicalizedUnlabeledCKY(words, labels, options.pruningCutoff);
+			else
+				decoder = new UnlabeledCKY(words, labels, options.pruningCutoff, prop);
+		}
 		
 		parameters.resetDropout(0); // this makes sure any dropout from training isn't used when we are testing
 		
@@ -55,7 +59,7 @@ public class Test {
 		
 		int POSCorrect = 0;
 		int POSTotal = 0;
-		int numberUnlabeledSpanCorrectGoldPOS = 0;
+		//int numberUnlabeledSpanCorrectGoldPOS = 0;
 		
 		int cnt = 0;
 		for(SpannedWords example : gold) {
@@ -67,7 +71,7 @@ public class Test {
 			// TODO: fix
 			//List<Span> result = ((UnlabeledCKY)decoder).decodeWithPOS(example.getWords(), SpanUtilities.getPOS(example.getWords().size(), example.getSpans()), parameters);
 			
-			List<Long> goldFeatures = UnlabeledFeatures.getAllFeatures(example.getSpans(), example.getWords(), options.secondOrder, words, labels, rules, options.useRandGreedy);
+			List<Long> goldFeatures = UnlabeledFeatures.getAllFeatures(example.getSpans(), example.getWords(), options.secondOrder, words, labels, rules, options.lexical);
 			double goldScore = 0;
 			for(Long code : goldFeatures) {
 				goldScore += parameters.getScore(code);
@@ -78,7 +82,7 @@ public class Test {
 				//SpanUtilities.printSpans(result, example.getWords().size(), labels);
 			}
 			
-			List<Long> features = UnlabeledFeatures.getAllFeatures(result, example.getWords(), options.secondOrder, words, labels, rules, options.useRandGreedy);
+			List<Long> features = UnlabeledFeatures.getAllFeatures(result, example.getWords(), options.secondOrder, words, labels, rules, options.lexical);
 			double score = 0;
 			for(Long code : features) {
 				score += parameters.getScore(code);
@@ -133,14 +137,13 @@ public class Test {
 				if(!good)
 					System.out.println("Head propagated differently in gold");
 			}*/
-			// TODO: this happens a lot
 			
-			if(!options.useRandGreedy) {
-				List<Span> resultPOSGold = ((UnlabeledCKY)decoder).decodeWithPOS(example.getWords(), goldPOS, parameters);
+			/*if(!options.useRandGreedy) {
+				List<Span> resultPOSGold = ((LexicalizedUnlabeledCKY)decoder).decodeWithPOS(example.getWords(), goldPOS, parameters);
 				//SpanUtilities.printSpans(resultPOSGold, example.getWords().size(), labels);
 				//System.out.println("POS gold score " + decoder.getLastScore());
 				
-				features = UnlabeledFeatures.getAllFeatures(resultPOSGold, example.getWords(), options.secondOrder, words, labels, rules, options.useRandGreedy);
+				features = UnlabeledFeatures.getAllFeatures(resultPOSGold, example.getWords(), options.secondOrder, words, labels, rules, true);
 				score = 0;
 				for(Long code : features) {
 					score += parameters.getScore(code);
@@ -160,7 +163,7 @@ public class Test {
 							numberUnlabeledSpanCorrectGoldPOS++;
 					}
 				}
-			}
+			}*/
 			
 			for(Span goldSpan : example.getSpans()) {
 				if(goldSpan.getRule().getType() == Type.BINARY)
@@ -174,9 +177,9 @@ public class Test {
 		double score = 2*precision*recall/(precision+recall);
 		System.out.println("Unlabeled spans score: " + score);
 		System.out.println("POS accuracy: " + (POSCorrect / (double)POSTotal));
-		precision = numberUnlabeledSpanCorrectGoldPOS / (double)numberOutputUnlabeledSpan;
-		recall = numberUnlabeledSpanCorrectGoldPOS / (double) numberGoldUnlabeledSpan;
-		score = 2*precision*recall/(precision+recall);
-		System.out.println("Span score with gold POS: " + score);
+		//precision = numberUnlabeledSpanCorrectGoldPOS / (double)numberOutputUnlabeledSpan;
+		//recall = numberUnlabeledSpanCorrectGoldPOS / (double) numberGoldUnlabeledSpan;
+		//score = 2*precision*recall/(precision+recall);
+		//System.out.println("Span score with gold POS: " + score);
 	}
 }

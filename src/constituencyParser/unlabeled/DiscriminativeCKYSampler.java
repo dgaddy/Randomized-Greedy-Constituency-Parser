@@ -6,9 +6,6 @@ import java.util.List;
 
 import constituencyParser.LabelEnumeration;
 import constituencyParser.Pruning;
-import constituencyParser.Rule;
-import constituencyParser.RuleEnumeration;
-import constituencyParser.Span;
 import constituencyParser.Word;
 import constituencyParser.WordEnumeration;
 
@@ -16,11 +13,10 @@ import constituencyParser.WordEnumeration;
  * A sampler of parse trees based on DiscriminativeCKYDecoder
  */
 public class DiscriminativeCKYSampler {
-	private static final double PRUNE_THRESHOLD = 10;
-	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
-	RuleEnumeration rules;
+	
+	private double pruneThreshold;
 	
 	UnlabeledFirstOrderFeatureHolder firstOrderFeatures;
 	
@@ -34,10 +30,10 @@ public class DiscriminativeCKYSampler {
 	boolean costAugmenting = false;
 	boolean[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
 	
-	public DiscriminativeCKYSampler(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, UnlabeledFirstOrderFeatureHolder features) {
+	public DiscriminativeCKYSampler(WordEnumeration words, LabelEnumeration labels, UnlabeledFirstOrderFeatureHolder features, double pruneThreshold) {
 		this.wordEnum = words;
 		this.labels = labels;
-		this.rules = rules;
+		this.pruneThreshold = pruneThreshold;
 		
 		firstOrderFeatures = features;
 	}
@@ -57,7 +53,6 @@ public class DiscriminativeCKYSampler {
 		sentenceWords = words;
 		wordsSize = words.size();
 		int labelsSize = labels.getNumberOfLabels();
-		int rulesSize = rules.getNumberOfBinaryRules();
 		insideLogProbabilities = new double[wordsSize][wordsSize+1][labelsSize];
 		for(int i = 0; i < wordsSize; i++)
 			for(int j = 0; j < wordsSize+1; j++)
@@ -67,7 +62,7 @@ public class DiscriminativeCKYSampler {
 		max = new double[wordsSize][wordsSize+1];
 		for(int i = 0; i < wordsSize; i++) {
 			max[i][i+1] = Double.NEGATIVE_INFINITY;
-			for(int label : labels.getPOSLabels()) {
+			for(int label : wordEnum.getPartsOfSpeech(words.get(i))) {
 				double spanScore = firstOrderFeatures.scoreTerminal(i, label);
 				if(costAugmenting && !goldLabels[i][i+1]) {
 					spanScore += 1;
@@ -81,12 +76,13 @@ public class DiscriminativeCKYSampler {
 			
 			for(int l = 0; l < labelsSize; l++) {
 				double p = insideLogProbabilities[i][i+1][l];
-				if(p < max[i][i+1] - PRUNE_THRESHOLD) {
+				if(p < max[i][i+1] - pruneThreshold) {
 					prune.prune(i, i+1, l);
 				}
 			}
 		}
 		
+		int[][] uses = new int[wordsSize][wordsSize+1];
 		for(int length = 2; length < wordsSize + 1; length++) {
 			for(int start = 0; start < wordsSize + 1 - length; start++) {
 				int end = start + length;
@@ -97,29 +93,39 @@ public class DiscriminativeCKYSampler {
 					double leftMax = max[start][splitLocation];
 					double rightMax = max[splitLocation][end];
 					
-					if (leftMax + rightMax + PRUNE_THRESHOLD < max[start][end])
+					if (leftMax + rightMax + pruneThreshold < max[start][end])
 						continue;
 					
-					for(int r = 0; r < rulesSize; r++) {
-						
-						Rule rule = rules.getBinaryRule(r);
-						
-						int label = rule.getLabel();
-						
-						double leftChildProb = insideLogProbabilities[start][split][rule.getLeft()];
-						double rightChildProb = insideLogProbabilities[split][end][rule.getRight()];
-						
-						if(leftChildProb + rightChildProb + PRUNE_THRESHOLD < max[start][end])
-							continue;
-						
-						double probability = binaryProbability(start, start+length, start+split, r, rule);
-						
-						if(probability != Double.NEGATIVE_INFINITY) {
-							double fullProbability = addProbabilitiesLog(insideLogProbabilities[start][start+length][label], probability);  
-							insideLogProbabilities[start][start+length][label] = fullProbability;
+					double[] leftScore = insideLogProbabilities[start][splitLocation];
+					double[] rightScore = insideLogProbabilities[splitLocation][end];
+					
+					for(boolean leftHead : new boolean[]{true, false}) {
+						for(int leftLabel = 0; leftLabel < labelsSize; leftLabel++) {
+							double leftChildProb = leftScore[leftLabel];
+							if(leftChildProb + pruneThreshold < leftMax)
+								continue;
 							
-							if(fullProbability > max[start][end]) {
-								max[start][end] = fullProbability;
+							for(int rightLabel = 0; rightLabel < labelsSize; rightLabel++) {
+								double rightChildProb = rightScore[rightLabel];
+								
+								if(rightChildProb + pruneThreshold < rightMax
+										|| leftChildProb + rightChildProb + pruneThreshold < max[start][end])
+									continue;
+								
+								int label = leftHead ? leftLabel : rightLabel;
+								
+								double probability = binaryProbability(start, start+length, start+split, leftLabel, rightLabel, leftHead);
+								
+								if(probability != Double.NEGATIVE_INFINITY) {
+									uses[start][splitLocation]++;
+									uses[splitLocation][end]++;
+									double fullProbability = addProbabilitiesLog(insideLogProbabilities[start][start+length][label], probability);  
+									insideLogProbabilities[start][start+length][label] = fullProbability;
+									
+									if(fullProbability > max[start][end]) {
+										max[start][end] = fullProbability;
+									}
+								}
 							}
 						}
 					}
@@ -127,12 +133,41 @@ public class DiscriminativeCKYSampler {
 				
 				for(int l = 0; l < labelsSize; l++) {
 					double p = insideLogProbabilities[start][start+length][l];
-					if(p < max[start][end] - PRUNE_THRESHOLD) {
+					if(p < max[start][end] - pruneThreshold) { // TODO does this need to change?
 						prune.prune(start, start+length, l);
 					}
 				}
 			}
 		}
+		
+		// TODO see if this pruning works
+		/*int[][] uses = new int[wordsSize][wordsSize+1];
+		for(int length = 2; length < wordsSize + 1; length++) {
+			for(int start = 0; start < wordsSize + 1 - length; start++) {
+				int end = start + length;
+				for(int split = 1; split < length; split++) {
+					int splitLocation = start + split;
+					
+					double leftMax = max[start][splitLocation];
+					double rightMax = max[splitLocation][end];
+					
+					if (leftMax + rightMax + pruneThreshold < max[start][end]) {
+						uses[start][splitLocation]++;
+						uses[splitLocation][end]++;
+					}
+				}
+			}
+		}*/
+		for(int length = 2; length < wordsSize; length++) {
+			for(int start = 0; start < wordsSize + 1 - length; start++) {
+				int end = start + length;
+				if(uses[start][end] == 0) {
+					for(int label = 0; label < labelsSize; label++)
+						prune.prune(start, end, label);
+				}
+			}
+		}
+		
 		return prune;
 	}
 	
@@ -172,14 +207,14 @@ public class DiscriminativeCKYSampler {
 	 * @param rule
 	 * @return
 	 */
-	private double binaryProbability(int start, int end, int split, int ruleNumber, Rule rule) {
-		if(prune.isPruned(start, split, rule.getLeft()) || prune.isPruned(split, end, rule.getRight()))
+	private double binaryProbability(int start, int end, int split, int leftLabel, int rightLabel, boolean propagateLeft) {
+		if(prune.isPruned(start, split, leftLabel) || prune.isPruned(split, end, rightLabel))
 			return Double.NEGATIVE_INFINITY;
 
-		double leftChildProb = insideLogProbabilities[start][split][rule.getLeft()];
-		double rightChildProb = insideLogProbabilities[split][end][rule.getRight()];
+		double leftChildProb = insideLogProbabilities[start][split][leftLabel];
+		double rightChildProb = insideLogProbabilities[split][end][rightLabel];
 		
-		double spanScore = firstOrderFeatures.scoreBinary(start, end, split, ruleNumber);
+		double spanScore = firstOrderFeatures.scoreBinary(start, end, split, leftLabel, rightLabel, propagateLeft);
 		if(costAugmenting && !goldLabels[start][end]) {
 			spanScore += 1;
 		}
@@ -196,7 +231,7 @@ public class DiscriminativeCKYSampler {
 		}
 	}
 	
-	public List<Span> sample() {
+	public ConstituencyNode sample() {
 		List<Double> logProbabilities = new ArrayList<>();
 		List<Integer> labelsToSample = new ArrayList<>();
 		for(int topLabel = 0; topLabel < labels.getNumberOfLabels(); topLabel++) {
@@ -213,53 +248,93 @@ public class DiscriminativeCKYSampler {
 		
 		if(logProbabilities.size() == 0) {
 			System.out.println("top level fail");
-			return new ArrayList<>();
+			return null;
 		}
 		
 		int chosenTopLabel = labelsToSample.get(sample(logProbabilities));
 		
-		List<Span> sample = new ArrayList<>();
+		ConstituencyNode sample = new ConstituencyNode();
+		sample.label = chosenTopLabel;
+		sample.start = 0;
+		sample.end = wordsSize;
 		
-		sample(0, wordsSize, chosenTopLabel, sample);
+		sample(sample);
 		
 		return sample;
 	}
 	
-	private void sample(int start, int end, int label, List<Span> resultAccumulator) {
+	private static class Option {
+		boolean propagateLeft;
+		int otherLabel;
+		int splitLocation;
+		public Option(boolean p, int o, int s) {
+			this.propagateLeft = p;
+			this.otherLabel = o;
+			this.splitLocation = s;
+		}
+	}
+	
+	private void sample(ConstituencyNode resultAccumulator) {
+		int label = resultAccumulator.label;
+		int start = resultAccumulator.start;
+		int end = resultAccumulator.end;
 		if(end - start == 1) { // terminals
-			resultAccumulator.add(new Span(start, label));
+			resultAccumulator.index = start;
+			resultAccumulator.terminal = true;
 			return;
 		}
 		else {
 			// binary
 			List<Double> logProbabilities = new ArrayList<>();
-			List<Span> spans = new ArrayList<>();
+			List<Option> options = new ArrayList<>();
 			
-			int numBinRules = rules.getNumberOfBinaryRules();
+			int labelsSize = labels.getNumberOfLabels();
 			for(int split = 1; split < end-start; split++) {
-				for(int r = 0; r < numBinRules; r++) {
-					Rule rule = rules.getBinaryRule(r);
+				// left propagating - iterate over right label
+				for(int rightLabel = 0; rightLabel < labelsSize; rightLabel++) {
+					double prob = binaryProbability(start, end, start+split, label, rightLabel, true);
+					if(prob == Double.NEGATIVE_INFINITY)
+						continue;
 					
-					if(rule.getLabel() == label) {
-						if(prune.isPruned(start, start+split, rule.getLeft()) || prune.isPruned(start+split, end, rule.getRight()))
-							continue;
-						
-						double prob = binaryProbability(start, end, start+split, r, rule);
-						if(prob == Double.NEGATIVE_INFINITY)
-							continue;
-						
-						logProbabilities.add(prob);
-						Span span = new Span(start, end, start+split, rule);
-						spans.add(span);
-					}
+					logProbabilities.add(prob);
+					Option option = new Option(true, rightLabel, start+split);
+					options.add(option);
+				}
+				
+				// right propagating = iterate over left label
+				for(int leftLabel = 0; leftLabel < labelsSize; leftLabel++) {
+					double prob = binaryProbability(start, end, start+split, leftLabel, label, false);
+					if(prob == Double.NEGATIVE_INFINITY)
+						continue;
+					
+					logProbabilities.add(prob);
+					Option option = new Option(false, leftLabel, start+split);
+					options.add(option);
 				}
 			}
 			
 			int sampleIndex = sample(logProbabilities);
-			Span span = spans.get(sampleIndex);
-			resultAccumulator.add(span);
-			sample(start, span.getSplit(), span.getRule().getLeft(), resultAccumulator);
-			sample(span.getSplit(), end, span.getRule().getRight(), resultAccumulator);
+			Option chosen = options.get(sampleIndex);
+			ConstituencyNode left = new ConstituencyNode();
+			left.start = start;
+			left.end = chosen.splitLocation;
+			left.parent = resultAccumulator;
+			resultAccumulator.left = left;
+			ConstituencyNode right = new ConstituencyNode();
+			right.start = chosen.splitLocation;
+			right.end = end;
+			right.parent = resultAccumulator;
+			resultAccumulator.right = right;
+			if(chosen.propagateLeft) {
+				left.label = label;
+				right.label = chosen.otherLabel;
+			}
+			else {
+				left.label = chosen.otherLabel;
+				right.label = label;
+			}
+			sample(left);
+			sample(right);
 		}
 	}
 	
@@ -297,5 +372,15 @@ public class DiscriminativeCKYSampler {
 		}
 		
 		return sampleIndex;
+	}
+	
+	public double increasePruneThreshold() {
+		pruneThreshold *= 1.5;
+		return pruneThreshold;
+	}
+	
+	public double decreasePruneThreshold() {
+		pruneThreshold -= .001;
+		return pruneThreshold;
 	}
 }

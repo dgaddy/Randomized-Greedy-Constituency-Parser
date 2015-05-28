@@ -88,15 +88,29 @@ public class Train {
 					List<Span> gold = sw.getSpans();
 					
 					// positive
-					List<Long> goldFeatures = UnlabeledFeatures.getAllFeatures(gold, words, options.secondOrder, wordEnum, labels, rules, options.randGreedy);
+					List<Long> goldFeatures = UnlabeledFeatures.getAllFeatures(gold, words, options.secondOrder, wordEnum, labels, rules, options.lexical);
 					double goldScore = 0;
 					for(Long code : goldFeatures) {
 						goldScore += parameters.getScore(code);
 					}
 					
+					boolean goldPruned = false;
 					if(goldScore > decoder.getLastScore()) {
-						System.out.println("skipping param update because gold score higher");
+						System.out.println("skipping param update because gold score higher " + goldScore + " " + decoder.getLastScore());
+						if(!options.randGreedy)
+							goldPruned = true;
+						else {
+							RandomizedGreedyDecoder d = (RandomizedGreedyDecoder)decoder;
+							if(d.getLastPruning().containsPruned(gold))
+								goldPruned = true;
+						}
+						if(goldPruned)
+							options.pruningCutoff = decoder.increasePruneThreshold();
+						
 						continue; // don't update score if gold score higher
+					}
+					else {
+						options.pruningCutoff = decoder.decreasePruneThreshold();
 					}
 					
 					for(Long code : goldFeatures) {
@@ -110,7 +124,7 @@ public class Train {
 					
 					
 					// negative
-					List<Long> predictedFeatures = UnlabeledFeatures.getAllFeatures(predicted, words, options.secondOrder, wordEnum, labels, rules, options.randGreedy);
+					List<Long> predictedFeatures = UnlabeledFeatures.getAllFeatures(predicted, words, options.secondOrder, wordEnum, labels, rules, options.lexical);
 					
 					/*List<List<List<Long>>> a = ((UnlabeledCKY)decoder).firstOrderFeatures.terminalProperties;
 					UnlabeledFirstOrderFeatureHolder holder = ((UnlabeledCKY)decoder).firstOrderFeatures;
@@ -198,6 +212,7 @@ public class Train {
 		decoder.setCostAugmenting(false, null);
 		parameters.resetDropout(0);
 		System.out.println("Finished; Average loss: " + (totalLoss / (double)trainingExamples.size()));
+		System.out.println("final prune threshold is " + options.pruningCutoff);
 	}
 	
 	@SuppressWarnings("unused")

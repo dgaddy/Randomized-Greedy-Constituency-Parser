@@ -18,7 +18,6 @@ import constituencyParser.LabelEnumeration;
 import constituencyParser.Pruning;
 import constituencyParser.Rule;
 import constituencyParser.Rule.Type;
-import constituencyParser.RuleEnumeration;
 import constituencyParser.Span;
 import constituencyParser.SpanUtilities;
 import constituencyParser.SpannedWords;
@@ -35,7 +34,6 @@ public class RandomizedGreedyDecoder implements Decoder {
 	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
-	RuleEnumeration rules;
 	
 	GreedyChange greedyChange;
 	
@@ -49,21 +47,23 @@ public class RandomizedGreedyDecoder implements Decoder {
 	ExecutorCompletionService<List<Span>> completionService;
 	
 	boolean doSecondOrder = true;
+	boolean doLexical;
 	
 	boolean costAugmenting = false;
 	boolean[][] goldLabels; // gold span info used for cost augmenting: indices are start and end, value is label, -1 if no span for a start and end
 	
 	int numberSampleIterations = 50;
 	
-	public RandomizedGreedyDecoder(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, int threads, BinaryHeadPropagation headPropagation) {
+	public RandomizedGreedyDecoder(WordEnumeration words, LabelEnumeration labels, int threads, BinaryHeadPropagation headPropagation, double samplerPruneThreshold, boolean lexical) {
 		this.wordEnum = words;
 		this.labels = labels;
-		this.rules = rules;
 		
-		firstOrderFeatures = new UnlabeledFirstOrderFeatureHolder(words, labels, rules);
-		sampler = new DiscriminativeCKYSampler(words, labels, rules, firstOrderFeatures);
+		this.doLexical = lexical;
 		
-		this.greedyChange = new GreedyChange(labels, headPropagation);
+		firstOrderFeatures = new UnlabeledFirstOrderFeatureHolder(words, labels);
+		sampler = new DiscriminativeCKYSampler(words, labels, firstOrderFeatures, samplerPruneThreshold);
+		
+		this.greedyChange = new GreedyChange(wordEnum);
 		
 		executorService = Executors.newFixedThreadPool(threads);
 		completionService = new ExecutorCompletionService<>(executorService);
@@ -107,6 +107,18 @@ public class RandomizedGreedyDecoder implements Decoder {
 	 */
 	public void setNumberSampleIterations(int iterations) {
 		numberSampleIterations = iterations;
+	}
+	
+	public double increasePruneThreshold() {
+		return sampler.increasePruneThreshold();
+	}
+	
+	public double decreasePruneThreshold() {
+		return sampler.decreasePruneThreshold();
+	}
+	
+	public Pruning getLastPruning() {
+		return pruning;
 	}
 	
 	List<Word> words;
@@ -181,8 +193,6 @@ public class RandomizedGreedyDecoder implements Decoder {
 				SpanUtilities.connectChildren(spans);
 				if(pruning.containsPruned(spans))
 					throw new RuntimeException();
-				if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
-					throw new RuntimeException();
 				
 				if(spans.size() > 0) { // sometimes sampler fails to find valid sample and returns empty list
 					SpanUtilities.checkCorrectness(spans);
@@ -211,8 +221,6 @@ public class RandomizedGreedyDecoder implements Decoder {
 							
 							if(pruning.containsPruned(spans))
 								throw new RuntimeException();
-							if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
-								throw new RuntimeException();
 						}
 						
 						// other spans
@@ -239,18 +247,15 @@ public class RandomizedGreedyDecoder implements Decoder {
 									
 									if(pruning.containsPruned(spans))
 										throw new RuntimeException();
-									if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
-										throw new RuntimeException();
 								}
 							}
 						}
 						
 						if(pruning.containsPruned(spans))
 							throw new RuntimeException();
-						if(!SpanUtilities.usesOnlyExistingRules(spans, rules))
-							throw new RuntimeException();
 					}
 				}
+				
 				double score = score(words, spans, params);
 				if(score > bestScore) {
 					best = new ArrayList<>(spans);
@@ -303,6 +308,8 @@ public class RandomizedGreedyDecoder implements Decoder {
 		if(options.size() == 0)
 			throw new RuntimeException("No options given to max");
 		for(ParentedSpans option : options) {
+			if(option.spans.isEmpty())
+				System.out.println("empty spans option");
 			double score = score(words, option.spans, option.parents, params);
 			if(score >= bestScore) {
 				bestScore = score;
@@ -330,21 +337,12 @@ public class RandomizedGreedyDecoder implements Decoder {
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);
 			Rule rule = s.getRule();
-			if(pruning.isPruned(s.getStart(), s.getEnd(), rule.getLabel()))
-				return Double.NEGATIVE_INFINITY;
+			//if(pruning.isPruned(s.getStart(), s.getEnd(), rule.getLabel()))
+			//	return Double.NEGATIVE_INFINITY;
 			
 			double spanScore = 0;
 			if(rule.getType() == Type.BINARY) {
-				int ruleId = rules.getBinaryId(rule);
-				if(ruleId == -1)
-					return Double.NEGATIVE_INFINITY;
-				spanScore = firstOrderFeatures.scoreBinary(s.getStart(), s.getEnd(), s.getSplit(), ruleId);
-			}
-			else if(rule.getType() == Type.UNARY) {
-				int ruleId = rules.getUnaryId(rule);
-				if(ruleId == -1)
-					return Double.NEGATIVE_INFINITY;
-				spanScore = firstOrderFeatures.scoreUnary(s.getStart(), s.getEnd(), ruleId);
+				spanScore = firstOrderFeatures.scoreBinary(s.getStart(), s.getEnd(), s.getSplit(), s.getRule().getLeft(), s.getRule().getRight(), s.getRule().getLeftPropagateHead());
 			}
 			else {// terminal
 				spanScore = firstOrderFeatures.scoreTerminal(s.getStart(), rule.getLabel());
@@ -356,14 +354,18 @@ public class RandomizedGreedyDecoder implements Decoder {
 			}
 		}
 		
-		for(long feature : UnlabeledFeatures.getLexicalDependencyFeatures(spans, parents)) {
-			score += params.getScore(feature);
+		if(doLexical) {
+			for(long feature : UnlabeledFeatures.getLexicalDependencyFeatures(spans)) {
+				score += params.getScore(feature);
+			}
 		}
 		
 		if(doSecondOrder) {
-			for(long feature : UnlabeledFeatures.getAllHigherOrderFeatures(words, spans, parents, rules, wordEnum, labels)) {
+			/*for(long feature : UnlabeledFeatures.getAllHigherOrderFeatures(words, spans, parents, rules, wordEnum, labels)) {
 				score += params.getScore(feature);
-			}
+			}*/
+			
+			// TODO new higher order
 		}
 		
 		return score;

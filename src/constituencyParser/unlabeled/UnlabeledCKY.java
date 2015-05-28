@@ -11,13 +11,14 @@ import constituencyParser.features.FeatureParameters;
  * Labels are replaced by propagated POS labels
  */
 public class UnlabeledCKY implements Decoder {
-	private static final double PRUNE_THRESHOLD = 10;
-	
 	WordEnumeration wordEnum;
 	LabelEnumeration labels;
-	RuleEnumeration rules;
+	
+	private double pruneThreshold;
 	
 	UnlabeledFirstOrderFeatureHolder firstOrderFeatures;
+	
+	BinaryHeadPropagation propagation;
 	
 	double[][][] scores;
 	Span[][][] spans;
@@ -27,12 +28,13 @@ public class UnlabeledCKY implements Decoder {
 	boolean costAugmenting;
 	boolean[][] goldSpans;
 	
-	public UnlabeledCKY(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules) {
+	public UnlabeledCKY(WordEnumeration words, LabelEnumeration labels, double pruneThreshold, BinaryHeadPropagation prop) {
 		this.wordEnum = words;
 		this.labels = labels;
-		this.rules = rules;
+		this.pruneThreshold = pruneThreshold;
+		this.propagation = prop;
 		
-		firstOrderFeatures = new UnlabeledFirstOrderFeatureHolder(words, labels, rules);
+		firstOrderFeatures = new UnlabeledFirstOrderFeatureHolder(words, labels);
 	}
 	
 	double lastScore = 0;
@@ -75,7 +77,7 @@ public class UnlabeledCKY implements Decoder {
 					double leftMax = max[start][splitLocation];
 					double rightMax = max[splitLocation][end];
 					
-					if (leftMax + rightMax + PRUNE_THRESHOLD < max[start][end])
+					if (leftMax + rightMax + pruneThreshold < max[start][end])
 						continue;
 					
 					double[] leftScore = scores[start][splitLocation];
@@ -84,13 +86,14 @@ public class UnlabeledCKY implements Decoder {
 					for(boolean leftHead : new boolean[]{true, false}) {
 						for(int leftLabel = 0; leftLabel < labelsSize; leftLabel++) {
 							double leftChildScore = leftScore[leftLabel];
-							if(leftChildScore + PRUNE_THRESHOLD < leftMax)
+							if(leftChildScore + pruneThreshold < leftMax)
 								continue;
 							
 							for(int rightLabel = 0; rightLabel < labelsSize; rightLabel++) {
 								double rightChildScore = rightScore[rightLabel];
-								if(rightChildScore + PRUNE_THRESHOLD < rightMax
-										|| leftChildScore + rightChildScore + PRUNE_THRESHOLD < max[start][end])
+								//boolean leftHead = propagation.getPropagateLeft(leftLabel, rightLabel);
+								if(rightChildScore + pruneThreshold < rightMax
+										|| leftChildScore + rightChildScore + pruneThreshold < max[start][end])
 									continue;
 								
 								int label = leftHead ? leftLabel : rightLabel;
@@ -175,7 +178,7 @@ public class UnlabeledCKY implements Decoder {
 					double leftMax = max[start][splitLocation];
 					double rightMax = max[splitLocation][end];
 					
-					if (leftMax + rightMax + PRUNE_THRESHOLD < max[start][end])
+					if (leftMax + rightMax + pruneThreshold < max[start][end])
 						continue;
 					
 					double[] leftScore = scores[start][splitLocation];
@@ -184,13 +187,13 @@ public class UnlabeledCKY implements Decoder {
 					for(boolean leftHead : new boolean[]{true, false}) {
 						for(int leftLabel = 0; leftLabel < labelsSize; leftLabel++) {
 							double leftChildScore = leftScore[leftLabel];
-							if(leftChildScore + PRUNE_THRESHOLD < leftMax)
+							if(leftChildScore + pruneThreshold < leftMax)
 								continue;
 							
 							for(int rightLabel = 0; rightLabel < labelsSize; rightLabel++) {
 								double rightChildScore = rightScore[rightLabel];
-								if(rightChildScore + PRUNE_THRESHOLD < rightMax
-										|| leftChildScore + rightChildScore + PRUNE_THRESHOLD < max[start][end])
+								if(rightChildScore + pruneThreshold < rightMax
+										|| leftChildScore + rightChildScore + pruneThreshold < max[start][end])
 									continue;
 								
 								int label = leftHead ? leftLabel : rightLabel;
@@ -274,5 +277,15 @@ public class UnlabeledCKY implements Decoder {
 	public void setSecondOrder(boolean secondOrder) {
 		if(secondOrder)
 			throw new UnsupportedOperationException();
+	}
+	
+	public double increasePruneThreshold() {
+		pruneThreshold *= 1.5;
+		return pruneThreshold;
+	}
+	
+	public double decreasePruneThreshold() {
+		pruneThreshold -= .001;
+		return pruneThreshold;
 	}
 }

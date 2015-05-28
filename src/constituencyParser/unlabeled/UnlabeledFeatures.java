@@ -31,7 +31,9 @@ public class UnlabeledFeatures {
 		CO_PAR,
 		CO_LEN_PAR,
 		SECOND_ORDER_PROPERTY_BY_RULE,
-		LEXICAL_DEPENDENCY
+		LEXICAL_DEPENDENCY,
+		LEX_POS_DEPENDENCY,
+		POS_LEX_DEPENDENCY,
 	}
 	
 	public static long getCodeBase(FeatureType type) {
@@ -104,6 +106,18 @@ public class UnlabeledFeatures {
 	
 	public static long getLexicalDependencyFeature(long parentWord, long childWord) {
 		return getCodeBase(FeatureType.LEXICAL_DEPENDENCY) | (parentWord << 25L) | childWord;
+	}
+	
+	public static long getLexPosDependencyFeature(long parentWord, long childPOS) {
+		return getCodeBase(FeatureType.LEX_POS_DEPENDENCY) | (parentWord << 25L) | childPOS;
+	}
+	
+	public static long getPosLexDependencyFeature(long parentPOS, long childWord) {
+		return getCodeBase(FeatureType.POS_LEX_DEPENDENCY) | (parentPOS << 25L) | childWord;
+	}
+	
+	public static FeatureType getType(long code) {
+		return FeatureType.values()[(int)(code >> 52L)];
 	}
 	
 	/**
@@ -250,8 +264,7 @@ public class UnlabeledFeatures {
 		}
 		
 		if(doLexicalFeatures) {
-			int[] parents = SpanUtilities.getParents(spans);
-			features.addAll(getLexicalDependencyFeatures(spans, parents));
+			features.addAll(getLexicalDependencyFeatures(spans));
 		}
 		
 		if(doSecondOrder) {
@@ -261,16 +274,15 @@ public class UnlabeledFeatures {
 		return features;
 	}
 	
-	public static List<Long> getLexicalDependencyFeatures(List<Span> spans, int[] parents) {
+	public static List<Long> getLexicalDependencyFeatures(List<Span> spans) {
 		List<Long> features = new ArrayList<>();
 		for(int s = 0; s < spans.size(); s++) {
 			Span span = spans.get(s);
-			int parentIndex = parents[s];
-			if(parentIndex != -1) {
-				int parentWord = spans.get(parentIndex).getHeadWord();
-				int childWord = span.getHeadWord();
-				if(parentWord != childWord)
-					features.add(getLexicalDependencyFeature(parentWord, childWord));
+			Span nonHeadChild = span.getRule().getLeftPropagateHead() ? span.getRight() : span.getLeft();
+			if(span.getRule().getType() == Type.BINARY) {
+				features.add(getLexicalDependencyFeature(span.getHeadWord(), nonHeadChild.getHeadWord()));
+				features.add(getLexPosDependencyFeature(span.getHeadWord(), nonHeadChild.getRule().getLabel()));
+				features.add(getPosLexDependencyFeature(span.getRule().getLabel(), nonHeadChild.getHeadWord()));
 			}
 		}
 		return features;

@@ -1,7 +1,6 @@
 package constituencyParser.unlabeled;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import constituencyParser.LabelEnumeration;
@@ -11,7 +10,6 @@ import constituencyParser.SpanUtilities;
 import constituencyParser.SpannedWords;
 import constituencyParser.TreeNode;
 import constituencyParser.WordEnumeration;
-import constituencyParser.WordPOS;
 
 public class BinaryHeadPropagation {
 	static class BinaryHeadPropagationRule {
@@ -118,47 +116,14 @@ public class BinaryHeadPropagation {
 		return propagationRules[leftLabel][rightLabel];
 	}
 
-	public List<SpannedWords> getExamples(boolean training, WordEnumeration words, RuleEnumeration ruleEnum) {
-		HashMap<String, Integer> wordCounts = new HashMap<>();
-		HashMap<WordPOS, Integer> wordPOSCounts = new HashMap<>();
-		for(TreeNode tree : examples) {
-			List<String> ws = tree.getAllWords();
-			for(String word : ws) {
-				Integer count = wordCounts.get(word);
-				if(count == null)
-					wordCounts.put(word, 1);
-				else
-					wordCounts.put(word, count+1);
-			}
-			List<WordPOS> poss = tree.getWordsWithPOS();
-			for(WordPOS word : poss) {
-				Integer count = wordPOSCounts.get(word);
-				if(count == null)
-					wordPOSCounts.put(word, 1);
-				else
-					wordPOSCounts.put(word, count+1);
-			}
-			if(poss.size() != ws.size())
-				throw new RuntimeException();
-		}
+	public List<SpannedWords> getExamples(boolean training, WordEnumeration words) {
 		
-		if(training)
-			words.addTrainingWords(wordCounts, wordPOSCounts, labels);
 		
 		List<SpannedWords> loaded = new ArrayList<>();
 		for(TreeNode tree : examples) {
 			SpannedWords sw = tree.getSpans(words, labels);
 			SpanUtilities.connectChildren(sw.getSpans());
 			loaded.add(sw);
-		}
-		
-		if(training) {
-			for(BinaryHeadPropagationRule r : rules) {
-				boolean leftHead = r.leftHeadCounts > r.rightHeadCounts;
-				ruleEnum.addBinaryRule(Rule.getRule(leftHead ? r.leftPOS : r.rightPOS, r.leftPOS, r.rightPOS, labels, leftHead));
-			}
-		} else {
-			ruleEnum.countMissingRules(loaded);
 		}
 		
 		return loaded;
@@ -174,11 +139,9 @@ public class BinaryHeadPropagation {
 			tree.makeHeadPOSLabels();
 			tree.removeUnaries();
 			prop.examples.add(tree);
-			
-			prop.labels = labels;
-			labels.addAllLabels(tree.getAllLabels());
-			labels.addAllPOSLabels(tree.getAllPOSLabels());
 		}
+		
+		prop.labels = labels;
 		
 		int n = RuleEnumeration.NUMBER_LABELS;
 		prop.propagationRules = new boolean[n][n]; // defaults to false, propagate right if not in training data
@@ -189,5 +152,13 @@ public class BinaryHeadPropagation {
 		}
 
 		return prop;
+	}
+	
+	public static void addLabels(LabelEnumeration labels, List<TreeNode> trees) {
+		for(TreeNode tree : trees) {
+			List<String> l = tree.getAllPOSLabels();
+			labels.addAllLabels(l);
+			labels.addAllPOSLabels(l);
+		}
 	}
 }

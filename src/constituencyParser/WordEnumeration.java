@@ -247,4 +247,35 @@ public class WordEnumeration implements Serializable {
 		for(String suffix : suffixes)
 			getOrAddSuffix(suffix);
 	}
+	
+	/**
+	 * Should only be called for training data, not test data
+	 * @param wordEnum
+	 */
+	public static void loadWordsFromTrainingData(WordEnumeration wordEnum, LabelEnumeration labels, List<TreeNode> examples) {
+		HashMap<String, Integer> wordCounts = new HashMap<>();
+		HashMap<WordPOS, Integer> wordPOSCounts = new HashMap<>();
+		for(TreeNode tree : examples) {
+			List<String> ws = tree.getAllWords();
+			for(String word : ws) {
+				Integer count = wordCounts.get(word);
+				if(count == null)
+					wordCounts.put(word, 1);
+				else
+					wordCounts.put(word, count+1);
+			}
+			List<WordPOS> poss = tree.getWordsWithPOS();
+			for(WordPOS word : poss) {
+				Integer count = wordPOSCounts.get(word);
+				if(count == null)
+					wordPOSCounts.put(word, 1);
+				else
+					wordPOSCounts.put(word, count+1);
+			}
+			if(poss.size() != ws.size())
+				throw new RuntimeException();
+		}
+		
+		wordEnum.addTrainingWords(wordCounts, wordPOSCounts, labels);
+	}
 }

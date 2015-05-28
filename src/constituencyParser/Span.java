@@ -136,10 +136,18 @@ public class Span {
 		return right;
 	}
 	
+	/**
+	 * Set the head word with the word Id
+	 * @param word
+	 */
 	public void setHeadWord(int word) {
 		this.word = word;
 	}
 	
+	/**
+	 * Get the word id of the head word
+	 * @return
+	 */
 	public int getHeadWord() {
 		return word;
 	}

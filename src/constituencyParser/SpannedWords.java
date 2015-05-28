@@ -10,6 +10,8 @@ public class SpannedWords {
 	private List<Span> spans = new ArrayList<>();
 	private List<Word> words = new ArrayList<>();
 	
+	int headWordId = -1;
+	
 	public SpannedWords(List<Span> spans, List<Word> words) {
 		this.spans = spans;
 		this.words = words;
@@ -19,6 +21,7 @@ public class SpannedWords {
 	
 	public SpannedWords(Word word) {
 		words.add(word);
+		headWordId = word.getId();
 	}
 	
 	/**
@@ -30,7 +33,11 @@ public class SpannedWords {
 		words.addAll(child.words);
 		spans.addAll(child.spans);
 		
-		spans.add(new Span(0, label));
+		headWordId = child.headWordId;
+		
+		Span newSpan = new Span(0, label);
+		newSpan.setHeadWord(headWordId);
+		spans.add(newSpan);
 	}
 	
 	/**
@@ -43,7 +50,11 @@ public class SpannedWords {
 		words.addAll(child.words);
 		spans.addAll(child.spans);
 		
-		spans.add(new Span(0, words.size(), label, childLabel));
+		headWordId = child.headWordId;
+		
+		Span newSpan = new Span(0, words.size(), label, childLabel);
+		newSpan.setHeadWord(headWordId);
+		spans.add(newSpan);
 	}
 	
 	/**
@@ -65,7 +76,11 @@ public class SpannedWords {
 		}
 		spans.addAll(right.getSpans());
 		
-		spans.add(new Span(0, words.size(), shift, label, leftLabel, rightLabel, leftHead));
+		headWordId = leftHead ? left.headWordId : right.headWordId;
+		
+		Span newSpan = new Span(0, words.size(), shift, label, leftLabel, rightLabel, leftHead);
+		newSpan.setHeadWord(headWordId);
+		spans.add(newSpan);
 	}
 	
 	/**

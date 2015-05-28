@@ -13,9 +13,11 @@ public class TestOptions {
 	public boolean useRandGreedy = true;
 	public double percentOfData = 1;
 	public String dataFile = null;
+	public boolean lexical = true;
+	public double pruningCutoff = 1;
 	
 	public TestOptions(String[] args) {
-		OptionParser parser = new OptionParser("m:d:s:t:i:w:zp:f:");
+		OptionParser parser = new OptionParser("m:d:s:t:i:w:zp:f:h:e:");
 		OptionSet options = parser.parse(args);
 		
 		if(options.has("m")) {
@@ -48,6 +50,12 @@ public class TestOptions {
 		if(options.has("f")) {
 			dataFile = (String)options.valueOf("f");
 		}
+		if(options.has("h")) {
+			lexical = "t".equals(options.valueOf("h"));
+		}
+		if(options.has("e")) {
+			pruningCutoff = Double.parseDouble((String)options.valueOf("e"));
+		}
 	}
 	
 	public TestOptions(TrainOptions options, double percentOfData, int section) {
@@ -58,5 +66,7 @@ public class TestOptions {
 		this.secondOrder = options.secondOrder;
 		this.useRandGreedy = options.randGreedy;
 		this.section = section;
+		this.lexical = options.lexical;
+		this.pruningCutoff = options.pruningCutoff * 1.2;
 	}
 }

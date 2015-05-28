@@ -43,12 +43,17 @@ public class RunTraining {
 		System.out.println("load data... ");
 		
 		List<TreeNode> trees = PennTreebankReader.loadTreeNodesFromFiles(PennTreebankReader.getWSJFiles(options.dataFolder, 2, 22));
-		BinaryHeadPropagation prop = BinaryHeadPropagation.getBinaryHeadPropagation(trees, labels);
-		List<SpannedWords> examples = prop.getExamples(true, words, rules);
+		
+		// these two things will be done with all data instead of the subset because they are really fast, but help a lot
+		BinaryHeadPropagation.addLabels(labels, trees);
+		WordEnumeration.loadWordsFromTrainingData(words, labels, trees);
 		
 		if(options.percentOfData < 1) {
-			examples = new ArrayList<>(examples.subList(0, (int)(examples.size() * options.percentOfData)));
+			trees = new ArrayList<>(trees.subList(0, (int)(trees.size() * options.percentOfData)));
 		}
+		
+		BinaryHeadPropagation prop = BinaryHeadPropagation.getBinaryHeadPropagation(trees, labels);
+		List<SpannedWords> examples = prop.getExamples(true, words);
 		
 		System.out.println("build alphabet...");
 		if(options.noNegativeFeatures) {
@@ -66,9 +71,13 @@ public class RunTraining {
 		
 		Decoder decoder;
 		if(options.randGreedy)
-			decoder = new RandomizedGreedyDecoder(words, labels, rules, options.cores, prop);
-		else
-			decoder = new UnlabeledCKY(words, labels, rules);
+			decoder = new RandomizedGreedyDecoder(words, labels, options.cores, prop, options.pruningCutoff, options.lexical);
+		else {
+			if(options.lexical)
+				decoder = new LexicalizedUnlabeledCKY(words, labels, options.pruningCutoff);
+			else
+				decoder = new UnlabeledCKY(words, labels, options.pruningCutoff, prop);
+		}
 		
 		Train pa = new Train(words, labels, rules, decoder, params);
 		
