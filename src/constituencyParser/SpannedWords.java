@@ -54,7 +54,7 @@ public class SpannedWords {
 	 * @param leftLabel
 	 * @param rightLabel
 	 */
-	public SpannedWords(SpannedWords left, SpannedWords right, int label, int leftLabel, int rightLabel, boolean leftHead) {
+	public SpannedWords(SpannedWords left, SpannedWords right, int label, int leftLabel, int rightLabel) {
 		words.addAll(left.words);
 		words.addAll(right.words);
 		
@@ -65,7 +65,7 @@ public class SpannedWords {
 		}
 		spans.addAll(right.getSpans());
 		
-		spans.add(new Span(0, words.size(), shift, label, leftLabel, rightLabel, leftHead));
+		spans.add(new Span(0, words.size(), shift, label, leftLabel, rightLabel));
 	}
 	
 	/**

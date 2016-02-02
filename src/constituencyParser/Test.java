@@ -13,7 +13,6 @@ import java.util.concurrent.Future;
 
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import constituencyParser.Rule.Type;
 import constituencyParser.TreeNode.Bracket;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
@@ -101,10 +100,6 @@ public class Test {
 		int numberGold = 0;
 		int numberOutput = 0;
 		
-		int numberUnlabeledSpanCorrect = 0;
-		int numberGoldUnlabeledSpan = 0;
-		int numberOutputUnlabeledSpan = 0;
-		
 		PennTreebankWriter writer = new PennTreebankWriter("output.tst", words, labels, false);
 		int cnt = 0;
 		for(SpannedWords example : gold) {
@@ -135,24 +130,6 @@ public class Test {
 				}
 			}
 			
-			for(Span span : result) {
-				if(span.getRule().getType() != Type.BINARY)
-					continue;
-				
-				numberOutputUnlabeledSpan++;
-				for(Span goldSpan : example.getSpans()) {
-					if(goldSpan.getRule().getType() != Type.BINARY)
-						continue;
-					
-					if(span.getStart() == goldSpan.getStart() && span.getEnd() == goldSpan.getEnd())
-						numberUnlabeledSpanCorrect++;
-				}
-			}
-			for(Span goldSpan : example.getSpans()) {
-				if(goldSpan.getRule().getType() == Type.BINARY)
-					numberGoldUnlabeledSpan++;
-			}
-			
 			List<Long> goldFeatures = Features.getAllFeatures(example.getSpans(), example.getWords(), secondOrder, words, labels, rules);
 			double goldScore = 0;
 			for(Long code : goldFeatures) {
@@ -173,11 +150,6 @@ public class Test {
 
 		double score = 2*precision*recall/(precision+recall);
 		System.out.println("Development set score: " + score);
-		
-		precision = numberUnlabeledSpanCorrect / (double)numberOutputUnlabeledSpan;
-		recall = numberUnlabeledSpanCorrect / (double) numberGoldUnlabeledSpan;
-		score = 2*precision*recall/(precision+recall);
-		System.out.println("Unlabeled spans score: " + score);
 	}
 
 	/**

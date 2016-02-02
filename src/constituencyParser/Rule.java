@@ -11,12 +11,11 @@ public class Rule implements Serializable {
 		TERMINAL // of the form A->word
 	}
 	
-	public Rule(int p, int l, int r, boolean leftPropagate) {
+	public Rule(int p, int l, int r) {
 		label = p;
 		left = l;
 		right = r;
 		type = Type.BINARY;
-		this.leftPropagate = leftPropagate;
 	}
 	
 	public Rule(int label, int child) {
@@ -35,14 +34,12 @@ public class Rule implements Serializable {
 		this.label = other.label;
 		this.left = other.left;
 		this.right = other.right;
-		this.leftPropagate = other.leftPropagate;
 	}
 	
 	private volatile Type type;
 	private volatile int label;
 	private volatile int left;
 	private volatile int right;
-	private volatile boolean leftPropagate;
 	
 	public int getLabel() {
 		return label;
@@ -58,10 +55,6 @@ public class Rule implements Serializable {
 	
 	public Type getType() {
 		return type;
-	}
-	
-	public boolean getLeftPropagateHead() {
-		return leftPropagate;
 	}
 	
 	public Rule changeLabel(int label) {
@@ -108,7 +101,7 @@ public class Rule implements Serializable {
 		return new Rule(labelEnum.getId(parent), labelEnum.getId(child));
 	}
 	
-	public static Rule getRule(String parent, String left, String right, LabelEnumeration labelEnum, boolean leftPropagate) {
-		return new Rule(labelEnum.getId(parent), labelEnum.getId(left), labelEnum.getId(right), leftPropagate);
+	public static Rule getRule(String parent, String left, String right, LabelEnumeration labelEnum) {
+		return new Rule(labelEnum.getId(parent), labelEnum.getId(left), labelEnum.getId(right));
 	}
 }

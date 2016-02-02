@@ -26,7 +26,7 @@ public class Features {
 		SECOND_ORDER_RULE,
 		CO_PAR,
 		CO_LEN_PAR,
-		SECOND_ORDER_PROPERTY_BY_RULE
+		SECOND_ORDER_PROPERTY_BY_RULE,
 	}
 	
 	public static long getCodeBase(FeatureType type) {
@@ -226,10 +226,6 @@ public class Features {
 	}
 	
 	public static List<Long> getAllFeatures(List<Span> spans, List<Word> words, boolean doSecondOrder, WordEnumeration wordEnum, LabelEnumeration labels, RuleEnumeration rules) {
-		return getAllFeatures(spans, words, doSecondOrder, wordEnum, labels, rules, false);
-	}
-	
-	public static List<Long> getAllFeatures(List<Span> spans, List<Word> words, boolean doSecondOrder, WordEnumeration wordEnum, LabelEnumeration labels, RuleEnumeration rules, boolean doLexicalFeatures) {
 		List<Long> features = new ArrayList<>();
 		for(int j = 0; j < spans.size(); j++) {
 			Span s = spans.get(j);

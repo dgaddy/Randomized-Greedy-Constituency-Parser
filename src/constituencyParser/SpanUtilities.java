@@ -173,21 +173,4 @@ public class SpanUtilities {
 		}
 		return true;
 	}
-	
-	public static List<Integer> getPOS(int wordsLength, List<Span> spans) {
-		List<Integer> result = new ArrayList<>();
-		for(int i = 0; i < wordsLength; i++) {
-			result.add(-1);
-		}
-		for(Span s : spans) {
-			if(s.getRule().getType() == Type.TERMINAL) {
-				result.set(s.getStart(), s.getRule().getLabel());
-			}
-		}
-		for(int i = 0; i < wordsLength; i++) {
-			if(result.get(i) == -1)
-				throw new RuntimeException();
-		}
-		return result;
-	}
 }

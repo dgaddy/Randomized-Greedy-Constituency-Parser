@@ -22,8 +22,8 @@ public class GreedyChange {
 			this.parents = parents;
 		}
 		
-		public List<Span> spans;
-		public int[] parents;
+		List<Span> spans;
+		int[] parents;
 	}
 	
 	/**
