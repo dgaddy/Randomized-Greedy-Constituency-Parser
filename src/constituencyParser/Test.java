@@ -78,7 +78,7 @@ public class Test {
 			String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, 
 			boolean useRandGreedy, int section, String outputFolder, String runid) throws IOException {
 		Decoder decoder;
-		//DiscriminativeCKYDecoder CKYDecoder;
+		DiscriminativeCKYDecoder CKYDecoder;
 		
 		if(useRandGreedy) {
 			RandomizedGreedyDecoder rg = new RandomizedGreedyDecoder(words, labels, rules, threads);
@@ -87,7 +87,7 @@ public class Test {
 		}
 		else
 			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
-		//CKYDecoder = new DiscriminativeCKYDecoder(words, labels, rules);
+		CKYDecoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
 		List<SpannedWords> gold = PennTreebankReader.loadFromFiles(dataFolder, section, section + 1, words, labels, rules, false);
 		int number = (int)(gold.size() * fractionOfData);
@@ -104,13 +104,18 @@ public class Test {
 		//String goldFile = "./data/wsj." + section + ".txt";
 		
 		int cnt = 0;
+		int matchCKY = 0;
 		for(SpannedWords example : gold) {
 			cnt++;
 			if (cnt % 10 == 0)
 				System.out.print("  " + cnt);
 			
-			//List<Span> CKYPredicted = CKYDecoder.decode(example.getWords(), parameters);
-			//((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
+			double CKYPredictedScore = 0.0;
+			if (!secondOrder) {
+				List<Span> CKYPredicted = CKYDecoder.decode(example.getWords(), parameters);
+				((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
+				CKYPredictedScore = CKYDecoder.getLastScore();
+			}
 
 			List<Bracket> goldBrackets = TreeNode.makeTreeFromSpans(example.getSpans(), example.getWords(), words, labels).unbinarize().getAllBrackets();
 			
@@ -122,15 +127,22 @@ public class Test {
 				continue;
 			}
 			
+			if (!secondOrder && Math.abs(decoder.getLastScore() - CKYPredictedScore) < 1e-6) {
+				matchCKY++;
+			}
+			
 			writer.writeTree(new SpannedWords(result, example.getWords()));
 			writer_gold.writeTree(example);
 			
 			List<Bracket> resultBrackets = TreeNode.makeTreeFromSpans(result, example.getWords(), words, labels).unbinarize().getAllBrackets();
 			
+			int correct = 0;
 			for(Bracket b : resultBrackets) {
 				for(Bracket g : goldBrackets) {
 					if(b.equals(g)) {
 						numberCorrect++;
+						correct++;
+						break;
 					}
 				}
 			}
@@ -147,6 +159,12 @@ public class Test {
 
 			numberGold += goldBrackets.size();
 			numberOutput += resultBrackets.size();
+			
+			//writer.writer.flush();
+			//writer_gold.writer.flush();
+			//System.out.println(correct + " " + goldBrackets.size() + " " + resultBrackets.size());
+			//System.out.println(goldBrackets);
+			//System.out.println(resultBrackets);
 		}
 		System.out.println();
 		writer.close();
@@ -157,6 +175,7 @@ public class Test {
 
 		double score = 2*precision*recall/(precision+recall);
 		System.out.println("Development set score: " + score);
+		System.out.println("match cky: " + (matchCKY + 0.0) / gold.size());
 		
 		// run script
 		runEval(outputFolder + "output.gld." + runid, outputFolder + "output.tst." + runid);

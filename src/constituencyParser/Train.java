@@ -15,7 +15,7 @@ import constituencyParser.features.Features;
  * Trains a parser using Adagrad
  */
 public class Train {
-	//public DiscriminativeCKYDecoder CKYDecoder;
+	public DiscriminativeCKYDecoder CKYDecoder;
 	
 	Decoder decoder;
 	WordEnumeration wordEnum;
@@ -42,6 +42,7 @@ public class Train {
 		
 		//parameters.resetDropout(dropout);
 		System.out.println("Number of training examples: " + trainingExamples.size());
+		int matchCKY = 0;
 		while(index < trainingExamples.size()) {
 
 			TLongDoubleHashMap features = new TLongDoubleHashMap();
@@ -62,10 +63,13 @@ public class Train {
 				List<Word> words = sw.getWords();
 				
 				// CKY
-				//CKYDecoder.setCostAugmenting(costAugmenting, sw);
-				//List<Span> CKYPredicted = CKYDecoder.decode(words, parameters);
-				//((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
-				//double CKYPredictedScore = CKYDecoder.getLastScore();
+				double CKYPredictedScore = 0.0;
+				if (!doSecondOrder) {
+					CKYDecoder.setCostAugmenting(costAugmenting, sw);
+					List<Span> CKYPredicted = CKYDecoder.decode(words, parameters);
+					((RandomizedGreedyDecoder)decoder).ckySpan = CKYPredicted;
+					CKYPredictedScore = CKYDecoder.getLastScore();
+				}
 
 				decoder.setCostAugmenting(costAugmenting, sw);
 				decoder.setSecondOrder(doSecondOrder);
@@ -141,6 +145,9 @@ public class Train {
 					//SpanUtilities.print(CKYPredicted, labels);
 					//try { System.in.read(); } catch (Exception e) {e.printStackTrace();}
 					//SpanUtilities.debugSpan(predicted, labels, (RandomizedGreedyDecoder)decoder);
+					if (!doSecondOrder && Math.abs(CKYPredictedScore - decoder.getLastScore()) < 1e-6) {
+						matchCKY++;
+					}
 				}
 			}
 			
@@ -158,6 +165,7 @@ public class Train {
 		decoder.setCostAugmenting(false, null);
 		parameters.resetDropout(0);
 		System.out.println("Finished; Average loss: " + (totalLoss / (double)trainingExamples.size()));
+		System.out.println("match cky: " + (matchCKY + 0.0) / trainingExamples.size());
 	}
 	
 	@SuppressWarnings("unused")

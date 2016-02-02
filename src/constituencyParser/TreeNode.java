@@ -359,6 +359,31 @@ public class TreeNode {
 		}
 	}
 	
+	/**
+	 * convert all non-terminal labels to X
+	 */
+	public void convertToCoarseLabel() {
+		if (isWord)
+			return;
+		boolean isTerminal = children.size() == 1 && children.get(0).isWord;
+		if (!isTerminal) {
+			label = "LAB";
+			//if (label.charAt(0) == 'N')
+			//	label = "N";
+			//else if (label.charAt(0) == 'V')
+			//	label = "V";
+			//else if (label.charAt(0) == 'S')
+			//	label = "S";
+			//else 
+			//	label = "X";
+		}
+		else {
+			//label = "POS-" + label.substring(0, 1);
+		}
+		for (int i = 0; i < children.size(); ++i)
+			children.get(i).convertToCoarseLabel();
+	}
+	
 	public String toString() {
 		if(word != null)
 			return word;

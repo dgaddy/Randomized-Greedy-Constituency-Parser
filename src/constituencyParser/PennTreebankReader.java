@@ -200,6 +200,7 @@ public class PennTreebankReader implements Closeable {
 				tree.removeStackedUnaries();
 				tree.makeLabelsSimple();
 				tree = tree.makeBinary();
+				tree.convertToCoarseLabel();
 				trees.add(tree);
 				labels.addAllLabels(tree.getAllLabels());
 				labels.addTopLevelLabel(tree.getLabel());

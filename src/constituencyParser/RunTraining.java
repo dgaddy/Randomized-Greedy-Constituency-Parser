@@ -158,7 +158,7 @@ public class RunTraining {
 		}
 		System.out.println(" Done.");
 		
-		//DiscriminativeCKYDecoder CKYDecoder = new DiscriminativeCKYDecoder(words, labels, rules);
+		DiscriminativeCKYDecoder CKYDecoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
 		Decoder decoder;
 		if(useRandGreedy)
@@ -167,7 +167,7 @@ public class RunTraining {
 			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
 		
 		Train pa = new Train(words, labels, rules, decoder, params);
-		//pa.CKYDecoder = CKYDecoder;
+		pa.CKYDecoder = CKYDecoder;
 		
 		params.resetUpdateTimes();
 		
@@ -179,7 +179,7 @@ public class RunTraining {
 			if(mira)
 				//params.averageParameters((i + 1) * examples.size());
 				params.averageParameters();
-			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, 1.0, cores, useRandGreedy, 23, outputFolder, runid);
+			Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, 0.1, cores, useRandGreedy, 23, outputFolder, runid);
 			//Test.test(words, labels, rules, params, dataFolder, secondOrder, 100, .3, cores, useRandGreedy, 0);
 			
 			SaveObject so = new SaveObject(words, labels, rules, params);
