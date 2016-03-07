@@ -22,7 +22,7 @@ import constituencyParser.features.Features;
  */
 public class Test {
 	public static void main(String[] args) throws Exception {
-		OptionParser parser = new OptionParser("m:d:s:t:i:w:zp:f:");
+		OptionParser parser = new OptionParser("m:d:s:t:i:w:zp:f:l:");
 		OptionSet options = parser.parse(args);
 		
 		String modelFile = "";
@@ -34,6 +34,7 @@ public class Test {
 		boolean useRandGreedy = true;
 		double percentOfData = 1;
 		String dataFile = null;
+		int maxLength = -1;
 		
 		if(options.has("m")) {
 			modelFile = (String)options.valueOf("m");
@@ -65,6 +66,9 @@ public class Test {
 		if(options.has("f")) {
 			dataFile = (String)options.valueOf("f");
 		}
+		if(options.has("l")) {
+			maxLength = Integer.parseInt((String)options.valueOf("l"));
+		}
 
 		SaveObject savedModel = SaveObject.loadSaveObject(modelFile);
 
@@ -73,10 +77,10 @@ public class Test {
 		RuleEnumeration rules = savedModel.getRules();
 		FeatureParameters parameters = savedModel.getParameters();
 
-		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, percentOfData, numberOfThreads, useRandGreedy, section, dataFile);
+		test(words, labels, rules, parameters, dataDir, secondOrder, greedyIterations, percentOfData, numberOfThreads, useRandGreedy, section, dataFile, maxLength);
 	}
 
-	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, boolean useRandGreedy, int section, String dataFile) throws IOException {
+	public static void test(WordEnumeration words, LabelEnumeration labels, RuleEnumeration rules, FeatureParameters parameters, String dataFolder, boolean secondOrder, int randomizedGreedyIterations, double fractionOfData, int threads, boolean useRandGreedy, int section, String dataFile, int maxLength) throws IOException {
 		Decoder decoder;
 		if(useRandGreedy) {
 			RandomizedGreedyDecoder rg = new RandomizedGreedyDecoder(words, labels, rules, threads);
@@ -94,13 +98,24 @@ public class Test {
 		int number = (int)(gold.size() * fractionOfData);
 		gold = gold.subList(0, number);
 		
+		if (maxLength > 0) {
+			ArrayList<SpannedWords> shortExamples = new ArrayList<>();
+			for (SpannedWords example : gold) {
+				if (example.getWords().size() <= maxLength) {
+					shortExamples.add(example);
+				}
+			}
+			gold = shortExamples;
+		}
+		
 		parameters.resetDropout(0); // this makes sure any dropout from training isn't used when we are testing
 
 		int numberCorrect = 0;
 		int numberGold = 0;
 		int numberOutput = 0;
 		
-		PennTreebankWriter writer = new PennTreebankWriter("output.tst", words, labels, false);
+		PennTreebankWriter writer = new PennTreebankWriter("output.tst", words, labels, true);
+		PennTreebankWriter goldWriter = new PennTreebankWriter("gold.tst", words, labels, true);
 		int cnt = 0;
 		for(SpannedWords example : gold) {
 			cnt++;
@@ -119,6 +134,7 @@ public class Test {
 			}
 			
 			writer.writeTree(new SpannedWords(result, example.getWords()));
+			goldWriter.writeTree(example);
 			
 			List<Bracket> resultBrackets = TreeNode.makeTreeFromSpans(result, example.getWords(), words, labels).unbinarize().getAllBrackets();
 			
@@ -145,6 +161,7 @@ public class Test {
 		}
 		System.out.println();
 		writer.close();
+		goldWriter.close();
 		double precision = numberCorrect / (double)numberOutput;
 		double recall = numberCorrect / (double)numberGold;
 

@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import constituencyParser.Rule.Type;
 
@@ -76,6 +77,10 @@ public class TreeNode {
 	
 	public boolean isWord() {
 		return isWord;
+	}
+	
+	public boolean isPreterminal() {
+		return children.size() == 1 && children.get(0).isWord;
 	}
 	
 	public String getWord() {
@@ -352,6 +357,60 @@ public class TreeNode {
 				grandChild.parent = null;
 				children = new ArrayList<>();
 				addChild(grandChild);
+			}
+		}
+	}
+	
+	public String toLatexString() {
+		if (word != null)
+			return LatexConvert.replaceLatexSpecial(word);
+		else {
+			StringBuilder builder = new StringBuilder();
+			builder.append("[.");
+			builder.append(LatexConvert.replaceLatexSpecial(label));
+			for(TreeNode child : children) {
+				builder.append(' ');
+				builder.append(child.toLatexString());
+			}
+			builder.append(" ] ");
+			return builder.toString();
+		}
+	}
+	
+	public String getAllNodeLatexStrings(Set<String> set) {
+		String curr = toLatexString();
+		set.add(curr);
+		for (TreeNode child : children) {
+			child.getAllNodeLatexStrings(set);
+		}
+		return curr;
+	}
+	
+	public String toCollapsedLatexString(Set<String> otherTreeLatexStrings) {
+		if (word != null)
+			return LatexConvert.replaceLatexSpecial(word);
+		else {
+			String latexString = toLatexString();
+			if (!isPreterminal() && otherTreeLatexStrings.contains(latexString)) {
+				StringBuilder builder = new StringBuilder();
+				builder.append("\\qroof{");
+				/*for (String word : getAllWords()) {
+					builder.append(LatexConvert.replaceLatexSpecial(word));
+					builder.append(' ');
+				}*/
+				builder.append("}.");
+				builder.append(LatexConvert.replaceLatexSpecial(label));
+				return builder.toString();
+			} else {
+				StringBuilder builder = new StringBuilder();
+				builder.append("[.");
+				builder.append(LatexConvert.replaceLatexSpecial(label));
+				for(TreeNode child : children) {
+					builder.append(' ');
+					builder.append(child.toCollapsedLatexString(otherTreeLatexStrings));
+				}
+				builder.append(" ] ");
+				return builder.toString();
 			}
 		}
 	}

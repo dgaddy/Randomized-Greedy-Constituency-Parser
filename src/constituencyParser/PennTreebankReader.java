@@ -147,7 +147,11 @@ public class PennTreebankReader implements Closeable {
         }
         break;
       case 4:
-    	  if(!s.equals("("))
+    	  if (s.equals("ROOT") || s.equals("TOP")) { // some treebanks use ROOT at top level
+    		  state = 4;
+    		  break;
+    	  }
+    	  if (!s.equals("("))
     		  throw new IllegalArgumentException("expecting [(]");
     	  state = 1;
     	  break;
