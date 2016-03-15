@@ -16,7 +16,6 @@ import joptsimple.OptionSet;
 import constituencyParser.TreeNode.Bracket;
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
-import constituencyParser.features.FirstOrderFeatureHolder;
 
 /**
  * Has methods for testing parsers in comparison to development / test data
@@ -86,7 +85,6 @@ public class Test {
 		}
 		else
 			decoder = new DiscriminativeCKYDecoder(words, labels, rules);
-		NBestCKY nBest = new NBestCKY(words, labels, rules);
 		
 		List<SpannedWords> gold;
 		if(dataFile == null)
@@ -101,9 +99,6 @@ public class Test {
 		int numberCorrect = 0;
 		int numberGold = 0;
 		int numberOutput = 0;
-		
-		int fullyCorrectNoLabel = 0;
-		int nBestSpansCorrect = 0;
 		
 		PennTreebankWriter writer = new PennTreebankWriter("output.tst", words, labels, false);
 		int cnt = 0;
@@ -123,72 +118,16 @@ public class Test {
 				continue;
 			}
 			
-			List<List<Span>> best = nBest.decode(example.getWords(), parameters);
-			int bestNBest = 0;
-			for(List<Span> spans : best) {
-				List<Bracket> brackets = TreeNode.makeTreeFromSpans(spans, example.getWords(), words, labels).unbinarize().getAllBrackets();
-				System.out.println(brackets);
-				
-				int correctNoLabel = 0;
-				for(Bracket b : brackets) {
-					for(Bracket g : goldBrackets) {
-						if(b.start == g.start && b.end == g.end && b.unary == g.unary) {
-							correctNoLabel++;
-						}
-					}
-				}
-				if(correctNoLabel > bestNBest)
-					bestNBest = correctNoLabel;
-				if(correctNoLabel == brackets.size() && correctNoLabel == goldBrackets.size()) {
-					System.out.println("n best");
-					break;
-				}
-			}
-			nBestSpansCorrect += bestNBest;
-			FirstOrderFeatureHolder fh = new FirstOrderFeatureHolder(words, labels, rules);
-			fh.fillScoreArrays(example.getWords(), parameters);
-			DiscriminativeCKYSampler sampler = new DiscriminativeCKYSampler(words, labels, rules, fh);
-			sampler.calculateProbabilities(example.getWords());
-			for(int i = 0; i < 10; i++) {
-				List<Span> s = sampler.sample();
-				List<Bracket> sampled = TreeNode.makeTreeFromSpans(s, example.getWords(), words, labels).unbinarize().getAllBrackets();
-				
-				int correctNoLabel = 0;
-				for(Bracket b : sampled) {
-					for(Bracket g : goldBrackets) {
-						if(b.start == g.start && b.end == g.end && b.unary == g.unary) {
-							correctNoLabel++;
-						}
-					}
-				}
-				if(correctNoLabel == sampled.size() && correctNoLabel == goldBrackets.size()) {
-					System.out.println("sampled");
-					break;
-				}
-			}
-			
 			writer.writeTree(new SpannedWords(result, example.getWords()));
 			
 			List<Bracket> resultBrackets = TreeNode.makeTreeFromSpans(result, example.getWords(), words, labels).unbinarize().getAllBrackets();
 			
-			int correctNoLabel = 0;
 			for(Bracket b : resultBrackets) {
 				for(Bracket g : goldBrackets) {
 					if(b.equals(g)) {
 						numberCorrect++;
 					}
-					if(b.start == g.start && b.end == g.end && b.unary == g.unary) {
-						correctNoLabel++;
-					}
 				}
-			}
-			
-			if(correctNoLabel == goldBrackets.size() && correctNoLabel == resultBrackets.size()) {
-				fullyCorrectNoLabel++;
-				System.out.println("fully correct");
-			} else {
-				System.out.println("not quite: " + correctNoLabel + " " + goldBrackets.size());
-				
 			}
 			
 			List<Long> goldFeatures = Features.getAllFeatures(example.getSpans(), example.getWords(), secondOrder, words, labels, rules);
@@ -211,8 +150,6 @@ public class Test {
 
 		double score = 2*precision*recall/(precision+recall);
 		System.out.println("Development set score: " + score);
-		System.out.println("Fully correct no labels: " + fullyCorrectNoLabel + " of " + gold.size());
-		System.out.println("N Best found " + nBestSpansCorrect + " correct labels");
 	}
 
 	/**
