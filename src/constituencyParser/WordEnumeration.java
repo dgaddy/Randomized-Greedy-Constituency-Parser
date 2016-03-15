@@ -11,8 +11,6 @@ import java.util.Map.Entry;
 public class WordEnumeration implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
-	static final String NUMBER_REGEX = "[0-9]+|[0-9]+[0-9,]*\\.[0-9]+|[0-9]+[0-9,]+";
-	
 	boolean useSuffixes;
 	int rareWordCutoff;
 	
@@ -26,8 +24,6 @@ public class WordEnumeration implements Serializable {
 	
 	List<String> idToSuffix = new ArrayList<>();
 	HashMap<String, Integer> suffixToId = new HashMap<>();
-	
-	List<List<Integer>> partsOfSpeech = new ArrayList<>();
 	
 	public WordEnumeration(boolean useSuffixes, int rareWordCutoff) {
 		this.useSuffixes = useSuffixes;
@@ -49,15 +45,13 @@ public class WordEnumeration implements Serializable {
 		
 		idToSuffix = new ArrayList<>(other.idToSuffix);
 		suffixToId = new HashMap<>(other.suffixToId);
-		
-		partsOfSpeech = new ArrayList<>(other.partsOfSpeech);
 	}
 	
 	/**
 	 * 
 	 * @param words A map from all words in training set to number of times they occur
 	 */
-	public void addTrainingWords(Map<String, Integer> wordCounts, Map<WordPOS, Integer> labelCounts, LabelEnumeration labels) {
+	public void addTrainingWords(Map<String, Integer> wordCounts) {
 		if(trainingSuffixCounts != null) {
 			System.out.println("Warning: not adding words to existing model to prevent repeats, should only call addTrainingWords once");
 		}
@@ -82,30 +76,12 @@ public class WordEnumeration implements Serializable {
 					getOrAddWordId(entry.getKey()); // this should be the only place we add full words; the only other things that can get added are suffixes and UNK
 				}
 			}
-			for(Entry<WordPOS, Integer> entry : labelCounts.entrySet()) {
-				String word = entry.getKey().word;
-				int pos = labels.getId(entry.getKey().POS);
-				int id = getWord(word).getId();
-				List<Integer> poss = partsOfSpeech.get(id);
-				if(!poss.contains(pos))
-					poss.add(pos);
-			}
-			for(int i = 0; i < partsOfSpeech.size(); i++) { // TODO what happens when rare word cutoff is 0 or when using suffixes
-				List<Integer> pos = partsOfSpeech.get(i);
-				
-				if(pos.size() == 0)
-					throw new RuntimeException();
-			}
 		}
-	}
-	
-	public List<Integer> getPartsOfSpeech(Word word) {
-		return partsOfSpeech.get(word.getId());
 	}
 	
 	public Word getWord(String word) {
 		int id = getOrAddWordId("-UNK-");
-		if(word.matches(NUMBER_REGEX))
+		if(word.matches("[0-9]+|[0-9]+[0-9,]*\\.[0-9]+|[0-9]+[0-9,]+"))
 			id = getOrAddWordId("-NUM-");
 		else if(wordToId.containsKey(word))
 			id = wordToId.get(word);
@@ -163,15 +139,12 @@ public class WordEnumeration implements Serializable {
 	}
 	
 	private int getOrAddWordId(String word) {
-		if(word.matches(NUMBER_REGEX))
-			return getOrAddWordId("-NUM-");
 		if(wordToId.containsKey(word))
 			return wordToId.get(word);
 		else {
 			int id = idToWord.size();
 			wordToId.put(word, id);
 			idToWord.add(word);
-			partsOfSpeech.add(new ArrayList<>());
 			return id;
 		}
 	}
@@ -246,36 +219,5 @@ public class WordEnumeration implements Serializable {
 		Collections.shuffle(suffixes);
 		for(String suffix : suffixes)
 			getOrAddSuffix(suffix);
-	}
-	
-	/**
-	 * Should only be called for training data, not test data
-	 * @param wordEnum
-	 */
-	public static void loadWordsFromTrainingData(WordEnumeration wordEnum, LabelEnumeration labels, List<TreeNode> examples) {
-		HashMap<String, Integer> wordCounts = new HashMap<>();
-		HashMap<WordPOS, Integer> wordPOSCounts = new HashMap<>();
-		for(TreeNode tree : examples) {
-			List<String> ws = tree.getAllWords();
-			for(String word : ws) {
-				Integer count = wordCounts.get(word);
-				if(count == null)
-					wordCounts.put(word, 1);
-				else
-					wordCounts.put(word, count+1);
-			}
-			List<WordPOS> poss = tree.getWordsWithPOS();
-			for(WordPOS word : poss) {
-				Integer count = wordPOSCounts.get(word);
-				if(count == null)
-					wordPOSCounts.put(word, 1);
-				else
-					wordPOSCounts.put(word, count+1);
-			}
-			if(poss.size() != ws.size())
-				throw new RuntimeException();
-		}
-		
-		wordEnum.addTrainingWords(wordCounts, wordPOSCounts, labels);
 	}
 }

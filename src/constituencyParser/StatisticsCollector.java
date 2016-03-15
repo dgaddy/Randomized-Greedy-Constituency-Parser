@@ -7,18 +7,8 @@ import java.util.Map.Entry;
 
 import constituencyParser.features.FeatureParameters;
 import constituencyParser.features.Features;
-import constituencyParser.unlabeled.BinaryHeadPropagation;
 
 public class StatisticsCollector {
-	
-	public static void collectHeadStats(String dataDir) throws IOException {
-		List<TreeNode> trees = PennTreebankReader.loadTreeNodesFromFiles(PennTreebankReader.getWSJFiles(dataDir, 2, 22));
-		BinaryHeadPropagation prop = BinaryHeadPropagation.getBinaryHeadPropagation(trees);
-		
-		System.out.println();
-		prop.printResults();
-	}
-	
 	public static void printFeatureStats(List<SpannedWords> examples, WordEnumeration words, RuleEnumeration rules, LabelEnumeration labels) {
 		HashMap<Long, Integer> featureCounts = new HashMap<>();
 		
@@ -73,8 +63,6 @@ public class StatisticsCollector {
 
 		String modelFile = args[0];
 		String dataDir = args[1];
-		
-		collectHeadStats(dataDir);
 		
 		{
 			System.out.println("From data shuffled numberings:");

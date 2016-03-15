@@ -12,8 +12,6 @@ public class Span {
 	
 	private Rule rule;
 	
-	private int word;
-	
 	// binary only, not defined for unary features
 	private int split;
 	
@@ -77,8 +75,8 @@ public class Span {
 	 * @param leftLabel
 	 * @param rightLabel
 	 */
-	public Span(int start, int end, int split, int label, int leftLabel, int rightLabel, boolean leftPropagate) {
-		this.rule = new Rule(label, leftLabel, rightLabel, leftPropagate);
+	public Span(int start, int end, int split, int label, int leftLabel, int rightLabel) {
+		this.rule = new Rule(label, leftLabel, rightLabel);
 		this.start = start;
 		this.end = end;
 		this.split = split;
@@ -136,22 +134,6 @@ public class Span {
 		return right;
 	}
 	
-	/**
-	 * Set the head word with the word Id
-	 * @param word
-	 */
-	public void setHeadWord(int word) {
-		this.word = word;
-	}
-	
-	/**
-	 * Get the word id of the head word
-	 * @return
-	 */
-	public int getHeadWord() {
-		return word;
-	}
-	
 	public Span removeRange(int start, int end) {
 		int newStart = this.start;
 		int newEnd = this.end;
@@ -194,7 +176,7 @@ public class Span {
 			newRule = new Rule(label);
 			break;
 		case BINARY:
-			newRule = new Rule(label, this.rule.getLeft(), this.rule.getRight(), this.rule.getLeftPropagateHead());
+			newRule = new Rule(label, this.rule.getLeft(), this.rule.getRight());
 			break;
 		default:
 			throw new RuntimeException();
@@ -216,9 +198,9 @@ public class Span {
 			break;
 		case BINARY:
 			if(left)
-				newRule = new Rule(this.rule.getLabel(), label, this.rule.getRight(), this.rule.getLeftPropagateHead());
+				newRule = new Rule(this.rule.getLabel(), label, this.rule.getRight());
 			else
-				newRule = new Rule(this.rule.getLabel(), this.rule.getLeft(), label, this.rule.getLeftPropagateHead());
+				newRule = new Rule(this.rule.getLabel(), this.rule.getLeft(), label);
 			break;
 		default:
 			throw new RuntimeException();
@@ -242,14 +224,6 @@ public class Span {
 			return equal;
 		}
 		return false;
-	}
-	
-	public boolean equalsWithChildren(Span other) {
-		if(!this.equals(other))
-			return false;
-		boolean leftOk = left == null ? other.left == null : left.equalsWithChildren(other.left);
-		boolean rightOk = right == null ? other.right == null : right.equalsWithChildren(other.right);
-		return leftOk && rightOk;
 	}
 	
 	public int hashCode() {

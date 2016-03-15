@@ -19,7 +19,7 @@ public class RuleEnumeration implements Serializable {
 	private List<Rule> unaryRules = new ArrayList<>();
 	int[][] unaryIds;
 	
-	public static final int NUMBER_LABELS = 150;
+	static final int NUMBER_LABELS = 150;
 	
 	public RuleEnumeration() {
 		 binaryIds = new int[NUMBER_LABELS][NUMBER_LABELS][NUMBER_LABELS];
@@ -48,7 +48,7 @@ public class RuleEnumeration implements Serializable {
 				 unaryIds[i][j] = other.unaryIds[i][j];
 	}
 	
-	public void addBinaryRule(Rule rule) {
+	private void addBinaryRule(Rule rule) {
 		int label = rule.getLabel(), left = rule.getLeft(), right = rule.getRight();
 		if(binaryIds[label][left][right] == -1) {
 			int id = binaryRules.size();
@@ -57,7 +57,7 @@ public class RuleEnumeration implements Serializable {
 		}
 	}
 	
-	public void addUnaryRule(Rule rule) {
+	private void addUnaryRule(Rule rule) {
 		int label = rule.getLabel(), left = rule.getLeft();
 		if(unaryIds[label][left] == -1) {
 			int id = unaryRules.size();

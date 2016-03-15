@@ -17,6 +17,4 @@ public interface Decoder {
 	public void setCostAugmenting(boolean costAugmenting, SpannedWords gold);
 	public void setSecondOrder(boolean secondOrder);
 	public double getLastScore();
-	public double increasePruneThreshold();
-	public double decreasePruneThreshold();
 }
